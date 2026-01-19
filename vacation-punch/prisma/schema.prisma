@@ -1,0 +1,191 @@
+generator client {
+  provider = "prisma-client-js"
+  engineType = "binary"
+}
+
+datasource db {
+  provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model Company {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  users     User[]
+}
+
+model User {
+  id          String   @id @default(uuid())
+  authUserId  String   @unique // Supabase auth user id
+  email       String   @unique
+  name        String?
+  role        Role     @default(EMPLOYEE)
+
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+
+  createdAt   DateTime @default(now())
+
+  // Core features
+  vacationRequests VacationRequest[]
+  timeOffs         TimeOff[]
+  shifts           Shift[]
+  punchEvents      PunchEvent[]
+
+  @@index([companyId])
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  EMPLOYEE
+}
+
+//
+// VACATION REQUEST FLOW (workflow)
+//
+model VacationRequest {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+
+  startDate DateTime
+  endDate   DateTime
+
+  status    VacationStatus @default(PENDING)
+  reason    String?
+
+  // When approved, we create exactly one TimeOff linked to this request
+  timeOff   TimeOff?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([startDate, endDate])
+}
+
+enum VacationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+//
+// TIME OFF (used by scheduling + punch rules)
+// Created when a request is approved, but can also be created by admins directly.
+//
+model TimeOff {
+  id         String @id @default(uuid())
+  userId     String
+  user       User   @relation(fields: [userId], references: [id])
+
+  startDate  DateTime
+  endDate    DateTime
+  type       TimeOffType @default(VACATION)
+
+  // Link back to the original request (optional, but if present, unique)
+  requestId  String? @unique
+  request    VacationRequest? @relation(fields: [requestId], references: [id])
+
+  createdAt  DateTime @default(now())
+
+  @@index([userId, startDate])
+  @@index([startDate, endDate])
+}
+
+enum TimeOffType {
+  VACATION
+  SICK
+  UNPAID
+  OTHER
+}
+
+//
+// SCHEDULE (planned work)
+//
+model Shift {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+
+  startTime  DateTime
+  endTime    DateTime
+  status     ShiftStatus @default(PLANNED)
+
+  note       String?
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  punchEvents PunchEvent[]
+
+  @@index([userId, startTime])
+  @@index([startTime, endTime])
+}
+
+enum ShiftStatus {
+  PLANNED
+  ON_LEAVE
+  COMPLETED
+  CANCELED
+}
+
+//
+// PUNCHES (actual work)
+// Event-based punches: IN/OUT/BREAK_START/BREAK_END
+//
+model PunchEvent {
+  id        String   @id @default(uuid())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+
+  // Optional link to a shift (you can match later if needed)
+  shiftId   String?
+  shift     Shift?   @relation(fields: [shiftId], references: [id])
+
+  type      PunchType
+  at        DateTime
+
+  source    PunchSource @default(MOBILE)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, at])
+  @@index([shiftId])
+}
+
+enum PunchType {
+  IN
+  OUT
+  BREAK_START
+  BREAK_END
+}
+
+enum PunchSource {
+  MOBILE
+  WEB
+  ADMIN
+}
+
+//
+// AUDIT LOG (who did what)
+//
+model AuditLog {
+  id        String   @id @default(uuid())
+
+  companyId String?
+  actorId   String?
+  action    String
+  target    String
+
+  meta      Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId, createdAt])
+  @@index([actorId, createdAt])
+}
