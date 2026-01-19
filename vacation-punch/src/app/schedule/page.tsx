@@ -57,8 +57,8 @@ export default async function SchedulePage({
 
   const users = await prisma.user.findMany({
     where: { companyId: me.companyId },
-    orderBy: [{ department: "asc" }, { name: "asc" }, { email: "asc" }],
-    select: { id: true, name: true, email: true, department: true },
+    orderBy: [{ name: "asc" }, { email: "asc" }],
+    select: { id: true, name: true, email: true },
   });
 
   // Overlap query (correct)
@@ -90,98 +90,89 @@ const shifts = await prisma.shift.findMany({
     maximumFractionDigits: 1,
   });
 
-  function renderSection(title: string, dept: "CASH_LAB" | "FLOOR") {
-    const sectionUsers = users.filter((u) => u.department === dept);
+function renderAllUsers() {
+  return (
+    <section className="section">
+      <div className="sectionTop">
+        <h2 className="sectionTitle">Horaire</h2>
+        <div className="meta">Semaine du {weekStart.toLocaleDateString("fr-CA")}</div>
+      </div>
 
-    return (
-      <section className="section">
-        <div className="sectionTop">
-          <h2 className="sectionTitle">{title}</h2>
-          <div className="meta">
-            Semaine du {weekStart.toLocaleDateString("fr-CA")}
-          </div>
-        </div>
+      {users.length === 0 ? (
+        <div className="empty">Aucun employé.</div>
+      ) : (
+        <div className="tableWrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th className="th nameCell stickyLeft">Employé</th>
+                {days.map((d, i) => (
+                  <th key={ymdLocal(d)} className="th">
+                    {DAY_LABELS[i]}
+                    <br />
+                    <span className="muted">{d.toLocaleDateString("fr-CA")}</span>
+                  </th>
+                ))}
+                <th className="th">Total</th>
+              </tr>
+            </thead>
 
-        {sectionUsers.length === 0 ? (
-          <div className="empty">Aucun employé dans cette section.</div>
-        ) : (
-          <div className="tableWrap">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th className="th nameCell stickyLeft">Employé</th>
-                  {days.map((d, i) => (
-                    <th key={ymdLocal(d)} className="th">
-                      {DAY_LABELS[i]}
-                      <br />
-                      <span className="muted">
-                        {d.toLocaleDateString("fr-CA")}
-                      </span>
-                    </th>
-                  ))}
-                  <th className="th">Total</th>
-                </tr>
-              </thead>
+            <tbody>
+              {users.map((u) => {
+                let totalMinutes = 0;
 
-              <tbody>
-                {sectionUsers.map((u) => {
-                  let totalMinutes = 0;
+                const cells = days.map((d) => {
+                  const key = `${u.id}:${ymdLocal(d)}`;
+                  const list = byUserDay.get(key) ?? [];
 
-                  const cells = days.map((d) => {
-                    const key = `${u.id}:${ymdLocal(d)}`;
-                    const list = byUserDay.get(key) ?? [];
-
-                    for (const sh of list) {
-                      // clamp duration
-                      const mins = Math.max(
-                        0,
-                        Math.floor(
-                          (+new Date(sh.endTime) - +new Date(sh.startTime)) / 60000
-                        )
-                      );
-                      totalMinutes += mins;
-                    }
-
-                    return (
-                      <td key={key} className="td cell">
-                        {list.length === 0 ? (
-                          <span className="muted">—</span>
-                        ) : (
-                          list.map((sh, idx) => (
-                            <div key={idx} className="shiftPill" title={sh.note ?? ""}>
-                              <span>{hmLocal(new Date(sh.startTime))}</span>
-                              <span>–</span>
-                              <span>{hmLocal(new Date(sh.endTime))}</span>
-                              {sh.note ? <span className="noteDot">•</span> : null}
-                            </div>
-                          ))
-                        )}
-                      </td>
+                  for (const sh of list) {
+                    totalMinutes += Math.max(
+                      0,
+                      Math.floor((+new Date(sh.endTime) - +new Date(sh.startTime)) / 60000)
                     );
-                  });
-
-                  const totalHours = totalMinutes / 60;
+                  }
 
                   return (
-                    <tr key={u.id}>
-                      <td className="td nameCell stickyLeft">
-                        {u.name?.trim() ? u.name : u.email}
-                        <div className="muted">{u.email}</div>
-                      </td>
-                      {cells}
-                      <td className="td">
-                        <b>{hoursFmt.format(totalHours)} h</b>
-                      </td>
-                    </tr>
+                    <td key={key} className="td cell">
+                      {list.length === 0 ? (
+                        <span className="muted">—</span>
+                      ) : (
+                        list.map((sh, idx) => (
+                          <div key={idx} className="shiftPill" title={sh.note ?? ""}>
+                            <span>{hmLocal(new Date(sh.startTime))}</span>
+                            <span>–</span>
+                            <span>{hmLocal(new Date(sh.endTime))}</span>
+                            {sh.note ? <span className="noteDot">•</span> : null}
+                          </div>
+                        ))
+                      )}
+                    </td>
                   );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-    );
-  }
+                });
+
+                const totalHours = totalMinutes / 60;
+
+                return (
+                  <tr key={u.id}>
+                    <td className="td nameCell stickyLeft">
+                      {u.name?.trim() ? u.name : u.email}
+                      <div className="muted">{u.email}</div>
+                    </td>
+                    {cells}
+                    <td className="td">
+                      <b>{hoursFmt.format(totalHours)} h</b>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
 
   const prevWeek = ymdLocal(addDays(weekStart, -7));
   const nextWeek = ymdLocal(addDays(weekStart, 7));
@@ -208,8 +199,8 @@ const shifts = await prisma.shift.findMany({
           </div>
         </div>
 
-        {renderSection("Caisse / Lab", "CASH_LAB")}
-        {renderSection("Plancher", "FLOOR")}
+        {renderAllUsers()}
+
       </div>
     </main>
   );
