@@ -16,26 +16,34 @@ model Company {
   users     User[]
 }
 
+enum Department {
+  CASH_LAB
+  FLOOR
+}
+
 model User {
   id          String   @id @default(uuid())
-  authUserId  String   @unique // Supabase auth user id
+  authUserId  String   @unique
   email       String   @unique
   name        String?
   role        Role     @default(EMPLOYEE)
+
+  department  Department @default(FLOOR)
 
   companyId   String
   company     Company  @relation(fields: [companyId], references: [id])
 
   createdAt   DateTime @default(now())
 
-  // Core features
   vacationRequests VacationRequest[]
   timeOffs         TimeOff[]
   shifts           Shift[]
   punchEvents      PunchEvent[]
 
   @@index([companyId])
+  @@index([companyId, department])
 }
+
 
 enum Role {
   ADMIN

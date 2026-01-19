@@ -1,0 +1,151 @@
+/* src/app/schedule/schedule.css */
+
+.page {
+  min-height: 100vh;
+  background: #0b0b10;
+  color: #f3f3f7;
+}
+
+.shell {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 26px 18px 60px;
+}
+
+.head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.p {
+  margin: 6px 0 0;
+  opacity: 0.75;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.btn {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  padding: 10px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.btn:hover {
+  background: rgba(255, 255, 255, 0.10);
+}
+
+.section {
+  margin-top: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.sectionTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+}
+
+.meta {
+  opacity: 0.7;
+  font-size: 12px;
+}
+
+.tableWrap {
+  overflow: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 980px;
+}
+
+.th,
+.td {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 10px 10px;
+  font-size: 12px;
+  vertical-align: top;
+}
+
+.th {
+  text-align: left;
+  position: sticky;
+  top: 0;
+  background: rgba(10, 10, 18, 0.95);
+  z-index: 1;
+}
+
+.nameCell {
+  font-weight: 800;
+  width: 220px;
+  white-space: nowrap;
+}
+
+.cell {
+  opacity: 0.95;
+}
+
+.shiftPill {
+  display: inline-flex;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.20);
+  padding: 6px 8px;
+  border-radius: 999px;
+  margin: 0 6px 6px 0;
+  gap: 6px;
+  font-weight: 700;
+}
+
+.muted {
+  opacity: 0.65;
+}
+
+.empty {
+  padding: 14px;
+  opacity: 0.75;
+}
+.stickyLeft {
+  position: sticky;
+  left: 0;
+  background: rgba(10, 10, 18, 0.98);
+  z-index: 2;
+}
+
+.noteDot {
+  margin-left: 6px;
+  opacity: 0.75;
+}
