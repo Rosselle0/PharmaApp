@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo,useState } from "react";
+import { useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
 import { useRouter } from "next/navigation";
@@ -41,8 +41,41 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showPunchModal, setShowPunchModal] = useState(false);
+  const [managerCode, setManagerCode] = useState("");
+  const [punchError, setPunchError] = useState<string | null>(null);
+  const [punchLoading, setPunchLoading] = useState(false);
 
-    const isEmailValid = useMemo(() => {
+  async function unlockPunch() {
+    if (!managerCode.trim()) return;
+
+    setPunchError(null);
+    setPunchLoading(true);
+
+    try {
+      const res = await fetch("/api/kiosk/unlock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: managerCode.trim() }),
+      });
+
+      if (!res.ok) {
+        setPunchError("Code invalide");
+        return;
+      }
+
+      setShowPunchModal(false);
+      setManagerCode("");
+      router.push("/punch");
+    } catch {
+      setPunchError("Erreur réseau. Réessaie.");
+    } finally {
+      setPunchLoading(false);
+    }
+  }
+
+
+  const isEmailValid = useMemo(() => {
     // simple + effective enough for UI
     return /^\S+@\S+\.\S+$/.test(email.trim());
   }, [email]);
@@ -59,14 +92,14 @@ export default function LoginPage() {
       const res =
         mode === "signup"
           ? await supabase.auth.signUp({
-              email: email.trim(),
-              password,
-            })
+            email: email.trim(),
+            password,
+          })
 
           : await supabase.auth.signInWithPassword({
-              email: email.trim(),
-              password,
-            });
+            email: email.trim(),
+            password,
+          });
 
       if (res.error) throw res.error;
       if (mode === "signup" && !res.data.session) {
@@ -97,6 +130,23 @@ export default function LoginPage() {
             </p>
           </div>
         </header>
+        <div className="login-top-actions">
+          <button
+            type="button"
+            className="ghost punch-top"
+            onClick={() => {
+              setPunchError(null);
+              setManagerCode("");
+              setShowPunchModal(true);
+            }}
+            disabled={loading}
+          >
+            Punch
+          </button>
+        </div>
+
+
+
 
         <form onSubmit={handleSubmit} className="login-form">
           <div className="field">
@@ -189,6 +239,69 @@ export default function LoginPage() {
             {mode === "signin" ? "Create an account" : "Back to sign in"}
           </button>
         </form>
+        {showPunchModal && (
+          <div
+            className="modal-overlay"
+            role="dialog"
+            aria-modal="true"
+            onMouseDown={(e) => {
+              if (e.target === e.currentTarget) setShowPunchModal(false);
+            }}
+          >
+            <div className="modal-card">
+              <div className="modal-head">
+                <h2 className="modal-title">Manager code</h2>
+                <button
+                  type="button"
+                  className="ghost"
+                  onClick={() => setShowPunchModal(false)}
+                  disabled={punchLoading}
+                >
+                  ✕
+                </button>
+              </div>
+
+              <p className="modal-sub">Entrez le code manager pour ouvrir le punch.</p>
+
+              <input
+                className="input"
+                value={managerCode}
+                onChange={(e) => setManagerCode(e.target.value)}
+                inputMode="numeric"
+                placeholder="Code"
+                autoFocus
+                disabled={punchLoading}
+              />
+
+              {punchError && (
+                <div className="alert" role="alert" style={{ marginTop: 10 }}>
+                  <span className="alert-dot" aria-hidden="true" />
+                  <p className="alert-text">{punchError}</p>
+                </div>
+              )}
+
+              <button
+                type="button"
+                className="primary"
+                onClick={unlockPunch}
+                disabled={punchLoading || managerCode.trim().length === 0}
+                style={{ marginTop: 12 }}
+              >
+                {punchLoading ? <span className="spinner" aria-hidden="true" /> : "Unlock"}
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => setShowPunchModal(false)}
+                disabled={punchLoading}
+                style={{ marginTop: 8 }}
+              >
+                Back
+              </button>
+
+            </div>
+          </div>
+        )}
 
         <footer className="login-footer">
           <p>© {new Date().getFullYear()} RxPlanning</p>
