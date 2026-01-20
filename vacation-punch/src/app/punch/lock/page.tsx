@@ -2,6 +2,8 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
+export const dynamic = "force-dynamic";
+
 
 export default function PunchLockPage() {
   const router = useRouter();
