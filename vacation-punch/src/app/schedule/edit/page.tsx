@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import ScheduleEditorClient from "./ui";
-import "./edit.css"; 
 
 
 function startOfWeek(d: Date) {
