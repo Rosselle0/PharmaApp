@@ -29,7 +29,7 @@ function ymdLocal(d: Date) {
 }
 
 function hmLocal(d: Date) {
-  return d.toLocaleTimeString("fr-CA", { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleTimeString("fr-CA", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/Toronto" });
 }
 
 const DAY_LABELS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
