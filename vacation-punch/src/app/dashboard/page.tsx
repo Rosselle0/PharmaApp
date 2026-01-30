@@ -61,7 +61,7 @@ if (!me) redirect("/login");
           <p>Request vacation and follow approval status.</p>
         </a>
 
-        <Link href="/schedule" className="card">
+        <Link href="/punch" className="card">
             <div className="card-icon">📅</div>
             <h2>Schedule</h2>
             <p>View assigned shifts and upcoming workdays.</p>
