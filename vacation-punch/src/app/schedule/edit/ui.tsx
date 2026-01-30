@@ -163,7 +163,6 @@ export default function ScheduleEditorClient(props: {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          // ✅ MUST send employeeId — your API needs it
           employeeId: activeEmployeeId,
           startTime: start.toISOString(),
           endTime: end.toISOString(),
