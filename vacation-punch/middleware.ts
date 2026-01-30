@@ -14,6 +14,13 @@ function isKioskUnlocked(request: NextRequest) {
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
 
+  const kioskAllowed = ["/schedule", "/change", "/tasks", "/vacation"];
+  const path = request.nextUrl.pathname;
+
+  if (kioskAllowed.some((p) => path.startsWith(p)) && isKioskUnlocked(request)) {
+    return response;
+  }
+
   // ✅ Protect /punch (except /punch/lock)
   if (request.nextUrl.pathname.startsWith("/punch")) {
     const path = request.nextUrl.pathname;

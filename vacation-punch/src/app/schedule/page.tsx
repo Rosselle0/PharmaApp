@@ -37,41 +37,60 @@ const DAY_LABELS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 export default async function SchedulePage({
   searchParams,
 }: {
-  searchParams: Promise<{ week?: string }>;
+  searchParams: Promise<{ week?: string; code?: string }>;
 }) {
+  const sp = await searchParams;
+  const code = (sp.code ?? "").trim();
+
+  // --- AUTH (ADMIN) OR KIOSK (EMPLOYEE CODE) ---
   const supabase = await supabaseServer();
   const { data } = await supabase.auth.getUser();
-  if (!data?.user) redirect("/login");
 
-  const me = await prisma.user.findUnique({
-    where: { authUserId: data.user.id },
-    select: { companyId: true, role: true },
-  });
-  if (!me) redirect("/dashboard");
+  let companyId: string;
 
-  const sp = await searchParams;
+  if (data?.user) {
+    // ✅ OLD BEHAVIOR (admin/auth user)
+    const me = await prisma.user.findUnique({
+      where: { authUserId: data.user.id },
+      select: { companyId: true },
+    });
+    if (!me?.companyId) redirect("/dashboard");
+    companyId = me.companyId;
+  } else if (code) {
+    // ✅ KIOSK BEHAVIOR (no supabase session, code is present)
+    const companyName = process.env.DEFAULT_COMPANY_NAME ?? "RxPlanning";
+    const company =
+      (await prisma.company.findFirst({ where: { name: companyName } })) ??
+      (await prisma.company.create({ data: { name: companyName } }));
+    companyId = company.id;
+  } else {
+    // ✅ no session, no code
+    redirect("/kiosk");
+  }
+
+  // --- CALENDAR RANGE ---
   const base = sp.week ? new Date(sp.week + "T12:00:00") : new Date();
   const weekStart = startOfWeek(base);
   const weekEnd = addDays(weekStart, 7);
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
+  // --- DATA ---
   const users = await prisma.user.findMany({
-    where: { companyId: me.companyId },
+    where: { companyId },
     orderBy: [{ name: "asc" }, { email: "asc" }],
     select: { id: true, name: true, email: true },
   });
 
-  // Overlap query (correct)
-const shifts = await prisma.shift.findMany({
-  where: {
-    status: "PLANNED",
-    AND: [{ startTime: { lt: weekEnd } }, { endTime: { gt: weekStart } }],
-    user: { companyId: me.companyId }, 
-  },
-  orderBy: [{ startTime: "asc" }],
-  select: { userId: true, startTime: true, endTime: true, note: true },
-});
-
+  // ✅ Overlap query (your correct version)
+  const shifts = await prisma.shift.findMany({
+    where: {
+      status: "PLANNED",
+      AND: [{ startTime: { lt: weekEnd } }, { endTime: { gt: weekStart } }],
+      user: { companyId },
+    },
+    orderBy: [{ startTime: "asc" }],
+    select: { userId: true, startTime: true, endTime: true, note: true },
+  });
 
   const byUserDay = new Map<
     string,
@@ -90,92 +109,92 @@ const shifts = await prisma.shift.findMany({
     maximumFractionDigits: 1,
   });
 
-function renderAllUsers() {
-  return (
-    <section className="section">
-      <div className="sectionTop">
-        <h2 className="sectionTitle">Horaire</h2>
-        <div className="meta">Semaine du {weekStart.toLocaleDateString("fr-CA")}</div>
-      </div>
+  function renderAllUsers() {
+    return (
+      <section className="section">
+        <div className="sectionTop">
+          <h2 className="sectionTitle">Horaire</h2>
+          <div className="meta">Semaine du {weekStart.toLocaleDateString("fr-CA")}</div>
+        </div>
 
-      {users.length === 0 ? (
-        <div className="empty">Aucun employé.</div>
-      ) : (
-        <div className="tableWrap">
-          <table className="table">
-            <thead>
-              <tr>
-                <th className="th nameCell stickyLeft">Employé</th>
-                {days.map((d, i) => (
-                  <th key={ymdLocal(d)} className="th">
-                    {DAY_LABELS[i]}
-                    <br />
-                    <span className="muted">{d.toLocaleDateString("fr-CA")}</span>
-                  </th>
-                ))}
-                <th className="th">Total</th>
-              </tr>
-            </thead>
+        {users.length === 0 ? (
+          <div className="empty">Aucun employé.</div>
+        ) : (
+          <div className="tableWrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th className="th nameCell stickyLeft">Employé</th>
+                  {days.map((d, i) => (
+                    <th key={ymdLocal(d)} className="th">
+                      {DAY_LABELS[i]}
+                      <br />
+                      <span className="muted">{d.toLocaleDateString("fr-CA")}</span>
+                    </th>
+                  ))}
+                  <th className="th">Total</th>
+                </tr>
+              </thead>
 
-            <tbody>
-              {users.map((u) => {
-                let totalMinutes = 0;
+              <tbody>
+                {users.map((u) => {
+                  let totalMinutes = 0;
 
-                const cells = days.map((d) => {
-                  const key = `${u.id}:${ymdLocal(d)}`;
-                  const list = byUserDay.get(key) ?? [];
+                  const cells = days.map((d) => {
+                    const key = `${u.id}:${ymdLocal(d)}`;
+                    const list = byUserDay.get(key) ?? [];
 
-                  for (const sh of list) {
-                    totalMinutes += Math.max(
-                      0,
-                      Math.floor((+new Date(sh.endTime) - +new Date(sh.startTime)) / 60000)
+                    for (const sh of list) {
+                      totalMinutes += Math.max(
+                        0,
+                        Math.floor((+new Date(sh.endTime) - +new Date(sh.startTime)) / 60000)
+                      );
+                    }
+
+                    return (
+                      <td key={key} className="td cell">
+                        {list.length === 0 ? (
+                          <span className="muted">—</span>
+                        ) : (
+                          list.map((sh, idx) => (
+                            <div key={idx} className="shiftPill" title={sh.note ?? ""}>
+                              <span>{hmLocal(new Date(sh.startTime))}</span>
+                              <span>–</span>
+                              <span>{hmLocal(new Date(sh.endTime))}</span>
+                              {sh.note ? <span className="noteDot">•</span> : null}
+                            </div>
+                          ))
+                        )}
+                      </td>
                     );
-                  }
+                  });
+
+                  const totalHours = totalMinutes / 60;
 
                   return (
-                    <td key={key} className="td cell">
-                      {list.length === 0 ? (
-                        <span className="muted">—</span>
-                      ) : (
-                        list.map((sh, idx) => (
-                          <div key={idx} className="shiftPill" title={sh.note ?? ""}>
-                            <span>{hmLocal(new Date(sh.startTime))}</span>
-                            <span>–</span>
-                            <span>{hmLocal(new Date(sh.endTime))}</span>
-                            {sh.note ? <span className="noteDot">•</span> : null}
-                          </div>
-                        ))
-                      )}
-                    </td>
+                    <tr key={u.id}>
+                      <td className="td nameCell stickyLeft">
+                        {u.name?.trim() ? u.name : u.email}
+                        <div className="muted">{u.email}</div>
+                      </td>
+                      {cells}
+                      <td className="td">
+                        <b>{hoursFmt.format(totalHours)} h</b>
+                      </td>
+                    </tr>
                   );
-                });
-
-                const totalHours = totalMinutes / 60;
-
-                return (
-                  <tr key={u.id}>
-                    <td className="td nameCell stickyLeft">
-                      {u.name?.trim() ? u.name : u.email}
-                      <div className="muted">{u.email}</div>
-                    </td>
-                    {cells}
-                    <td className="td">
-                      <b>{hoursFmt.format(totalHours)} h</b>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </section>
-  );
-}
-
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    );
+  }
 
   const prevWeek = ymdLocal(addDays(weekStart, -7));
   const nextWeek = ymdLocal(addDays(weekStart, 7));
+  const codeQS = code ? `&code=${encodeURIComponent(code)}` : "";
 
   return (
     <main className="page">
@@ -189,18 +208,19 @@ function renderAllUsers() {
           </div>
 
           <div className="row">
-            <Link className="btn" href={`/schedule?week=${encodeURIComponent(prevWeek)}`}>
+            <Link className="btn" href={`/schedule?week=${encodeURIComponent(prevWeek)}${codeQS}`}>
               ← Semaine précédente
             </Link>
-            <Link className="btn" href={`/schedule?week=${encodeURIComponent(nextWeek)}`}>
+            <Link className="btn" href={`/schedule?week=${encodeURIComponent(nextWeek)}${codeQS}`}>
               Semaine suivante →
             </Link>
-            <Link className="btn" href="/dashboard">Retour</Link>
+            <Link className="btn" href={code ? "/kiosk" : "/dashboard"}>
+              Retour
+            </Link>
           </div>
         </div>
 
         {renderAllUsers()}
-
       </div>
     </main>
   );

@@ -10,15 +10,22 @@ export default async function KioskPage() {
   const { data } = await supabase.auth.getUser();
 
   let isAdminLogged = false;
+  let adminName: string | undefined;
 
   if (data?.user) {
     const me = await prisma.user.findUnique({
       where: { authUserId: data.user.id },
-      select: { role: true },
+      select: { role: true, name: true, email: true },
     });
 
     isAdminLogged = me?.role === Role.ADMIN || me?.role === Role.MANAGER;
+
+    if (isAdminLogged) {
+      adminName =
+        me?.name ??
+        (me?.email ? me.email.split("@")[0] : "Admin");
+    }
   }
 
-  return <KioskClient isAdminLogged={isAdminLogged} />;
+  return <KioskClient isAdminLogged={isAdminLogged} adminName={adminName} />;
 }

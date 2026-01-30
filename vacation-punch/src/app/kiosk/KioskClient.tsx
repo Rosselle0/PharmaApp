@@ -25,42 +25,57 @@ const NAV_ITEMS: NavItem[] = [
 
 type ActiveRow = { name: string; status: "GREEN" | "RED" | "GRAY"; time: string };
 
-export default function KioskClient({ isAdminLogged }: { isAdminLogged: boolean }) {
+export default function KioskClient({
+  isAdminLogged,
+  adminName,
+}: {
+  isAdminLogged: boolean;
+  adminName?: string;
+}) {
   const router = useRouter();
   const supabase = supabaseBrowser();
 
-  // employee code
+  // employee kiosk login
   const [employeeCode, setEmployeeCode] = useState("");
-  const [showCodeModal, setShowCodeModal] = useState(false);
-  const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const [employeeLogged, setEmployeeLogged] = useState(false);
 
   // admin modal
   const [showAdminModal, setShowAdminModal] = useState(false);
-  const [adminEmail, setAdminEmail] = useState(process.env.NEXT_PUBLIC_ADMIN_EMAIL ?? "");
+  const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
   const [adminError, setAdminError] = useState<string | null>(null);
   const [adminLoading, setAdminLoading] = useState(false);
 
-  // Actifs empty at start
-  const actifs: ActiveRow[] = [];
+  // toast
+  const [toast, setToast] = useState<string | null>(null);
+  function showToast(msg: string) {
+    setToast(msg);
+    window.setTimeout(() => setToast(null), 1800);
+  }
+
+  const isAnyLogged = isAdminLogged || employeeLogged;
 
   const canAccessEmployeePages = useMemo(
-    () => employeeCode.trim().length > 0,
-    [employeeCode]
+    () => employeeLogged && employeeCode.trim().length > 0,
+    [employeeLogged, employeeCode]
   );
 
-  function onNavClick(item: NavItem) {
-    // admin buttons: locked unless admin logged
-    if (item.adminOnly && !isAdminLogged) return;
+  // Actifs empty at start (keep as-is for now)
+  const actifs: ActiveRow[] = [];
 
-    // employee pages: require code first
-    if (item.requiresEmployeeCode && !canAccessEmployeePages) {
-      setPendingHref(item.href);
-      setShowCodeModal(true);
+  function onNavClick(item: NavItem) {
+    // admin routes locked unless admin logged
+    if (item.adminOnly && !isAdminLogged) {
+      showToast("plsss login firsttt 😭");
       return;
     }
 
-    // if employee page, pass code for MVP
+    // employee pages require employee login
+    if (item.requiresEmployeeCode && !canAccessEmployeePages) {
+      showToast("plsss login firsttt 😭");
+      return;
+    }
+
     if (item.requiresEmployeeCode) {
       router.push(`${item.href}?code=${encodeURIComponent(employeeCode.trim())}`);
       return;
@@ -69,13 +84,31 @@ export default function KioskClient({ isAdminLogged }: { isAdminLogged: boolean 
     router.push(item.href);
   }
 
-  function confirmEmployeeCode() {
-    if (!employeeCode.trim()) return;
-    setShowCodeModal(false);
-    if (pendingHref) {
-      router.push(`${pendingHref}?code=${encodeURIComponent(employeeCode.trim())}`);
-      setPendingHref(null);
-    }
+async function employeeConfirm() {
+  const clean = employeeCode.trim();
+  if (!clean) {
+    showToast("Entre ton code 😭");
+    return;
+  }
+
+  const res = await fetch("/api/kiosk/unlock", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code: clean }),
+  });
+
+  if (!res.ok) {
+    showToast("Code invalide 😭");
+    return;
+  }
+
+  setEmployeeLogged(true);
+}
+
+
+  function employeeLogout() {
+    setEmployeeLogged(false);
+    setEmployeeCode("");
   }
 
   async function adminLogin() {
@@ -115,12 +148,20 @@ export default function KioskClient({ isAdminLogged }: { isAdminLogged: boolean 
       setShowAdminModal(false);
       setAdminPassword("");
 
-      // refresh server page to recompute isAdminLogged
+      // refresh server page to recompute isAdminLogged + adminName
       router.refresh();
     } catch {
       setAdminError("Erreur réseau.");
     } finally {
       setAdminLoading(false);
+    }
+  }
+
+  async function adminLogout() {
+    try {
+      await supabase.auth.signOut();
+    } finally {
+      router.refresh();
     }
   }
 
@@ -166,54 +207,101 @@ export default function KioskClient({ isAdminLogged }: { isAdminLogged: boolean 
 
         {/* CENTER */}
         <section className="kiosk-center">
-          <h1 className="kiosk-title">Entrez votre code</h1>
+          {!isAnyLogged ? (
+            <h1 className="kiosk-title">Entrez votre code</h1>
+          ) : (
+            <h1 className="kiosk-title kiosk-titleLogged">
+              {isAdminLogged
+                ? `Bonjour ${adminName || "Admin"}`
+                : `Salut ${employeeCode}`}
+            </h1>
+          )}
 
           <div className="kiosk-display" aria-label="Code display">
-            {employeeCode}
+            {isAnyLogged ? (
+              <div className="kiosk-displaySuccess">
+                <span className="kiosk-displayThumb" aria-hidden="true">
+                  👍
+                </span>
+              </div>
+            ) : (
+              employeeCode
+            )}
           </div>
 
-          <div className="kiosk-pad">
-            {["1","2","3","4","5","6","7","8","9"].map((d) => (
-              <button
-                key={d}
-                className="kiosk-key"
-                type="button"
-                onClick={() => setEmployeeCode((p) => (p.length >= 10 ? p : p + d))}
-              >
-                {d}
-              </button>
-            ))}
+          {/* SHOW KEYPAD ONLY WHEN NOT LOGGED */}
+          {!isAnyLogged && (
+            <>
+              <div className="kiosk-pad">
+                {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
+                  <button
+                    key={d}
+                    className="kiosk-key"
+                    type="button"
+                    onClick={() =>
+                      setEmployeeCode((p) => (p.length >= 10 ? p : p + d))
+                    }
+                  >
+                    {d}
+                  </button>
+                ))}
 
-            <div className="kiosk-padBottom">
+                <div className="kiosk-padBottom">
+                  <button
+                    className="kiosk-key"
+                    type="button"
+                    onClick={() =>
+                      setEmployeeCode((p) => (p.length >= 10 ? p : p + "0"))
+                    }
+                  >
+                    0
+                  </button>
+                  <button
+                    className="kiosk-key kiosk-keyDanger"
+                    type="button"
+                    onClick={() => setEmployeeCode((p) => p.slice(0, -1))}
+                  >
+                    X
+                  </button>
+                </div>
+              </div>
+
+              <div className="kiosk-actions">
+                <button
+                  className="kiosk-actionBtn"
+                  type="button"
+                  onClick={() => {
+                    setEmployeeCode("");
+                    setEmployeeLogged(false);
+                  }}
+                >
+                  Clear
+                </button>
+
+                <button
+                  className="kiosk-actionBtn kiosk-actionPrimary"
+                  type="button"
+                  onClick={employeeConfirm}
+                >
+                  OK
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* EMPLOYEE LOGOUT ACTIONS */}
+          {employeeLogged && !isAdminLogged && (
+            <div className="kiosk-actions">
+
               <button
-                className="kiosk-key"
+                className="kiosk-actionBtn kiosk-actionPrimary"
                 type="button"
-                onClick={() => setEmployeeCode((p) => (p.length >= 10 ? p : p + "0"))}
+                onClick={employeeLogout}
               >
-                0
-              </button>
-              <button
-                className="kiosk-key kiosk-keyDanger"
-                type="button"
-                onClick={() => setEmployeeCode((p) => p.slice(0, -1))}
-              >
-                X
+                Se déconnecter
               </button>
             </div>
-          </div>
-
-          <div className="kiosk-actions">
-            <button className="kiosk-actionBtn" type="button" onClick={() => setEmployeeCode("")}>
-              Clear
-            </button>
-            <button
-              className="kiosk-actionBtn kiosk-actionPrimary"
-              type="button"
-              onClick={() => setShowCodeModal(true)}
-            >
-              OK
-            </button>
-          </div>
+          )}
         </section>
 
         {/* RIGHT COLUMN (Admin + Actifs) */}
@@ -223,12 +311,16 @@ export default function KioskClient({ isAdminLogged }: { isAdminLogged: boolean 
               className="kiosk-adminBtn"
               type="button"
               onClick={() => {
+                if (isAdminLogged) {
+                  adminLogout();
+                  return;
+                }
                 setAdminError(null);
                 setAdminPassword("");
                 setShowAdminModal(true);
               }}
             >
-              Admin
+              {isAdminLogged ? "Se déconnecter" : "Admin"}
             </button>
           </div>
 
@@ -245,9 +337,15 @@ export default function KioskClient({ isAdminLogged }: { isAdminLogged: boolean 
               {actifs.length === 0 ? (
                 <>
                   <div className="kiosk-emptyNote">Aucun actif</div>
-                  <div className="kiosk-row empty"><div /></div>
-                  <div className="kiosk-row empty"><div /></div>
-                  <div className="kiosk-row empty"><div /></div>
+                  <div className="kiosk-row empty">
+                    <div />
+                  </div>
+                  <div className="kiosk-row empty">
+                    <div />
+                  </div>
+                  <div className="kiosk-row empty">
+                    <div />
+                  </div>
                 </>
               ) : (
                 actifs.map((r) => (
@@ -265,57 +363,8 @@ export default function KioskClient({ isAdminLogged }: { isAdminLogged: boolean 
         </aside>
       </div>
 
-      {/* EMPLOYEE CODE MODAL */}
-      {showCodeModal && (
-        <div
-          className="modal-overlay"
-          role="dialog"
-          aria-modal="true"
-          onMouseDown={(e) => e.target === e.currentTarget && setShowCodeModal(false)}
-        >
-          <div className="modal-card">
-            <div className="modal-head">
-              <h2 className="modal-title">Code employé</h2>
-              <button className="ghost" type="button" onClick={() => setShowCodeModal(false)}>
-                ✕
-              </button>
-            </div>
-
-            <p className="modal-sub">Entrez votre code pour accéder aux pages.</p>
-
-            <input
-              className="input"
-              value={employeeCode}
-              onChange={(e) => setEmployeeCode(e.target.value.replace(/\D/g, "").slice(0, 10))}
-              inputMode="numeric"
-              placeholder="Ex: 7931"
-              autoFocus
-            />
-
-            <button
-              className="primary"
-              type="button"
-              onClick={confirmEmployeeCode}
-              disabled={!employeeCode.trim()}
-              style={{ marginTop: 12 }}
-            >
-              Continuer
-            </button>
-
-            <button
-              className="secondary"
-              type="button"
-              onClick={() => setShowCodeModal(false)}
-              style={{ marginTop: 8 }}
-            >
-              Annuler
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* ADMIN LOGIN MODAL */}
-      {showAdminModal && (
+      {showAdminModal && !isAdminLogged && (
         <div
           className="modal-overlay"
           role="dialog"
@@ -388,6 +437,13 @@ export default function KioskClient({ isAdminLogged }: { isAdminLogged: boolean 
               Annuler
             </button>
           </div>
+        </div>
+      )}
+
+      {/* TOAST */}
+      {toast && (
+        <div className="kiosk-toast" role="status" aria-live="polite">
+          {toast}
         </div>
       )}
     </main>
