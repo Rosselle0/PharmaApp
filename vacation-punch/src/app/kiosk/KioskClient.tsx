@@ -56,9 +56,12 @@ export default function KioskClient({
   const isAnyLogged = isAdminLogged || employeeLogged;
 
   const canAccessEmployeePages = useMemo(
-    () => employeeLogged && employeeCode.trim().length > 0,
-    [employeeLogged, employeeCode]
+    () =>
+    isAdminLogged ||
+    (employeeLogged && employeeCode.trim().length > 0),
+    [isAdminLogged, employeeLogged, employeeCode]
   );
+
 
   // Actifs empty at start (keep as-is for now)
   const actifs: ActiveRow[] = [];

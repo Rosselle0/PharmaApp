@@ -48,7 +48,7 @@ export default function CreateAccountPage() {
           employeeCode: employeeCode.trim(),
           role,
           department,
-          paid30,
+          paidBreak30: paid30,
         }),
       });
 
