@@ -2,14 +2,14 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-export async function PATCH(
-  req: Request,
-  context: { params: { id: string } }
-) {
+type Ctx = { params: Promise<{ id: string }> };
+
+export async function PATCH(req: NextRequest, context: Ctx) {
   try {
-    const { id } = context.params;
+    const { id } = await context.params;
     const body = await req.json();
 
     const updated = await prisma.employee.update({
@@ -18,7 +18,7 @@ export async function PATCH(
         firstName: String(body.firstName ?? "").trim(),
         lastName: String(body.lastName ?? "").trim(),
         employeeCode: String(body.employeeCode ?? "").trim(),
-        department: body.department, // must match enum
+        department: body.department, // must match your Prisma enum
         paidBreak30: Boolean(body.paidBreak30),
         isActive: body.isActive === undefined ? undefined : Boolean(body.isActive),
       },
@@ -32,6 +32,7 @@ export async function PATCH(
         { status: 409 }
       );
     }
+
     return NextResponse.json(
       { error: e?.message ?? "Server error" },
       { status: 500 }
@@ -39,12 +40,9 @@ export async function PATCH(
   }
 }
 
-export async function DELETE(
-  _req: Request,
-  context: { params: { id: string } }
-) {
+export async function DELETE(_req: NextRequest, context: Ctx) {
   try {
-    const { id } = context.params;
+    const { id } = await context.params;
 
     await prisma.employee.delete({ where: { id } });
 
