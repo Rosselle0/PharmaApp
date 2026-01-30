@@ -50,21 +50,21 @@ function clampToBusinessHours(hhmm: string) {
   return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
 }
 
-function makeLocalDateTime(dayISO: string, hhmm: string) {
-  const d = new Date(dayISO);
+function makeLocalDateTime(dayYMD: string, hhmm: string) {
+  const d = new Date(dayYMD + "T00:00:00");
   const [hh, mm] = hhmm.split(":").map(Number);
   d.setHours(hh, mm, 0, 0);
   return d;
 }
 
 export default function ScheduleEditorClient(props: {
-  weekStartISO: string;
-  daysISO: string[];
+  weekStartYMD: string;
+  daysYMD: string[];
   employees: Employee[];
   shifts: Shift[];
 }) {
-  const weekStart = new Date(props.weekStartISO);
-  const days = props.daysISO.map((x) => new Date(x));
+  const weekStart = new Date(props.weekStartYMD + "T12:00:00");
+  const days = props.daysYMD.map((d) => new Date(d + "T12:00:00"));
 
   const [shifts, setShifts] = useState<Shift[]>(props.shifts);
 
@@ -108,7 +108,7 @@ export default function ScheduleEditorClient(props: {
   function openCell(empId: string, day: Date) {
     setMsg(null);
     setActiveEmployeeId(empId);
-    setActiveDayISO(day.toISOString());
+    setActiveDayISO(ymdLocal(day));
 
     const key = `${empId}:${ymdLocal(day)}`;
     const list = byEmpDay.get(key) ?? [];

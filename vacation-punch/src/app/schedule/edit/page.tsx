@@ -86,8 +86,8 @@ export default async function ScheduleEditPage({
 
   return (
     <ScheduleEditorClient
-      weekStartISO={weekStart.toISOString()}
-      daysISO={days.map((d) => d.toISOString())}
+      weekStartYMD={ymdLocal(weekStart)}
+      daysYMD={days.map(ymdLocal)}
       employees={employees}
       shifts={shiftsForClient}
     />
