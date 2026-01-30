@@ -22,18 +22,20 @@ enum Department {
 }
 
 model User {
-  id          String   @id @default(uuid())
-  authUserId  String   @unique
-  email       String   @unique
-  name        String?
-  role        Role     @default(EMPLOYEE)
+  id            String   @id @default(uuid())
+  authUserId    String   @unique
+  email         String   @unique
+  name          String?
+  role          Role     @default(EMPLOYEE)
 
-  department  Department @default(FLOOR)
+  employeeNumber Int?    // <-- ADD THIS (nullable for now)
 
-  companyId   String
-  company     Company  @relation(fields: [companyId], references: [id])
+  department    Department @default(FLOOR)
 
-  createdAt   DateTime @default(now())
+  companyId     String
+  company       Company  @relation(fields: [companyId], references: [id])
+
+  createdAt     DateTime @default(now())
 
   vacationRequests VacationRequest[]
   timeOffs         TimeOff[]
@@ -42,7 +44,10 @@ model User {
 
   @@index([companyId])
   @@index([companyId, department])
+
+  @@unique([companyId, employeeNumber]) // <-- ADD THIS
 }
+
 
 
 enum Role {

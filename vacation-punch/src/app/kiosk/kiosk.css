@@ -1,0 +1,295 @@
+* { box-sizing: border-box; }
+
+.kiosk-shell {
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  background: #fff;            /* the kiosk is the screen */
+  display: block;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+}
+
+.kiosk-frame {
+  width: 100%;
+  height: 100%;
+  background: #fff;
+  border-radius: 0;            /* no card look */
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 190px 1fr 320px;
+}
+/* LEFT */
+.kiosk-left{
+  background: #bfbfbf;
+  border-right: 2px solid #3c3c3c;
+  display: flex;
+  flex-direction: column;
+}
+
+.kiosk-leftTop{
+  height: 80px;
+  background: #d7d7d7;
+  border-bottom: 2px solid #3c3c3c;
+}
+
+.kiosk-nav{ display: grid; }
+
+.kiosk-navBtn{
+  height: 62px;
+  background: rgba(0,0,0,0.20);
+  border: 0;
+  border-bottom: 2px solid #3c3c3c;
+  font-size: 20px;
+  font-weight: 800;
+  color: #0b0b0b;
+  cursor: pointer;
+  position: relative;
+}
+
+.kiosk-navBtn:hover{ background: rgba(0,0,0,0.26); }
+
+.kiosk-navSpacer{
+  height: 72px;
+  background: rgba(255,255,255,0.2);
+  border-bottom: 2px solid #3c3c3c;
+}
+
+/* LOCKED ADMIN BUTTONS */
+.kiosk-navBtn.locked{
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.lockBadge{
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 18px;
+}
+
+/* CENTER */
+.kiosk-center{
+  padding: 34px 26px;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 18px;
+}
+
+.kiosk-title{
+  margin: 0;
+  font-size: 38px;
+  font-weight: 900;
+  color: #111;
+}
+
+.kiosk-display{
+  width: min(560px, 92%);
+  height: 64px;
+  background: #d9d9d9;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  font-size: 34px;
+  font-weight: 900;
+  color: #111;
+  letter-spacing: 2px;
+}
+
+.kiosk-pad{
+  display: grid;
+  grid-template-columns: repeat(3, 60px);
+  gap: 18px;
+  margin-top: 10px;
+}
+
+.kiosk-key{
+  width: 60px;
+  height: 60px;
+  border-radius: 999px;
+  border: 0;
+  background: #d9d9d9;
+  font-weight: 900;
+  font-size: 20px;
+  cursor: pointer;
+  color: #111;
+}
+.kiosk-key:hover{ filter: brightness(0.95); }
+
+.kiosk-padBottom{
+  grid-column: 1 / span 3;
+  display: grid;
+  grid-template-columns: 60px 60px;
+  justify-content: center;
+  gap: 18px;
+  margin-top: 4px;
+}
+
+.kiosk-keyDanger{ background: #d85b5b; }
+
+.kiosk-actions{
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.kiosk-actionBtn{
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,0,0.18);
+  background: rgba(0,0,0,0.06);
+  cursor: pointer;
+  font-weight: 800;
+}
+.kiosk-actionPrimary{ background: rgba(0,0,0,0.12); }
+
+/* RIGHT COLUMN */
+.kiosk-rightCol{
+  border-left: 2px solid #3c3c3c;
+  padding: 16px;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 12px;
+  background: #efefef;
+}
+
+.rightTop{
+  display: flex;
+  justify-content: flex-end;
+}
+
+.kiosk-adminBtn{
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,0,0.18);
+  background: rgba(0,0,0,0.06);
+  cursor: pointer;
+  font-weight: 900;
+}
+.kiosk-adminBtn:hover{ background: rgba(0,0,0,0.10); }
+
+/* ACTIFS */
+.kiosk-actifsCard{
+  background: #d9d9d9;
+  border-radius: 6px;
+  padding: 12px;
+  border: 2px solid #3c3c3c;
+}
+
+.kiosk-actifsTitle{
+  font-size: 22px;
+  font-weight: 900;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.kiosk-table{
+  border: 2px solid #3c3c3c;
+  background: #d9d9d9;
+  position: relative;
+}
+
+.kiosk-row{
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr 1fr;
+  border-bottom: 2px solid #3c3c3c;
+}
+
+.kiosk-row > div{
+  padding: 10px 8px;
+  border-right: 2px solid #3c3c3c;
+  font-weight: 800;
+  font-size: 13px;
+}
+.kiosk-row > div:last-child{ border-right: 0; }
+
+.kiosk-head > div{
+  font-weight: 900;
+  text-align: center;
+  padding: 8px 6px;
+}
+
+.kiosk-emptyNote{
+  padding: 12px 8px;
+  font-weight: 900;
+  text-align: center;
+  border-bottom: 2px solid #3c3c3c;
+}
+
+.kiosk-statusCell{
+  display: grid;
+  place-items: center;
+}
+
+.kiosk-dot{
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  display: inline-block;
+  border: 1px solid rgba(0,0,0,0.35);
+}
+
+.kiosk-dot.GREEN{ background: #3ccf64; }
+.kiosk-dot.RED{ background: #d85b5b; }
+.kiosk-dot.GRAY{ background: #6b6b6b; opacity: 0.65; }
+
+.kiosk-row.empty > div{ height: 46px; }
+
+/* Modal (reuses your login styles if you want, but here it's standalone) */
+.modal-overlay{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  z-index: 50;
+}
+
+.modal-card{
+  width: min(420px, 100%);
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.10);
+  backdrop-filter: blur(12px);
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: 0 18px 60px rgba(0,0,0,0.55);
+  color: #fff;
+}
+
+.modal-head{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.modal-title{ margin: 0; font-size: 16px; }
+.modal-sub{ margin: 8px 0 12px; opacity: 0.85; }
+
+.input{
+  width: 100%;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(0,0,0,0.30);
+  color: #fff;
+  padding: 0 12px;
+  outline: none;
+}
+
+.primary, .secondary, .ghost{
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 12px;
+  height: 44px;
+  padding: 0 14px;
+  color: #fff;
+  background: rgba(255,255,255,0.10);
+  cursor: pointer;
+  font-weight: 800;
+}
+.secondary{ background: rgba(0,0,0,0.22); }
+.ghost{ background: rgba(0,0,0,0.18); height: 36px; }
