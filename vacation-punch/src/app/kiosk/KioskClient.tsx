@@ -20,7 +20,7 @@ const NAV_ITEMS: NavItem[] = [
 
   { label: "Modifier c", href: "/admin/modify", adminOnly: true },
   { label: "Creation c", href: "/admin/create-account", adminOnly: true },
-  { label: "Creation h", href: "/admin/create-schedule", adminOnly: true },
+  { label: "Creation h", href: "/schedule/edit", adminOnly: true },
 ];
 
 type ActiveRow = { name: string; status: "GREEN" | "RED" | "GRAY"; time: string };
