@@ -1,11 +1,8 @@
-// src/app/schedule/edit/ui.tsx
 "use client";
-import "../schedule.css"; 
-import "./edit.css";     
+import "../schedule.css";
+import "./edit.css";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-
-
 
 type Department = "FLOOR" | "CASH_LAB";
 
@@ -32,14 +29,16 @@ function ymdLocal(d: Date) {
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
 }
+
+// ✅ IMPORTANT FIX: use en-CA so we always get "08:00" (not "08 h 00")
 function hm(d: Date) {
-  return d.toLocaleTimeString("fr-CA", { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleTimeString("en-CA", { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
 function clampToBusinessHours(hhmm: string) {
-  // accepts "8:00" or "08:00"
   const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());
   if (!m) return null;
+
   let h = Number(m[1]);
   let min = Number(m[2]);
   if (!Number.isFinite(h) || !Number.isFinite(min) || min < 0 || min > 59) return null;
@@ -47,11 +46,11 @@ function clampToBusinessHours(hhmm: string) {
   // business range 8..21 (end can be 21:00)
   if (h < 8) h = 8;
   if (h > 21) h = 21;
+
   return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
 }
 
 function makeLocalDateTime(dayISO: string, hhmm: string) {
-  // dayISO is a day date, we build local date time
   const d = new Date(dayISO);
   const [hh, mm] = hhmm.split(":").map(Number);
   d.setHours(hh, mm, 0, 0);
@@ -111,9 +110,9 @@ export default function ScheduleEditorClient(props: {
     setActiveEmployeeId(empId);
     setActiveDayISO(day.toISOString());
 
-    // If existing shift in that cell, prefill from first
     const key = `${empId}:${ymdLocal(day)}`;
     const list = byEmpDay.get(key) ?? [];
+
     if (list[0]) {
       const s = list[0];
       setStartHHMM(hm(new Date(s.startTime)));
@@ -133,19 +132,21 @@ export default function ScheduleEditorClient(props: {
 
     const st = clampToBusinessHours(startHHMM);
     const en = clampToBusinessHours(endHHMM);
+
     if (!st || !en) {
-      setMsg("Heure invalide. Format: HH:MM");
+      setMsg("Heure invalide. Format: HH:MM (08:00–21:00)");
       return;
     }
 
+    // ✅ restore the real Date objects (you lost these in your broken paste)
     const start = makeLocalDateTime(activeDayISO, st);
     const end = makeLocalDateTime(activeDayISO, en);
 
-    // hard rules
     if (end.getTime() <= start.getTime()) {
       setMsg("Fin doit être après début.");
       return;
     }
+
     // enforce business window precisely
     const startHour = start.getHours() + start.getMinutes() / 60;
     const endHour = end.getHours() + end.getMinutes() / 60;
@@ -162,6 +163,7 @@ export default function ScheduleEditorClient(props: {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          // ✅ MUST send employeeId — your API needs it
           employeeId: activeEmployeeId,
           startTime: start.toISOString(),
           endTime: end.toISOString(),
@@ -169,17 +171,20 @@ export default function ScheduleEditorClient(props: {
         }),
       });
 
-      const text = await res.text();
-      if (!res.ok) throw new Error(text || "Save failed");
+      // ✅ clean error message (no JSON blob in the input)
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || "Erreur");
 
-      const data = JSON.parse(text);
       const saved: Shift = data.shift;
 
-      // Replace existing shift for that day (MVP = 1 shift/day)
       const keyDay = ymdLocal(new Date(activeDayISO));
       setShifts((prev) => {
         const filtered = prev.filter(
-          (s) => !(s.employeeId === activeEmployeeId && ymdLocal(new Date(s.startTime)) === keyDay)
+          (s) =>
+            !(
+              s.employeeId === activeEmployeeId &&
+              ymdLocal(new Date(s.startTime)) === keyDay
+            )
         );
         return [...filtered, saved].sort((a, b) => +new Date(a.startTime) - +new Date(b.startTime));
       });
@@ -209,8 +214,8 @@ export default function ScheduleEditorClient(props: {
 
     try {
       const res = await fetch(`/api/schedule/shifts/${existing.id}`, { method: "DELETE" });
-      const t = await res.text();
-      if (!res.ok) throw new Error(t || "Delete failed");
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || "Delete failed");
 
       setShifts((prev) => prev.filter((s) => s.id !== existing.id));
       setOpen(false);
@@ -262,48 +267,46 @@ export default function ScheduleEditorClient(props: {
               </thead>
 
               <tbody>
-                {props.employees.map((emp) => {
-                  return (
-                    <tr key={emp.id}>
-                      <td className="td sticky">
-                        <div className="name">{emp.firstName} {emp.lastName}</div>
-                        <div className="muted">{emp.department === "CASH_LAB" ? "Caisse / Lab" : "Plancher"}</div>
-                      </td>
+                {props.employees.map((emp) => (
+                  <tr key={emp.id}>
+                    <td className="td sticky">
+                      <div className="name">{emp.firstName} {emp.lastName}</div>
+                      <div className="muted">{emp.department === "CASH_LAB" ? "Caisse / Lab" : "Plancher"}</div>
+                    </td>
 
-                      {days.map((d) => {
-                        const key = `${emp.id}:${ymdLocal(d)}`;
-                        const list = byEmpDay.get(key) ?? [];
+                    {days.map((d) => {
+                      const key = `${emp.id}:${ymdLocal(d)}`;
+                      const list = byEmpDay.get(key) ?? [];
 
-                        return (
-                          <td
-                            key={key}
-                            className={`td cell ${list.length ? "filled" : "empty"}`}
-                            onClick={() => openCell(emp.id, d)}
-                            role="button"
-                            tabIndex={0}
-                          >
-                            {list.length === 0 ? (
-                              <span className="muted">+</span>
-                            ) : (
-                              list.map((s) => (
-                                <div key={s.id} className="pill">
-                                  <span>{hm(new Date(s.startTime))}</span>
-                                  <span>–</span>
-                                  <span>{hm(new Date(s.endTime))}</span>
-                                  {s.note ? <span className="dot">•</span> : null}
-                                </div>
-                              ))
-                            )}
-                          </td>
-                        );
-                      })}
+                      return (
+                        <td
+                          key={key}
+                          className={`td cell ${list.length ? "filled" : "empty"}`}
+                          onClick={() => openCell(emp.id, d)}
+                          role="button"
+                          tabIndex={0}
+                        >
+                          {list.length === 0 ? (
+                            <span className="muted">+</span>
+                          ) : (
+                            list.map((s) => (
+                              <div key={s.id} className="pill">
+                                <span>{hm(new Date(s.startTime))}</span>
+                                <span>–</span>
+                                <span>{hm(new Date(s.endTime))}</span>
+                                {s.note ? <span className="dot">•</span> : null}
+                              </div>
+                            ))
+                          )}
+                        </td>
+                      );
+                    })}
 
-                      <td className="td total">
-                        <b>{hoursFmt.format(calcTotalHours(emp.id))} h</b>
-                      </td>
-                    </tr>
-                  );
-                })}
+                    <td className="td total">
+                      <b>{hoursFmt.format(calcTotalHours(emp.id))} h</b>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -328,8 +331,13 @@ export default function ScheduleEditorClient(props: {
                   <input value={startHHMM} onChange={(e) => setStartHHMM(e.target.value)} placeholder="08:00" />
                   <div className="quick">
                     {Array.from({ length: 14 }, (_, i) => i + 8).map((h) => (
-                      <button key={h} className="chip" type="button" onClick={() => setStartHHMM(`${String(h).padStart(2,"0")}:00`)}>
-                        {String(h).padStart(2,"0")}:00
+                      <button
+                        key={h}
+                        className="chip"
+                        type="button"
+                        onClick={() => setStartHHMM(`${String(h).padStart(2, "0")}:00`)}
+                      >
+                        {String(h).padStart(2, "0")}:00
                       </button>
                     ))}
                   </div>
@@ -340,8 +348,13 @@ export default function ScheduleEditorClient(props: {
                   <input value={endHHMM} onChange={(e) => setEndHHMM(e.target.value)} placeholder="17:00" />
                   <div className="quick">
                     {Array.from({ length: 14 }, (_, i) => i + 8).map((h) => (
-                      <button key={h} className="chip" type="button" onClick={() => setEndHHMM(`${String(h).padStart(2,"0")}:00`)}>
-                        {String(h).padStart(2,"0")}:00
+                      <button
+                        key={h}
+                        className="chip"
+                        type="button"
+                        onClick={() => setEndHHMM(`${String(h).padStart(2, "0")}:00`)}
+                      >
+                        {String(h).padStart(2, "0")}:00
                       </button>
                     ))}
                   </div>
