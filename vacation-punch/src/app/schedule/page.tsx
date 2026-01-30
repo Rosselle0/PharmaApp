@@ -42,29 +42,40 @@ export default async function SchedulePage({
   const sp = await searchParams;
   const code = (sp.code ?? "").trim();
 
+  async function getDefaultCompany() {
+  const companyName = process.env.DEFAULT_COMPANY_NAME ?? "RxPlanning";
+  return (
+    (await prisma.company.findFirst({ where: { name: companyName } })) ??
+    (await prisma.company.create({ data: { name: companyName } }))
+  );
+}
+
   // --- AUTH (ADMIN) OR KIOSK (EMPLOYEE CODE) ---
-  const supabase = await supabaseServer();
+   const supabase = await supabaseServer();
   const { data } = await supabase.auth.getUser();
 
   let companyId: string;
 
   if (data?.user) {
-    // ✅ OLD BEHAVIOR (admin/auth user)
+    // ✅ logged-in user
     const me = await prisma.user.findUnique({
       where: { authUserId: data.user.id },
-      select: { companyId: true },
+      select: { companyId: true, role: true },
     });
     if (!me?.companyId) redirect("/dashboard");
-    companyId = me.companyId;
+
+    // ✅ ADMIN sees the SAME list as kiosk (default company)
+    if (me.role === "ADMIN") {
+      const company = await getDefaultCompany();
+      companyId = company.id;
+    } else {
+      companyId = me.companyId;
+    }
   } else if (code) {
-    // ✅ KIOSK BEHAVIOR (no supabase session, code is present)
-    const companyName = process.env.DEFAULT_COMPANY_NAME ?? "RxPlanning";
-    const company =
-      (await prisma.company.findFirst({ where: { name: companyName } })) ??
-      (await prisma.company.create({ data: { name: companyName } }));
+    // ✅ KIOSK
+    const company = await getDefaultCompany();
     companyId = company.id;
   } else {
-    // ✅ no session, no code
     redirect("/kiosk");
   }
 
@@ -75,22 +86,47 @@ export default async function SchedulePage({
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
   // --- DATA ---
-  const users = await prisma.user.findMany({
-    where: { companyId },
-    orderBy: [{ name: "asc" }, { email: "asc" }],
-    select: { id: true, name: true, email: true },
-  });
+const employees = await prisma.employee.findMany({
+  where: {
+    companyId,
+    isActive: true,
+  },
+  orderBy: [
+    { department: "asc" },
+    { lastName: "asc" },
+    { firstName: "asc" },
+  ],
+  select: {
+    id: true,
+    firstName: true,
+    lastName: true,
+    department: true,
+  },
+});
 
   // ✅ Overlap query (your correct version)
-  const shifts = await prisma.shift.findMany({
-    where: {
-      status: "PLANNED",
-      AND: [{ startTime: { lt: weekEnd } }, { endTime: { gt: weekStart } }],
-      user: { companyId },
+const shifts = await prisma.shift.findMany({
+  where: {
+    status: "PLANNED",
+    employee: {
+      is: {
+        companyId,
+      },
     },
-    orderBy: [{ startTime: "asc" }],
-    select: { userId: true, startTime: true, endTime: true, note: true },
-  });
+    AND: [
+      { startTime: { lt: weekEnd } },
+      { endTime: { gt: weekStart } },
+    ],
+  },
+  orderBy: [{ startTime: "asc" }],
+  select: {
+    employeeId: true,
+    startTime: true,
+    endTime: true,
+    note: true,
+  },
+});
+
 
   const byUserDay = new Map<
     string,
@@ -98,7 +134,7 @@ export default async function SchedulePage({
   >();
 
   for (const s of shifts) {
-    const key = `${s.userId}:${ymdLocal(new Date(s.startTime))}`;
+    const key = `${s.employeeId}:${ymdLocal(new Date(s.startTime))}`;
     const arr = byUserDay.get(key) ?? [];
     arr.push({ startTime: s.startTime, endTime: s.endTime, note: s.note ?? null });
     byUserDay.set(key, arr);
@@ -117,7 +153,7 @@ export default async function SchedulePage({
           <div className="meta">Semaine du {weekStart.toLocaleDateString("fr-CA")}</div>
         </div>
 
-        {users.length === 0 ? (
+        {employees.length === 0 ? (
           <div className="empty">Aucun employé.</div>
         ) : (
           <div className="tableWrap">
@@ -137,7 +173,7 @@ export default async function SchedulePage({
               </thead>
 
               <tbody>
-                {users.map((u) => {
+                {employees.map((u) => {
                   let totalMinutes = 0;
 
                   const cells = days.map((d) => {
@@ -174,8 +210,8 @@ export default async function SchedulePage({
                   return (
                     <tr key={u.id}>
                       <td className="td nameCell stickyLeft">
-                        {u.name?.trim() ? u.name : u.email}
-                        <div className="muted">{u.email}</div>
+                        {u.firstName} {u.lastName}
+                        <div className="muted">{u.department === "CASH_LAB" ? "Caisse / Lab" : "Plancher"}</div>
                       </td>
                       {cells}
                       <td className="td">
@@ -214,7 +250,7 @@ export default async function SchedulePage({
             <Link className="btn" href={`/schedule?week=${encodeURIComponent(nextWeek)}${codeQS}`}>
               Semaine suivante →
             </Link>
-            <Link className="btn" href={code ? "/kiosk" : "/dashboard"}>
+            <Link className="btn" href={code ? "/kiosk" : "/kiosk"}>
               Retour
             </Link>
           </div>

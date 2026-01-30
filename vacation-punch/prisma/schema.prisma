@@ -40,7 +40,6 @@ model User {
 
   vacationRequests VacationRequest[]
   timeOffs         TimeOff[]
-  shifts           Shift[]
   punchEvents      PunchEvent[]
 
   @@index([companyId])
@@ -61,6 +60,8 @@ model Employee {
 
   department    Department @default(FLOOR)
   isActive      Boolean    @default(true)
+
+    shifts       Shift[] 
 
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
@@ -140,24 +141,25 @@ enum TimeOffType {
 // SCHEDULE (planned work)
 //
 model Shift {
-  id         String   @id @default(uuid())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id])
+  id          String   @id @default(uuid())
 
-  startTime  DateTime
-  endTime    DateTime
-  status     ShiftStatus @default(PLANNED)
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id])
 
-  note       String?
+  startTime   DateTime
+  endTime     DateTime
+  status      ShiftStatus @default(PLANNED)
+  note        String?
 
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   punchEvents PunchEvent[]
 
-  @@index([userId, startTime])
+  @@index([employeeId, startTime])
   @@index([startTime, endTime])
 }
+
 
 enum ShiftStatus {
   PLANNED

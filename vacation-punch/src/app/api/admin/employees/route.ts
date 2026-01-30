@@ -4,24 +4,17 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Department } from "@prisma/client";
-
-async function getDefaultCompany() {
-  const companyName = process.env.DEFAULT_COMPANY_NAME ?? "RxPlanning";
-  return (
-    (await prisma.company.findFirst({ where: { name: companyName } })) ??
-    (await prisma.company.create({ data: { name: companyName } }))
-  );
-}
+import { getCompanyId } from "@/lib/company";
 
 function normalizeDepartment(dep: any): Department {
   return dep === "CASH_LAB" || dep === "FLOOR" ? dep : Department.FLOOR;
 }
 
 export async function GET() {
-  const company = await getDefaultCompany();
+  const companyId = await getCompanyId();
 
   const employees = await prisma.employee.findMany({
-    where: { companyId: company.id },
+    where: { companyId },
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     select: {
       id: true,
@@ -34,7 +27,6 @@ export async function GET() {
     },
   });
 
-  // ✅ return in the exact shape your Modify UI expects (paid30)
   return NextResponse.json({
     employees: employees.map((e) => ({
       id: e.id,
@@ -43,7 +35,7 @@ export async function GET() {
       employeeCode: e.employeeCode,
       department: e.department,
       paid30: e.paidBreak30,
-      role: "EMPLOYEE", // UI expects it, but it doesn't exist → hardcode
+      role: "EMPLOYEE", // UI expects it, but model doesn't have it
     })),
   });
 }
@@ -57,7 +49,6 @@ export async function POST(req: Request) {
     const employeeCode = String(body.employeeCode ?? "").trim();
     const department = normalizeDepartment(body.department);
 
-    // ✅ accept paid30 from UI
     const paidBreak30 =
       body.paidBreak30 !== undefined ? Boolean(body.paidBreak30) : Boolean(body.paid30);
 
@@ -78,11 +69,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Employee code already exists" }, { status: 409 });
     }
 
-    const company = await getDefaultCompany();
+    const companyId = await getCompanyId();
 
     const created = await prisma.employee.create({
       data: {
-        companyId: company.id,
+        companyId,
         firstName,
         lastName,
         employeeCode,
