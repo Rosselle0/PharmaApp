@@ -44,6 +44,8 @@ export default function KioskClient({
   const [employeeName, setEmployeeName] = useState<string | null>(null);
   const [autoSubmitting, setAutoSubmitting] = useState(false);
   const [blockedCode, setBlockedCode] = useState<string | null>(null);
+  const [pinSuccess, setPinSuccess] = useState(false);
+  const [pinFlash, setPinFlash] = useState(false); // triggers animation
 
 
   useEffect(() => {
@@ -241,6 +243,8 @@ export default function KioskClient({
     });
 
     if (!res.ok) {
+      setPinSuccess(false);
+      setPinFlash(false);
       //  invalid => red UI, keep user on pin screen
       setEmployeeLogged(false);
       setEmployeeCodeConfirmed(null);
@@ -255,29 +259,45 @@ export default function KioskClient({
     }
 
     const data = await res.json().catch(() => null);
-    const last  = data?.employee?.lastName  ? String(data.employee.lastName)  : "";
+    const last = data?.employee?.lastName ? String(data.employee.lastName) : "";
     const full = `${last}`.trim();
 
     // valid => green UI and logged in
-    setEmployeeLogged(true);
-    setEmployeeCodeConfirmed(clean);
-    setEmployeeName(full);
     setPinError(false);
+    setPinSuccess(true);
+    setPinFlash(true);
+    window.setTimeout(() => setPinFlash(false), 650);
 
-    saveEmployeeSession(clean, full);
+    window.setTimeout(() => {
+      setEmployeeLogged(true);
+      setEmployeeCodeConfirmed(clean);
+      setEmployeeName(full);
 
-    // keep kiosk url carrying the code (so Retour doesn't "lose" it)
-    router.replace(`/kiosk?code=${encodeURIComponent(clean)}`);
+      saveEmployeeSession(clean, full);
+      router.replace(`/kiosk?code=${encodeURIComponent(clean)}`);
+    }, 650);
   }
 
   function employeeLogout() {
+    // auth state
     setEmployeeLogged(false);
     setEmployeeCodeConfirmed(null);
-    setEmployeeCode("");
     setEmployeeName(null);
+
+    // PIN state
+    setEmployeeCode("");
     setPinError(false);
+    setPinSuccess(false);
+    setPinFlash(false);
+    setAutoSubmitting(false);
+
+    // cleanup
     clearEmployeeSession();
+
+    // optional: clean URL so kiosk is truly reset
+    router.replace("/kiosk");
   }
+
 
   async function adminLogin() {
     if (!adminEmail.trim() || adminPassword.length < 6) return;
@@ -411,10 +431,12 @@ export default function KioskClient({
             className={[
               "pinWrap",
               pinError ? "pinError" : "",
+              pinSuccess ? "pinSuccess" : "",
+              pinFlash ? "pinFlash" : "",
               isAnyLogged ? "pinSuccess" : "",
             ].join(" ")}
-            aria-label="Code display"
           >
+
             {!isAnyLogged ? (
               <>
                 <div className="pinTitle">Entrez votre pin</div>
