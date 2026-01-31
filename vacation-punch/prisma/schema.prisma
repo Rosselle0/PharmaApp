@@ -1,11 +1,11 @@
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
   engineType = "binary"
 }
 
 datasource db {
   provider = "postgresql"
-    url      = env("DATABASE_URL")
+  url      = env("DATABASE_URL")
 }
 
 model Company {
@@ -13,8 +13,10 @@ model Company {
   name      String
   createdAt DateTime @default(now())
 
-  users     User[]
-  employees Employee[]
+  users           User[]
+  employees       Employee[]
+  taskTemplates   TaskTemplate[]
+  taskAssignments TaskAssignment[]
 }
 
 enum Department {
@@ -23,53 +25,52 @@ enum Department {
 }
 
 model User {
-  id            String   @id @default(uuid())
-  authUserId    String   @unique
-  email         String   @unique
-  name          String?
-  role          Role     @default(EMPLOYEE)
+  id         String  @id @default(uuid())
+  authUserId String  @unique
+  email      String  @unique
+  name       String?
+  role       Role    @default(EMPLOYEE)
 
-  employeeNumber Int?    // <-- ADD THIS (nullable for now)
+  employeeNumber Int? // <-- ADD THIS (nullable for now)
 
-  department    Department @default(FLOOR)
+  department Department @default(FLOOR)
 
-  companyId     String
-  company       Company  @relation(fields: [companyId], references: [id])
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
 
-  createdAt     DateTime @default(now())
+  createdAt DateTime @default(now())
 
   vacationRequests VacationRequest[]
   timeOffs         TimeOff[]
   punchEvents      PunchEvent[]
 
+  @@unique([companyId, employeeNumber]) // <-- ADD THIS
   @@index([companyId])
   @@index([companyId, department])
-
-  @@unique([companyId, employeeNumber]) // <-- ADD THIS
 }
 
 model Employee {
-  id           String     @id @default(uuid())
-  companyId     String
-  company       Company    @relation(fields: [companyId], references: [id])
+  id        String  @id @default(uuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
 
-  firstName     String
-  lastName      String
-  employeeCode  String     @unique
-  paidBreak30   Boolean    @default(false)
+  firstName    String
+  lastName     String
+  employeeCode String  @unique
+  paidBreak30  Boolean @default(false)
 
-  department    Department @default(FLOOR)
-  isActive      Boolean    @default(true)
+  department Department @default(FLOOR)
+  isActive   Boolean    @default(true)
 
-    shifts       Shift[] 
+  shifts Shift[]
 
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  TaskAssignment TaskAssignment[]
 
   @@index([companyId])
   @@index([companyId, department])
 }
-
 
 enum Role {
   ADMIN
@@ -81,18 +82,18 @@ enum Role {
 // VACATION REQUEST FLOW (workflow)
 //
 model VacationRequest {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 
   startDate DateTime
   endDate   DateTime
 
-  status    VacationStatus @default(PENDING)
-  reason    String?
+  status VacationStatus @default(PENDING)
+  reason String?
 
   // When approved, we create exactly one TimeOff linked to this request
-  timeOff   TimeOff?
+  timeOff TimeOff?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -112,19 +113,19 @@ enum VacationStatus {
 // Created when a request is approved, but can also be created by admins directly.
 //
 model TimeOff {
-  id         String @id @default(uuid())
-  userId     String
-  user       User   @relation(fields: [userId], references: [id])
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 
-  startDate  DateTime
-  endDate    DateTime
-  type       TimeOffType @default(VACATION)
+  startDate DateTime
+  endDate   DateTime
+  type      TimeOffType @default(VACATION)
 
   // Link back to the original request (optional, but if present, unique)
-  requestId  String? @unique
-  request    VacationRequest? @relation(fields: [requestId], references: [id])
+  requestId String?          @unique
+  request   VacationRequest? @relation(fields: [requestId], references: [id])
 
-  createdAt  DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([userId, startDate])
   @@index([startDate, endDate])
@@ -141,25 +142,24 @@ enum TimeOffType {
 // SCHEDULE (planned work)
 //
 model Shift {
-  id          String   @id @default(uuid())
+  id String @id @default(uuid())
 
-  employeeId  String
-  employee    Employee @relation(fields: [employeeId], references: [id])
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id])
 
-  startTime   DateTime
-  endTime     DateTime
-  status      ShiftStatus @default(PLANNED)
-  note        String?
+  startTime DateTime
+  endTime   DateTime
+  status    ShiftStatus @default(PLANNED)
+  note      String?
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   punchEvents PunchEvent[]
 
   @@index([employeeId, startTime])
   @@index([startTime, endTime])
 }
-
 
 enum ShiftStatus {
   PLANNED
@@ -173,19 +173,19 @@ enum ShiftStatus {
 // Event-based punches: IN/OUT/BREAK_START/BREAK_END
 //
 model PunchEvent {
-  id        String   @id @default(uuid())
+  id String @id @default(uuid())
 
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 
   // Optional link to a shift (you can match later if needed)
-  shiftId   String?
-  shift     Shift?   @relation(fields: [shiftId], references: [id])
+  shiftId String?
+  shift   Shift?  @relation(fields: [shiftId], references: [id])
 
-  type      PunchType
-  at        DateTime
+  type PunchType
+  at   DateTime
 
-  source    PunchSource @default(MOBILE)
+  source PunchSource @default(MOBILE)
 
   createdAt DateTime @default(now())
 
@@ -210,17 +210,77 @@ enum PunchSource {
 // AUDIT LOG (who did what)
 //
 model AuditLog {
-  id        String   @id @default(uuid())
+  id String @id @default(uuid())
 
   companyId String?
   actorId   String?
   action    String
   target    String
 
-  meta      Json?
+  meta Json?
 
   createdAt DateTime @default(now())
 
   @@index([companyId, createdAt])
   @@index([actorId, createdAt])
+}
+
+model TaskTemplate {
+  id        String  @id @default(uuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  title     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items TaskTemplateItem[]
+
+  @@index([companyId])
+}
+
+model TaskTemplateItem {
+  id         String       @id @default(uuid())
+  templateId String
+  template   TaskTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  order    Int
+  text     String
+  required Boolean @default(true)
+
+  @@index([templateId])
+}
+
+model TaskAssignment {
+  id        String  @id @default(uuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id])
+
+  date  DateTime
+  title String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items TaskAssignmentItem[]
+
+  @@index([companyId, date])
+  @@index([employeeId, date])
+}
+
+model TaskAssignmentItem {
+  id           String         @id @default(uuid())
+  assignmentId String
+  assignment   TaskAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  order    Int
+  text     String
+  required Boolean   @default(true)
+  done     Boolean   @default(false)
+  doneAt   DateTime?
+
+  @@index([assignmentId])
 }
