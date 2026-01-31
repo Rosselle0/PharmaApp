@@ -332,6 +332,19 @@ export default function KioskClient({
         await supabase.auth.signOut();
         return;
       }
+      setEmployeeLogged(false);
+      setEmployeeCodeConfirmed(null);
+      setEmployeeName(null);
+
+      setEmployeeCode("");
+      setPinError(false);
+      setPinSuccess(false);
+      setPinFlash(false);
+      setAutoSubmitting(false);
+      setBlockedCode(null);
+
+      clearEmployeeSession();
+      router.replace("/kiosk");
 
       setShowAdminModal(false);
       setAdminPassword("");
