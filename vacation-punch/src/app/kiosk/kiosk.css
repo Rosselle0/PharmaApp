@@ -1,308 +1,855 @@
-* { box-sizing: border-box; }
+/* ============ Base ============ */
+* {
+    box-sizing: border-box;
+}
 
+:root {
+    /* Access Pharma palette: clean, clinical, premium */
+    --ap-ink: #0a1020;
+    --ap-muted: rgba(10, 16, 32, .62);
+
+    --ap-bg-0: #f6fbff;
+    --ap-bg-1: #eef6ff;
+
+    --ap-surface: rgba(255, 255, 255, .72);
+    --ap-surface-2: rgba(255, 255, 255, .88);
+
+    --ap-line: rgba(20, 40, 80, .14);
+    --ap-line-strong: rgba(20, 40, 80, .22);
+
+    --ap-blue: #1a73e8;
+    --ap-cyan: #11b5c9;
+    --ap-teal: #15c39a;
+
+    --ap-danger: #ff4d5e;
+    --ap-shadow: 0 18px 60px rgba(9, 30, 66, .14);
+    --ap-shadow-2: 0 10px 30px rgba(9, 30, 66, .12);
+
+    --r-lg: 22px;
+    --r-md: 16px;
+    --r-sm: 12px;
+}
+
+@keyframes floatIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulseGlow {
+    0% {
+        box-shadow: 0 0 0 rgba(26, 115, 232, 0);
+    }
+
+    50% {
+        box-shadow: 0 0 22px rgba(26, 115, 232, .22);
+    }
+
+    100% {
+        box-shadow: 0 0 0 rgba(26, 115, 232, 0);
+    }
+}
+
+@keyframes shakeX {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    20% {
+        transform: translateX(-7px);
+    }
+
+    40% {
+        transform: translateX(6px);
+    }
+
+    60% {
+        transform: translateX(-4px);
+    }
+
+    80% {
+        transform: translateX(3px);
+    }
+}
+
+@keyframes pressPop {
+    from {
+        transform: translateY(0) scale(1);
+    }
+
+    to {
+        transform: translateY(1px) scale(.98);
+    }
+}
+
+/* ============ Shell / Frame ============ */
 .kiosk-shell {
-  width: 100vw;
-  height: 100vh;
-  margin: 0;
-  background: #fff;            /* the kiosk is the screen */
-  display: block;
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+    width: 100vw;
+    height: 100vh;
+    margin: 0;
+    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+    color: var(--ap-ink);
+    background:
+        radial-gradient(1200px 700px at 18% 12%, rgba(17, 181, 201, .18), transparent 55%),
+        radial-gradient(900px 600px at 85% 18%, rgba(26, 115, 232, .18), transparent 60%),
+        linear-gradient(180deg, var(--ap-bg-0), var(--ap-bg-1));
 }
 
 .kiosk-frame {
-  width: 100%;
-  height: 100%;
-  background: #fff;
-  border-radius: 0;            /* no card look */
-  overflow: hidden;
-  display: grid;
-  grid-template-columns: 190px 1fr 320px;
-}
-/* LEFT */
-.kiosk-left{
-  background: #bfbfbf;
-  border-right: 2px solid #3c3c3c;
-  display: flex;
-  flex-direction: column;
+    width: 100%;
+    height: 100%;
+    display: grid;
+    grid-template-columns: 210px 1fr 340px;
+    gap: 14px;
+    padding: 14px;
+
+    /* soft outer rounding like a pro kiosk shell */
+    border-radius: 0;
 }
 
-.kiosk-leftTop{
-  height: 80px;
-  background: #d7d7d7;
-  border-bottom: 2px solid #3c3c3c;
+/* ============ Left Nav ============ */
+.kiosk-left {
+    border-radius: var(--r-lg);
+    background: linear-gradient(180deg, rgba(255, 255, 255, .70), rgba(255, 255, 255, .45));
+    border: 1px solid var(--ap-line);
+    box-shadow: var(--ap-shadow-2);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
-.kiosk-nav{ display: grid; }
-
-.kiosk-navBtn{
-  height: 62px;
-  background: rgba(0,0,0,0.20);
-  border: 0;
-  border-bottom: 2px solid #3c3c3c;
-  font-size: 20px;
-  font-weight: 800;
-  color: #0b0b0b;
-  cursor: pointer;
-  position: relative;
-}
-.kiosk-toast{
-  position: fixed;
-  left: 50%;
-  bottom: 24px;
-  transform: translateX(-50%);
-  background: #ff3b3b;
-  color: white;
-  padding: 12px 18px;
-  border-radius: 14px;
-  font-weight: 800;
-  z-index: 9999;
-  box-shadow: 0 10px 30px rgba(0,0,0,.25);
+.kiosk-leftTop {
+    height: 84px;
+    background:
+        radial-gradient(900px 220px at 30% 0%, rgba(26, 115, 232, .22), transparent 55%),
+        linear-gradient(180deg, rgba(255, 255, 255, .92), rgba(255, 255, 255, .62));
+    border-bottom: 1px solid var(--ap-line);
+    position: relative;
 }
 
-.kiosk-navBtn:hover{ background: rgba(0,0,0,0.26); }
-
-.kiosk-navSpacer{
-  height: 72px;
-  background: rgba(255,255,255,0.2);
-  border-bottom: 2px solid #3c3c3c;
+.kiosk-leftTop::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, rgba(17, 181, 201, .18), transparent 45%, rgba(26, 115, 232, .14));
+    opacity: .65;
+    pointer-events: none;
 }
 
-/* LOCKED ADMIN BUTTONS */
-.kiosk-navBtn.locked{
-  opacity: 0.55;
-  cursor: not-allowed;
+.kiosk-nav {
+    display: grid;
 }
 
-.lockBadge{
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 18px;
+.kiosk-navBtn {
+    height: 60px;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid var(--ap-line);
+    font-size: 18px;
+    font-weight: 850;
+    color: var(--ap-ink);
+    cursor: pointer;
+    padding: 0 14px;
+    text-align: left;
+    position: relative;
+    transition: background .18s ease, transform .18s ease;
 }
 
-/* CENTER */
-.kiosk-center{
-  padding: 34px 26px;
-  display: grid;
-  justify-items: center;
-  align-content: start;
-  gap: 18px;
+.kiosk-navBtn:hover {
+    background: rgba(26, 115, 232, .08);
+    transform: translateX(1px);
 }
 
-.kiosk-title{
-  margin: 0;
-  font-size: 38px;
-  font-weight: 900;
-  color: #111;
+.kiosk-navSpacer {
+    height: 16px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, .4), rgba(255, 255, 255, 0));
+    border-bottom: 1px solid var(--ap-line);
 }
 
-.kiosk-display{
-  width: min(560px, 92%);
-  height: 64px;
-  background: #d9d9d9;
-  border-radius: 6px;
-  display: grid;
-  place-items: center;
-  font-size: 34px;
-  font-weight: 900;
-  color: #111;
-  letter-spacing: 2px;
+.kiosk-navBtn.locked {
+    opacity: 0.55;
+    cursor: not-allowed;
 }
 
-.kiosk-pad{
-  display: grid;
-  grid-template-columns: repeat(3, 60px);
-  gap: 18px;
-  margin-top: 10px;
+.lockBadge {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 16px;
 }
 
-.kiosk-key{
-  width: 60px;
-  height: 60px;
-  border-radius: 999px;
-  border: 0;
-  background: #d9d9d9;
-  font-weight: 900;
-  font-size: 20px;
-  cursor: pointer;
-  color: #111;
-}
-.kiosk-key:hover{ filter: brightness(0.95); }
-
-.kiosk-padBottom{
-  grid-column: 1 / span 3;
-  display: grid;
-  grid-template-columns: 60px 60px;
-  justify-content: center;
-  gap: 18px;
-  margin-top: 4px;
+/* ============ Center ============ */
+.kiosk-center {
+    border-radius: var(--r-lg);
+    background: linear-gradient(180deg, rgba(255, 255, 255, .76), rgba(255, 255, 255, .46));
+    border: 1px solid var(--ap-line);
+    box-shadow: var(--ap-shadow);
+    padding: 28px 22px;
+    display: grid;
+    justify-items: center;
+    align-content: start;
+    gap: 18px;
+    animation: floatIn .35s ease both;
 }
 
-.kiosk-keyDanger{ background: #d85b5b; }
-
-.kiosk-actions{
-  display: flex;
-  gap: 10px;
-  margin-top: 8px;
+.kiosk-title {
+    margin: 0;
+    font-size: 34px;
+    font-weight: 950;
+    letter-spacing: .2px;
 }
 
-.kiosk-actionBtn{
-  height: 38px;
-  padding: 0 14px;
-  border-radius: 10px;
-  border: 1px solid rgba(0,0,0,0.18);
-  background: rgba(0,0,0,0.06);
-  cursor: pointer;
-  font-weight: 800;
-}
-.kiosk-actionPrimary{ background: rgba(0,0,0,0.12); }
-
-/* RIGHT COLUMN */
-.kiosk-rightCol{
-  border-left: 2px solid #3c3c3c;
-  padding: 16px;
-  display: grid;
-  grid-template-rows: auto 1fr;
-  gap: 12px;
-  background: #efefef;
+.kiosk-titleLogged {
+    background: linear-gradient(90deg, var(--ap-ink), rgba(10, 16, 32, .70));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
 }
 
-.rightTop{
-  display: flex;
-  justify-content: flex-end;
+/* ===== PIN UI (ONLY code entering area) ===== */
+.pinWrap {
+    width: min(560px, 96%);
+    padding: 18px 18px 14px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, .82);
+    border: 1px solid var(--ap-line-strong);
+    box-shadow: 0 10px 28px rgba(9, 30, 66, .10);
+    display: grid;
+    gap: 12px;
+    justify-items: center;
 }
 
-.kiosk-adminBtn{
-  height: 38px;
-  padding: 0 16px;
-  border-radius: 10px;
-  border: 1px solid rgba(0,0,0,0.18);
-  background: rgba(0,0,0,0.06);
-  cursor: pointer;
-  font-weight: 900;
-}
-.kiosk-adminBtn:hover{ background: rgba(0,0,0,0.10); }
-
-/* ACTIFS */
-.kiosk-actifsCard{
-  background: #d9d9d9;
-  border-radius: 6px;
-  padding: 12px;
-  border: 2px solid #3c3c3c;
+.pinTitle {
+    font-size: 18px;
+    font-weight: 900;
+    color: rgba(10, 16, 32, .78);
 }
 
-.kiosk-actifsTitle{
-  font-size: 22px;
-  font-weight: 900;
-  text-align: center;
-  margin-bottom: 8px;
+.pinBoxes {
+    display: grid;
+    grid-template-columns: repeat(4, 58px);
+    gap: 14px;
 }
 
-.kiosk-table{
-  border: 2px solid #3c3c3c;
-  background: #d9d9d9;
-  position: relative;
+.pinBox {
+    width: 58px;
+    height: 58px;
+    border-radius: 14px;
+    border: 2px solid rgba(26, 115, 232, .22);
+    background: rgba(246, 251, 255, .80);
+    display: grid;
+    place-items: center;
+    transition: border-color .2s ease, box-shadow .2s ease;
 }
 
-.kiosk-row{
-  display: grid;
-  grid-template-columns: 1.2fr 0.8fr 1fr;
-  border-bottom: 2px solid #3c3c3c;
+.pinStar {
+    font-size: 28px;
+    font-weight: 900;
+    color: rgba(10, 16, 32, .55);
+    transform: translateY(-1px);
 }
 
-.kiosk-row > div{
-  padding: 10px 8px;
-  border-right: 2px solid #3c3c3c;
-  font-weight: 800;
-  font-size: 13px;
-}
-.kiosk-row > div:last-child{ border-right: 0; }
-
-.kiosk-head > div{
-  font-weight: 900;
-  text-align: center;
-  padding: 8px 6px;
+.pinHint {
+    height: 18px;
+    font-size: 13px;
+    font-weight: 800;
+    color: rgba(10, 16, 32, .60);
 }
 
-.kiosk-emptyNote{
-  padding: 12px 8px;
-  font-weight: 900;
-  text-align: center;
-  border-bottom: 2px solid #3c3c3c;
+.pinOops {
+    color: var(--ap-danger);
 }
 
-.kiosk-statusCell{
-  display: grid;
-  place-items: center;
+/* Error: red border + shake */
+.pinWrap.pinError {
+    animation: shakeX .28s ease both;
+    border-color: rgba(255, 77, 94, .45);
 }
 
-.kiosk-dot{
-  width: 18px;
-  height: 18px;
-  border-radius: 999px;
-  display: inline-block;
-  border: 1px solid rgba(0,0,0,0.35);
+.pinWrap.pinError .pinBox {
+    border-color: rgba(255, 77, 94, .55);
+    background: rgba(255, 77, 94, .06);
 }
 
-.kiosk-dot.GREEN{ background: #3ccf64; }
-.kiosk-dot.RED{ background: #d85b5b; }
-.kiosk-dot.GRAY{ background: #6b6b6b; opacity: 0.65; }
-
-.kiosk-row.empty > div{ height: 46px; }
-
-/* Modal (reuses your login styles if you want, but here it's standalone) */
-.modal-overlay{
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.55);
-  display: grid;
-  place-items: center;
-  padding: 22px;
-  z-index: 50;
+/* Success: green/teal glow */
+.pinWrap.pinSuccess {
+    border-color: rgba(21, 195, 154, .40);
+    animation: pulseGlow .9s ease both;
 }
 
-.modal-card{
-  width: min(420px, 100%);
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(255,255,255,0.10);
-  backdrop-filter: blur(12px);
-  border-radius: 18px;
-  padding: 16px;
-  box-shadow: 0 18px 60px rgba(0,0,0,0.55);
-  color: #fff;
+.pinWrap.pinSuccess .pinBox {
+    border-color: rgba(21, 195, 154, .55);
 }
 
-.modal-head{
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+/* Success badge */
+.pinSuccessBadge {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 10px 0 4px;
 }
 
-.modal-title{ margin: 0; font-size: 16px; }
-.modal-sub{ margin: 8px 0 12px; opacity: 0.85; }
-
-.input{
-  width: 100%;
-  height: 44px;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(0,0,0,0.30);
-  color: #fff;
-  padding: 0 12px;
-  outline: none;
+.pinCheck {
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    background: rgba(21, 195, 154, .16);
+    border: 1px solid rgba(21, 195, 154, .35);
+    display: grid;
+    place-items: center;
+    color: rgba(10, 16, 32, .82);
+    font-weight: 950;
 }
 
-.primary, .secondary, .ghost{
-  border: 1px solid rgba(255,255,255,0.14);
-  border-radius: 12px;
-  height: 44px;
-  padding: 0 14px;
-  color: #fff;
-  background: rgba(255,255,255,0.10);
-  cursor: pointer;
-  font-weight: 800;
+.pinOkText {
+    font-weight: 950;
+    letter-spacing: .2px;
 }
-.secondary{ background: rgba(0,0,0,0.22); }
-.ghost{ background: rgba(0,0,0,0.18); height: 36px; }
+
+/* ===== Keypad ===== */
+.kiosk-pad {
+    display: grid;
+    grid-template-columns: repeat(3, 74px);
+    gap: 14px;
+    margin-top: 4px;
+}
+
+.kiosk-key {
+    width: 74px;
+    height: 74px;
+    border-radius: 999px;
+    border: 1px solid var(--ap-line-strong);
+    background: rgba(255, 255, 255, .78);
+    box-shadow: 0 10px 24px rgba(9, 30, 66, .10);
+    font-weight: 950;
+    font-size: 20px;
+    cursor: pointer;
+    color: var(--ap-ink);
+    transition: transform .12s ease, filter .12s ease, background .18s ease;
+}
+
+.kiosk-key:hover {
+    filter: brightness(.985);
+    transform: translateY(-1px);
+}
+
+.kiosk-key:active {
+    animation: pressPop .08s ease both;
+}
+
+.kiosk-padBottom {
+    grid-column: 1 / span 3;
+    display: grid;
+    grid-template-columns: 74px 74px;
+    justify-content: center;
+    gap: 14px;
+    margin-top: 4px;
+}
+
+.kiosk-keyDanger {
+    border-color: rgba(255, 77, 94, .35);
+    background: rgba(255, 77, 94, .10);
+}
+
+/* Actions */
+.kiosk-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 6px;
+}
+
+.kiosk-actionBtn {
+    height: 40px;
+    padding: 0 14px;
+    border-radius: 12px;
+    border: 1px solid var(--ap-line-strong);
+    background: rgba(255, 255, 255, .66);
+    cursor: pointer;
+    font-weight: 900;
+    color: rgba(10, 16, 32, .88);
+    box-shadow: 0 10px 22px rgba(9, 30, 66, .08);
+    transition: transform .12s ease, background .18s ease;
+}
+
+.kiosk-actionBtn:hover {
+    transform: translateY(-1px);
+}
+
+.kiosk-actionBtn:active {
+    transform: translateY(0);
+}
+
+.kiosk-actionPrimary {
+    background: linear-gradient(90deg, rgba(26, 115, 232, .14), rgba(17, 181, 201, .14));
+    border-color: rgba(26, 115, 232, .25);
+}
+
+/* ============ Right Column (Admin Panel / Actifs) ============ */
+.kiosk-rightCol {
+    border-radius: var(--r-lg);
+    background: linear-gradient(180deg, rgba(255, 255, 255, .74), rgba(255, 255, 255, .44));
+    border: 1px solid var(--ap-line);
+    box-shadow: var(--ap-shadow-2);
+    padding: 14px;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: 12px;
+    overflow: hidden;
+    animation: floatIn .35s ease both;
+}
+
+.adminPanelHead {
+    display: grid;
+    place-items: center;
+    /* 👈 centers horizontally + vertically */
+    padding: 14px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, .70);
+    border: 1px solid rgba(20, 40, 80, .14);
+}
+
+
+.adminPanelTitle {
+    font-size: 16px;
+    font-weight: 950;
+    letter-spacing: .3px;
+    color: rgba(10, 16, 32, .86);
+}
+
+.kiosk-adminBtn {
+    height: 38px;
+    padding: 0 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(26, 115, 232, .22);
+    background: rgba(26, 115, 232, .10);
+    cursor: pointer;
+    font-weight: 950;
+    color: rgba(10, 16, 32, .86);
+    transition: transform .12s ease, background .18s ease;
+}
+
+.kiosk-adminBtn:hover {
+    transform: translateY(-1px);
+    background: rgba(26, 115, 232, .14);
+}
+
+.kiosk-adminBtn:active {
+    transform: translateY(0);
+}
+
+/* Actifs card */
+.kiosk-actifsCard {
+    background: rgba(255, 255, 255, .64);
+    border-radius: 18px;
+    padding: 12px;
+    border: 1px solid var(--ap-line);
+    box-shadow: 0 10px 26px rgba(9, 30, 66, .08);
+}
+
+.kiosk-actifsTitle {
+    font-size: 18px;
+    font-weight: 950;
+    text-align: left;
+    margin: 0 0 10px 2px;
+    color: rgba(10, 16, 32, .80);
+}
+
+.kiosk-table {
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid var(--ap-line);
+    background: rgba(246, 251, 255, .65);
+}
+
+.kiosk-row {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr 1fr;
+    border-bottom: 1px solid var(--ap-line);
+}
+
+.kiosk-row>div {
+    padding: 10px 10px;
+    border-right: 1px solid var(--ap-line);
+    font-weight: 850;
+    font-size: 13px;
+    color: rgba(10, 16, 32, .82);
+}
+
+.kiosk-row>div:last-child {
+    border-right: 0;
+}
+
+.kiosk-head>div {
+    font-weight: 950;
+    text-align: center;
+    padding: 10px 8px;
+    background: rgba(26, 115, 232, .06);
+}
+
+.kiosk-emptyNote {
+    padding: 12px 10px;
+    font-weight: 950;
+    text-align: center;
+    border-bottom: 1px solid var(--ap-line);
+    color: rgba(10, 16, 32, .66);
+}
+
+.kiosk-statusCell {
+    display: grid;
+    place-items: center;
+}
+
+.kiosk-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+    display: inline-block;
+    border: 1px solid rgba(10, 16, 32, .25);
+}
+
+.kiosk-dot.GREEN {
+    background: #15c39a;
+}
+
+.kiosk-dot.RED {
+    background: #ff4d5e;
+}
+
+.kiosk-dot.GRAY {
+    background: rgba(10, 16, 32, .35);
+}
+
+/* ============ Toast ============ */
+.kiosk-toast {
+    position: fixed;
+    left: 50%;
+    bottom: 26px;
+    transform: translateX(-50%);
+    background: rgba(255, 77, 94, .92);
+    color: white;
+    padding: 12px 18px;
+    border-radius: 14px;
+    font-weight: 950;
+    z-index: 9999;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, .22);
+    animation: floatIn .18s ease both;
+}
+
+/* ============ Modal (keep your vibe but make it premium) ============ */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(8, 12, 24, 0.55);
+    display: grid;
+    place-items: center;
+    padding: 22px;
+    z-index: 50;
+}
+
+.modal-card {
+    width: min(440px, 100%);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.10);
+    backdrop-filter: blur(14px);
+    border-radius: 20px;
+    padding: 16px;
+    box-shadow: 0 22px 70px rgba(0, 0, 0, 0.55);
+    color: #fff;
+    animation: floatIn .22s ease both;
+}
+
+.modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.modal-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 950;
+}
+
+.modal-sub {
+    margin: 8px 0 12px;
+    opacity: 0.85;
+}
+
+.label {
+    font-size: 12px;
+    font-weight: 900;
+    opacity: .85;
+    letter-spacing: .2px;
+}
+
+.input {
+    width: 100%;
+    height: 44px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(0, 0, 0, 0.28);
+    color: #fff;
+    padding: 0 12px;
+    outline: none;
+}
+
+.primary,
+.secondary,
+.ghost {
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 14px;
+    height: 44px;
+    padding: 0 14px;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.12);
+    cursor: pointer;
+    font-weight: 900;
+    transition: transform .12s ease, background .18s ease;
+}
+
+.primary:hover,
+.secondary:hover,
+.ghost:hover {
+    transform: translateY(-1px);
+}
+
+.primary:active,
+.secondary:active,
+.ghost:active {
+    transform: translateY(0);
+}
+
+.secondary {
+    background: rgba(0, 0, 0, 0.22);
+}
+
+.ghost {
+    background: rgba(0, 0, 0, 0.16);
+    height: 36px;
+}
+
+.alert {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    background: rgba(255, 77, 94, .14);
+    border: 1px solid rgba(255, 77, 94, .22);
+    border-radius: 14px;
+    padding: 10px 12px;
+}
+
+.alert-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(255, 77, 94, .92);
+}
+
+.alert-text {
+    margin: 0;
+    font-weight: 850;
+    opacity: .95;
+}
+
+/* BRAND LOGO IN CENTER SPACE */
+
+@keyframes brandReveal {
+    0% {
+        opacity: 0;
+        transform: translateY(12px) scale(0.96);
+        filter: blur(6px);
+    }
+
+    60% {
+        opacity: 1;
+        filter: blur(0);
+    }
+
+    100% {
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes brandGlow {
+    0% {
+        box-shadow: 0 0 0 rgba(26, 115, 232, 0);
+    }
+
+    50% {
+        box-shadow: 0 0 42px rgba(26, 115, 232, .35);
+    }
+
+    100% {
+        box-shadow: 0 0 0 rgba(26, 115, 232, 0);
+    }
+}
+
+.brandWrap {
+    width: 100%;
+    flex: 1;
+    /* 👈 THIS is what fills the blank space */
+    display: grid;
+    place-items: center;
+    animation: brandReveal .6s cubic-bezier(.22, .61, .36, 1) both;
+}
+
+.brandLogo {
+    max-width: min(520px, 88%);
+    height: auto;
+    user-select: none;
+    animation: brandGlow 1.6s ease-out .6s both;
+}
+
+/* ========== LOGGED STATE POLISH ========== */
+
+/* When logged, the PIN container is not needed visually */
+.pinWrap.pinSuccess {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.pinWrap.pinSuccess .pinSuccessBadge {
+    display: none;
+    /* hide the big “Accès autorisé” bar from earlier */
+}
+
+/* A single centered "state card" */
+.loggedWrap {
+    width: min(760px, 92%);
+    margin-top: 18px;
+    /* ⬇ pushes whole block down */
+    padding: 36px 24px 30px;
+    /* ⬆ more vertical breathing room */
+    border-radius: 26px;
+    background: rgba(255, 255, 255, .72);
+    border: 1px solid rgba(20, 40, 80, .14);
+    box-shadow: 0 22px 70px rgba(9, 30, 66, .12);
+    display: grid;
+    gap: 22px;
+    /* ⬆ space between logo / status */
+    justify-items: center;
+    animation: floatIn .35s ease both;
+}
+
+
+/* Logo sizing + making it “feel” intentional */
+.loggedBrand {
+    width: 100%;
+    display: grid;
+    place-items: center;
+    padding: 22px 0 8px;
+    /* pushes logo down visually */
+    position: relative;
+}
+
+
+.loggedBrand::before {
+    content: "";
+    position: absolute;
+    width: min(520px, 86%);
+    height: 90px;
+    border-radius: 999px;
+    background: radial-gradient(circle at 50% 50%,
+            rgba(26, 115, 232, .18),
+            rgba(17, 181, 201, .10),
+            transparent 70%);
+    filter: blur(2px);
+    opacity: .9;
+    pointer-events: none;
+}
+
+.brandLogo {
+    width: min(500px, 84%);
+    max-height: 120px;
+    /* slightly smaller */
+    object-fit: contain;
+    height: auto;
+    user-select: none;
+    filter: drop-shadow(0 10px 18px rgba(9, 30, 66, .10));
+}
+
+
+/* Status card (clean, clinical) */
+.loggedStatus {
+    width: min(560px, 92%);
+    display: grid;
+    grid-template-columns: 46px 1fr;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 18px;
+    background: rgba(246, 251, 255, .75);
+    border: 1px solid rgba(21, 195, 154, .28);
+    box-shadow: 0 10px 24px rgba(9, 30, 66, .08);
+}
+
+.loggedCheck {
+    width: 42px;
+    height: 42px;
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    font-weight: 950;
+    font-size: 18px;
+    color: rgba(10, 16, 32, .85);
+    background: rgba(21, 195, 154, .16);
+    border: 1px solid rgba(21, 195, 154, .35);
+}
+
+.loggedStatusText {
+    display: grid;
+    gap: 2px;
+}
+
+.loggedStatusTitle {
+    font-weight: 950;
+    letter-spacing: .2px;
+    color: rgba(10, 16, 32, .88);
+}
+
+.loggedStatusSub {
+    font-size: 13px;
+    font-weight: 800;
+    color: rgba(10, 16, 32, .62);
+}
+
+/* Logout button that matches the system */
+.loggedLogoutBtn {
+    margin-top: 14px;
+    /*  push it down */
+    height: 46px;
+    padding: 0 22px;
+    border-radius: 16px;
+    border: 1px solid rgba(26, 115, 232, .22);
+    background: linear-gradient(90deg,
+            rgba(26, 115, 232, .10),
+            rgba(17, 181, 201, .10));
+    box-shadow: 0 12px 28px rgba(9, 30, 66, .10);
+    font-weight: 900;
+    cursor: pointer;
+    transition: transform .12s ease, filter .12s ease;
+}
+
+
+.loggedLogoutBtn:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.02);
+}
+
+.loggedLogoutBtn:active {
+    transform: translateY(0);
+}

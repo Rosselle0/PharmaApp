@@ -20,10 +20,13 @@ const NAV_ITEMS: NavItem[] = [
 
   { label: "Modifier c", href: "/admin/modify", adminOnly: true },
   { label: "Creation c", href: "/admin/create-account", adminOnly: true },
+  { label: "Creation T", href: "/admin/creation-t", adminOnly: true },
   { label: "Creation h", href: "/schedule/edit", adminOnly: true },
 ];
 
 type ActiveRow = { name: string; status: "GREEN" | "RED" | "GRAY"; time: string };
+
+const PIN_LEN = 4;
 
 export default function KioskClient({
   isAdminLogged,
@@ -38,9 +41,10 @@ export default function KioskClient({
   // employee kiosk login
   const [employeeCode, setEmployeeCode] = useState("");
   const [employeeLogged, setEmployeeLogged] = useState(false);
-
-  // ✅ NEW: store employee name
   const [employeeName, setEmployeeName] = useState<string | null>(null);
+
+  // ✅ PIN UI state
+  const [pinError, setPinError] = useState(false);
 
   // admin modal
   const [showAdminModal, setShowAdminModal] = useState(false);
@@ -66,16 +70,22 @@ export default function KioskClient({
   // Actifs empty at start (keep as-is for now)
   const actifs: ActiveRow[] = [];
 
+  function maskedPinBoxes(value: string) {
+    const digits = value.slice(0, PIN_LEN);
+    const boxes = Array.from({ length: PIN_LEN }, (_, i) => digits[i] ?? "");
+    return boxes;
+  }
+
   function onNavClick(item: NavItem) {
     // admin routes locked unless admin logged
     if (item.adminOnly && !isAdminLogged) {
-      showToast("plsss login firsttt 😭");
+      showToast("Accès admin requis.");
       return;
     }
 
     // employee pages require employee login (admins allowed too)
     if (item.requiresEmployeeCode && !canAccessEmployeePages) {
-      showToast("plsss login firsttt 😭");
+      showToast("Veuillez entrer votre code.");
       return;
     }
 
@@ -89,8 +99,11 @@ export default function KioskClient({
 
   async function employeeConfirm() {
     const clean = employeeCode.trim();
-    if (!clean) {
-      showToast("Entre ton code 😭");
+
+    if (!clean || clean.length !== PIN_LEN) {
+      setPinError(true);
+      showToast("Entrez un code valide.");
+      window.setTimeout(() => setPinError(false), 700);
       return;
     }
 
@@ -103,25 +116,26 @@ export default function KioskClient({
     if (!res.ok) {
       setEmployeeLogged(false);
       setEmployeeName(null);
-      showToast("Code invalide 😭");
+      setPinError(true);
+      showToast("Code invalide.");
+      window.setTimeout(() => setPinError(false), 700);
       return;
     }
 
-    // ✅ parse employee name
     const data = await res.json().catch(() => null);
-
-    //const first = data?.employee?.firstName ? String(data.employee.firstName) : "";
     const last = data?.employee?.lastName ? String(data.employee.lastName) : "";
     const full = `${last}`.trim();
 
     setEmployeeLogged(true);
     setEmployeeName(full || null);
+    setPinError(false);
   }
 
   function employeeLogout() {
     setEmployeeLogged(false);
     setEmployeeCode("");
     setEmployeeName(null);
+    setPinError(false);
   }
 
   async function adminLogin() {
@@ -160,7 +174,6 @@ export default function KioskClient({
 
       setShowAdminModal(false);
       setAdminPassword("");
-
       router.refresh();
     } catch {
       setAdminError("Erreur réseau.");
@@ -220,24 +233,72 @@ export default function KioskClient({
         {/* CENTER */}
         <section className="kiosk-center">
           {!isAnyLogged ? (
-            <h1 className="kiosk-title">Entrez votre code</h1>
+            <h1 className="kiosk-title">Bienvenue</h1>
           ) : (
             <h1 className="kiosk-title kiosk-titleLogged">
               {isAdminLogged
                 ? `Bonjour ${adminName || "Admin"}`
                 : `Salut ${employeeName || employeeCode}`}
             </h1>
+
+          )}
+          {isAnyLogged && (
+            <div className="loggedWrap">
+              <div className="loggedBrand">
+                <img
+                  src="/Logo-ACC.png"
+                  alt="Accès Pharma"
+                  className="brandLogo"
+                  draggable={false}
+                />
+              </div>
+
+              <div className="loggedStatus">
+                <span className="loggedCheck" aria-hidden="true">✓</span>
+                <div className="loggedStatusText">
+                  <div className="loggedStatusTitle">Accès autorisé</div>
+                  <div className="loggedStatusSub">Session active — vous pouvez naviguer.</div>
+                </div>
+              </div>
+            </div>
           )}
 
-          <div className="kiosk-display" aria-label="Code display">
-            {isAnyLogged ? (
-              <div className="kiosk-displaySuccess">
-                <span className="kiosk-displayThumb" aria-hidden="true">
-                  👍
-                </span>
-              </div>
+
+
+          {/* PIN DISPLAY (reference style) */}
+          <div
+            className={[
+              "pinWrap",
+              pinError ? "pinError" : "",
+              isAnyLogged ? "pinSuccess" : "",
+            ].join(" ")}
+            aria-label="Code display"
+          >
+            {!isAnyLogged ? (
+              <>
+                <div className="pinTitle">Enter current PIN</div>
+
+                <div className="pinBoxes" role="group" aria-label="PIN">
+                  {maskedPinBoxes(employeeCode).map((ch, idx) => (
+                    <div key={idx} className="pinBox">
+                      <span className="pinStar">{ch ? "•" : ""}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="pinHint">
+                  {pinError ? (
+                    <span className="pinOops">Oops! Wrong PIN</span>
+                  ) : (
+                    <span>&nbsp;</span>
+                  )}
+                </div>
+              </>
             ) : (
-              employeeCode
+              <div className="pinSuccessBadge" aria-label="Unlocked">
+                <span className="pinCheck">✓</span>
+                <span className="pinOkText">Accès autorisé</span>
+              </div>
             )}
           </div>
 
@@ -250,7 +311,10 @@ export default function KioskClient({
                     key={d}
                     className="kiosk-key"
                     type="button"
-                    onClick={() => setEmployeeCode((p) => (p.length >= 10 ? p : p + d))}
+                    onClick={() => {
+                      setPinError(false);
+                      setEmployeeCode((p) => (p.length >= PIN_LEN ? p : p + d));
+                    }}
                   >
                     {d}
                   </button>
@@ -260,16 +324,23 @@ export default function KioskClient({
                   <button
                     className="kiosk-key"
                     type="button"
-                    onClick={() => setEmployeeCode((p) => (p.length >= 10 ? p : p + "0"))}
+                    onClick={() => {
+                      setPinError(false);
+                      setEmployeeCode((p) => (p.length >= PIN_LEN ? p : p + "0"));
+                    }}
                   >
                     0
                   </button>
+
                   <button
                     className="kiosk-key kiosk-keyDanger"
                     type="button"
-                    onClick={() => setEmployeeCode((p) => p.slice(0, -1))}
+                    onClick={() => {
+                      setEmployeeCode((p) => p.slice(0, -1));
+                      setPinError(false);
+                    }}
                   >
-                    X
+                    ⌫
                   </button>
                 </div>
               </div>
@@ -282,12 +353,17 @@ export default function KioskClient({
                     setEmployeeCode("");
                     setEmployeeLogged(false);
                     setEmployeeName(null);
+                    setPinError(false);
                   }}
                 >
                   Clear
                 </button>
 
-                <button className="kiosk-actionBtn kiosk-actionPrimary" type="button" onClick={employeeConfirm}>
+                <button
+                  className="kiosk-actionBtn kiosk-actionPrimary"
+                  type="button"
+                  onClick={employeeConfirm}
+                >
                   OK
                 </button>
               </div>
@@ -297,7 +373,11 @@ export default function KioskClient({
           {/* EMPLOYEE LOGOUT ACTIONS */}
           {employeeLogged && !isAdminLogged && (
             <div className="kiosk-actions">
-              <button className="kiosk-actionBtn kiosk-actionPrimary" type="button" onClick={employeeLogout}>
+              <button
+                className="kiosk-actionBtn kiosk-actionPrimary"
+                type="button"
+                onClick={employeeLogout}
+              >
                 Se déconnecter
               </button>
             </div>
@@ -306,7 +386,8 @@ export default function KioskClient({
 
         {/* RIGHT COLUMN (Admin + Actifs) */}
         <aside className="kiosk-rightCol">
-          <div className="rightTop">
+          <div className="adminPanelHead">
+
             <button
               className="kiosk-adminBtn"
               type="button"
@@ -325,7 +406,7 @@ export default function KioskClient({
           </div>
 
           <div className="kiosk-actifsCard">
-            <div className="kiosk-actifsTitle">Actifs:</div>
+            <div className="kiosk-actifsTitle">Actifs</div>
 
             <div className="kiosk-table">
               <div className="kiosk-row kiosk-head">
@@ -339,11 +420,17 @@ export default function KioskClient({
                   <div className="kiosk-emptyNote">Aucun actif</div>
                   <div className="kiosk-row empty">
                     <div />
-                  </div>
-                  <div className="kiosk-row empty">
+                    <div />
                     <div />
                   </div>
                   <div className="kiosk-row empty">
+                    <div />
+                    <div />
+                    <div />
+                  </div>
+                  <div className="kiosk-row empty">
+                    <div />
+                    <div />
                     <div />
                   </div>
                 </>
@@ -374,7 +461,12 @@ export default function KioskClient({
           <div className="modal-card">
             <div className="modal-head">
               <h2 className="modal-title">Admin</h2>
-              <button className="ghost" type="button" onClick={() => setShowAdminModal(false)} disabled={adminLoading}>
+              <button
+                className="ghost"
+                type="button"
+                onClick={() => setShowAdminModal(false)}
+                disabled={adminLoading}
+              >
                 ✕
               </button>
             </div>
