@@ -473,8 +473,8 @@ export default function CreationTPage() {
           </div>
 
           <div className="ctTopActions">
-            <a className="ctBtn" href="/kiosk">
-              Retour Kiosk
+            <a className="ctBtn" href="/admin/dashboard">
+              Retour
             </a>
             <button className="ctBtn" type="button" onClick={() => reloadTemplates(true)} disabled={loadingTemplates}>
               {loadingTemplates ? "..." : "Rafraîchir templates"}

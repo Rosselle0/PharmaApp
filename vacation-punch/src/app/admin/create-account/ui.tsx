@@ -75,8 +75,8 @@ export default function CreateAccountPage() {
     <main className="page">
       <header className="topbar">
         <div className="topbarActions">
-          <button className="btn" type="button" onClick={() => router.push("/kiosk")}>
-            Back
+          <button className="btn" type="button" onClick={() => router.push(" /admin/dashboard")}>
+            Retour
           </button>
           <button className="btn" type="button" onClick={() => router.push("/admin/modify")}>
             Modifier comptes

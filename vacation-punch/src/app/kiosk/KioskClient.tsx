@@ -13,10 +13,10 @@ type NavItem = {
 };
 
 const NAV_ITEMS: NavItem[] = [
-  { label: "Horaire", href: "/schedule", requiresEmployeeCode: true },
-  { label: "Changement", href: "/change", requiresEmployeeCode: true },
-  { label: "Task list", href: "/task-list", requiresEmployeeCode: true },
-  { label: "Conge", href: "/vacation", requiresEmployeeCode: true },
+  { label: "Horaire📅", href: "/schedule", requiresEmployeeCode: true },
+  { label: "Changement🔁", href: "/change", requiresEmployeeCode: true },
+  { label: "Liste des tâches📋", href: "/task-list", requiresEmployeeCode: true },
+  { label: "Vacance/Congé🌴", href: "/vacation", requiresEmployeeCode: true },
 
   { label: "Modifier c", href: "/admin/modify", adminOnly: true },
   { label: "Creation c", href: "/admin/create-account", adminOnly: true },
@@ -371,36 +371,33 @@ export default function KioskClient({
           <div className="kiosk-leftTop" />
 
           <nav className="kiosk-nav">
-            {NAV_ITEMS.slice(0, 4).map((it) => (
-              <button
-                key={it.label}
-                className="kiosk-navBtn"
-                type="button"
-                onClick={() => onNavClick(it)}
-              >
-                {it.label}
-              </button>
-            ))}
-
-            <div className="kiosk-navSpacer" />
-
-            {NAV_ITEMS.slice(4).map((it) => {
-              const locked = it.adminOnly && !isAdminLogged;
-              return (
+            <div className="kiosk-navMain">
+              {NAV_ITEMS.slice(0, 4).map((it) => (
                 <button
                   key={it.label}
-                  className={`kiosk-navBtn ${locked ? "locked" : ""}`}
+                  className="kiosk-navBtn"
                   type="button"
                   onClick={() => onNavClick(it)}
-                  disabled={locked}
-                  title={locked ? "Admin only" : undefined}
                 >
-                  <span>{it.label}</span>
-                  {locked && <span className="lockBadge">🔒</span>}
+                  {it.label}
                 </button>
-              );
-            })}
+              ))}
+            </div>
+
+            <div className="kiosk-navBottom">
+              <button
+                className="kiosk-navBtn kiosk-navLogs"
+                type="button"
+                onClick={() => router.push("/admin/dashboard")}
+                disabled={!isAdminLogged}
+                title={!isAdminLogged ? "Connexion admin requise" : undefined}
+              >
+                <span>Logs</span>
+                {!isAdminLogged && <span className="lockBadge">🔒</span>}
+              </button>
+            </div>
           </nav>
+
         </aside>
 
         {/* CENTER */}
@@ -439,43 +436,36 @@ export default function KioskClient({
 
 
           {/* PIN DISPLAY (reference style) */}
-          <div
-            className={[
-              "pinWrap",
-              pinError ? "pinError" : "",
-              pinSuccess ? "pinSuccess" : "",
-              pinFlash ? "pinFlash" : "",
-              isAnyLogged ? "pinSuccess" : "",
-            ].join(" ")}
-          >
+          {!isAnyLogged && (
+            <div
+              className={[
+                "pinWrap",
+                pinError ? "pinWrap--error" : "",
+                pinSuccess ? "pinWrap--success" : "",
+                pinFlash ? "pinWrap--flash" : "",
+              ].join(" ")}
+            >
+              <div className="pinTitle">Entrez votre pin</div>
 
-            {!isAnyLogged ? (
-              <>
-                <div className="pinTitle">Entrez votre pin</div>
-
-                <div className="pinBoxes" role="group" aria-label="PIN">
-                  {maskedPinBoxes(employeeCode).map((ch, idx) => (
-                    <div key={idx} className="pinBox">
-                      <span className="pinStar">{ch ? "•" : ""}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="pinHint">
-                  {pinError ? (
-                    <span className="pinOops">Oops! Pin invalide</span>
-                  ) : (
-                    <span>&nbsp;</span>
-                  )}
-                </div>
-              </>
-            ) : (
-              <div className="pinSuccessBadge" aria-label="Unlocked">
-                <span className="pinCheck">✓</span>
-                <span className="pinOkText">Accès autorisé</span>
+              <div className="pinBoxes" role="group" aria-label="PIN">
+                {maskedPinBoxes(employeeCode).map((ch, idx) => (
+                  <div key={idx} className="pinBox">
+                    <span className="pinStar">{ch ? "•" : ""}</span>
+                  </div>
+                ))}
               </div>
-            )}
-          </div>
+
+              <div className="pinHint">
+                {pinError ? (
+                  <span className="pinOops">Oops! Pin invalide</span>
+                ) : (
+                  <span>{"\u00A0"}</span>
+                )}
+              </div>
+            </div>
+          )}
+
+
 
           {/* SHOW KEYPAD ONLY WHEN NOT LOGGED */}
           {!isAnyLogged && (

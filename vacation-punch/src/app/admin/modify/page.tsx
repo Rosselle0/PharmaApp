@@ -147,8 +147,8 @@ export default function ModifyAccountsPage() {
     <main className="m-page">
       <header className="m-topbar">
         <div className="m-topLeft">
-          <button className="m-btn" type="button" onClick={() => router.push("/kiosk")}>
-            ← Back
+          <button className="m-btn" type="button" onClick={() => router.push( "/admin/dashboard")}>
+            ← Retour
           </button>
           <button className="m-btn" type="button" onClick={() => router.push("/admin/create-account")}>
             + Créer compte

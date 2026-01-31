@@ -261,7 +261,7 @@ export default function ScheduleEditorClient(props: {
                             Semaine suivante →
                         </a>
 
-                        <a className="btn" href="/kiosk">
+                        <a className="btn" href= "/admin/dashboard">
                             Retour
                         </a>
                     </div>
