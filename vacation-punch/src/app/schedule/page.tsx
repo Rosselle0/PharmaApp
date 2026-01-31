@@ -193,12 +193,7 @@ export default async function SchedulePage({
                                 <span className="pillTime">{hmLocal(new Date(sh.endTime))}</span>
 
                                 {sh.note ? (
-                                  <span className="noteBadge">
-                                    <span className="noteBadgeDot" aria-hidden="true">
-                                      •
-                                    </span>
-                                    {sh.note}
-                                  </span>
+                                  <span className="pillOpt">{sh.note}</span>
                                 ) : null}
                               </div>
                             ))

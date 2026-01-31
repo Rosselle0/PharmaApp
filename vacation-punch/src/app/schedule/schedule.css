@@ -164,31 +164,94 @@ tbody tr:hover td {
 }
 
 /* ====== SHIFT PILL (SMOOTH WITH NOTE CHIP) ====== */
-.shiftPill{
+.shiftPill {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  border-radius: 14px;
+  gap: 6px;
+
+  padding: 5px 10px;
+  border-radius: 999px;
+
+  font-size: 12px;      
+  font-weight: 700;
+
   border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(255,255,255,0.06);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
-  margin: 0 8px 8px 0;
+  background: rgba(255,255,255,0.05);
   white-space: nowrap;
-  max-width: 100%;
 }
 
-/* keep time tight */
-.pillTime{
+.optChip{
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 22px;
+  min-width: 22px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 999px;
+  font-size: 11px;
   font-weight: 900;
-  letter-spacing: .2px;
+  letter-spacing: .3px;
+
+  border: 1px solid rgba(120,190,255,0.35);
+  background: rgba(120,190,255,0.18);
+  color: #e9f3ff;
+
+  pointer-events: none; /* ✅ chip doesn’t block clicks */
+}
+
+/* OPTIONAL: if notes can be long, clamp it so it stays clean */
+.optChip{
+  max-width: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shiftBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .3px;
+  border: 1px solid rgba(120,190,255,0.35);
+  background: rgba(120,190,255,0.15);
+  color: #e9f3ff;
+}
+/* keep time tight */
+.pillTime {
   font-variant-numeric: tabular-nums;
 }
-.pillDash{
-  opacity: .6;
-  font-weight: 900;
+.pillDash {
+  opacity: 0.55;
 }
+.pillOpt {
+  margin-left: 6px;
 
+  padding: 1px 6px;
+  height: 16px;
+  line-height: 14px;
+
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .3px;
+
+  border-radius: 999px;
+  border: 1px solid rgba(120,190,255,0.35);
+  background: rgba(120,190,255,0.15);
+  color: #e9f3ff;
+
+  text-transform: uppercase;
+}
 /* ✅ push note to the right cleanly */
 .shiftPill .noteBadge{
   margin-left: auto;          /* key */
