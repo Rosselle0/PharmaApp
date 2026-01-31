@@ -46,21 +46,69 @@ export default function KioskClient({
   // PIN UI state
   const [pinError, setPinError] = useState(false);
   useEffect(() => {
-    if (isAdminLogged) return;
+    // Only when employee mode (not admin) and not already logged
+    if (isAdminLogged || employeeLogged) return;
 
-    const logged = localStorage.getItem("kiosk_employee_logged") === "1";
-    if (!logged) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      // Don't steal typing from inputs/modals
+      const el = document.activeElement as HTMLElement | null;
+      const tag = (el?.tagName ?? "").toLowerCase();
+      if (tag === "input" || tag === "textarea" || el?.getAttribute("contenteditable") === "true") return;
 
-    const savedCode = (localStorage.getItem("kiosk_employee_code") ?? "").replace(/\D/g, "").slice(0, PIN_LEN);
-    const savedName = localStorage.getItem("kiosk_employee_name") ?? "";
+      // ---- DIGITS (top row + numpad) ----
+      // e.key handles most cases ("1"), e.code helps for numpad
+      const isDigitKey = e.key >= "0" && e.key <= "9";
+      const isNumpadDigit = /^Numpad[0-9]$/.test(e.code);
 
-    if (savedCode && savedCode.length === PIN_LEN) {
-      setEmployeeCode(savedCode);
-      setEmployeeLogged(true);
-      setEmployeeName(savedName || null);
-      setPinError(false);
-    }
-  }, [isAdminLogged]);
+      if (isDigitKey || isNumpadDigit) {
+        e.preventDefault();
+        setPinError(false);
+
+        const digit = isNumpadDigit ? e.code.replace("Numpad", "") : e.key;
+
+        setEmployeeCode((p) => {
+          const next = (p + digit).replace(/\D/g, "").slice(0, PIN_LEN);
+          return next;
+        });
+        return;
+      }
+
+      // ---- ERASE (Backspace / Delete) ----
+      if (e.key === "Backspace" || e.key === "Delete") {
+        e.preventDefault();
+        setPinError(false);
+        setEmployeeCode((p) => p.slice(0, -1));
+        return;
+      }
+
+      // ---- OK (Enter / NumpadEnter) ----
+      if (e.key === "Enter" || e.code === "NumpadEnter") {
+        e.preventDefault();
+        const clean = employeeCode.replace(/\D/g, "").slice(0, PIN_LEN);
+
+        if (clean.length === PIN_LEN) {
+          employeeConfirm();
+        } else {
+          setPinError(true);
+          showToast("Entrez un code valide.");
+          window.setTimeout(() => setPinError(false), 700);
+        }
+        return;
+      }
+
+      // ---- CLEAR (Escape) optional but nice ----
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setEmployeeCode("");
+        setPinError(false);
+        return;
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isAdminLogged, employeeLogged, employeeCode]);
+
 
   // admin modal
   const [showAdminModal, setShowAdminModal] = useState(false);
@@ -357,8 +405,9 @@ export default function KioskClient({
                     type="button"
                     onClick={() => {
                       setPinError(false);
-                      setEmployeeCode((p) => (p.length >= PIN_LEN ? p : p + d));
+                      setEmployeeCode((p) => (p + d).replace(/\D/g, "").slice(0, PIN_LEN));
                     }}
+
                   >
                     {d}
                   </button>
@@ -370,8 +419,9 @@ export default function KioskClient({
                     type="button"
                     onClick={() => {
                       setPinError(false);
-                      setEmployeeCode((p) => (p.length >= PIN_LEN ? p : p + "0"));
+                      setEmployeeCode((p) => (p + "0").replace(/\D/g, "").slice(0, PIN_LEN));
                     }}
+
                   >
                     0
                   </button>
@@ -383,6 +433,7 @@ export default function KioskClient({
                       setEmployeeCode((p) => p.slice(0, -1));
                       setPinError(false);
                     }}
+
                   >
                     ⌫
                   </button>
