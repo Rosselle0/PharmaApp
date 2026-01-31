@@ -39,6 +39,9 @@ export default function KioskClient({
   const [employeeCode, setEmployeeCode] = useState("");
   const [employeeLogged, setEmployeeLogged] = useState(false);
 
+  // ✅ NEW: store employee name
+  const [employeeName, setEmployeeName] = useState<string | null>(null);
+
   // admin modal
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [adminEmail, setAdminEmail] = useState("");
@@ -56,12 +59,9 @@ export default function KioskClient({
   const isAnyLogged = isAdminLogged || employeeLogged;
 
   const canAccessEmployeePages = useMemo(
-    () =>
-    isAdminLogged ||
-    (employeeLogged && employeeCode.trim().length > 0),
+    () => isAdminLogged || (employeeLogged && employeeCode.trim().length > 0),
     [isAdminLogged, employeeLogged, employeeCode]
   );
-
 
   // Actifs empty at start (keep as-is for now)
   const actifs: ActiveRow[] = [];
@@ -73,7 +73,7 @@ export default function KioskClient({
       return;
     }
 
-    // employee pages require employee login
+    // employee pages require employee login (admins allowed too)
     if (item.requiresEmployeeCode && !canAccessEmployeePages) {
       showToast("plsss login firsttt 😭");
       return;
@@ -87,31 +87,41 @@ export default function KioskClient({
     router.push(item.href);
   }
 
-async function employeeConfirm() {
-  const clean = employeeCode.trim();
-  if (!clean) {
-    showToast("Entre ton code 😭");
-    return;
+  async function employeeConfirm() {
+    const clean = employeeCode.trim();
+    if (!clean) {
+      showToast("Entre ton code 😭");
+      return;
+    }
+
+    const res = await fetch("/api/kiosk/unlock", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: clean }),
+    });
+
+    if (!res.ok) {
+      setEmployeeLogged(false);
+      setEmployeeName(null);
+      showToast("Code invalide 😭");
+      return;
+    }
+
+    // ✅ parse employee name
+    const data = await res.json().catch(() => null);
+
+    //const first = data?.employee?.firstName ? String(data.employee.firstName) : "";
+    const last = data?.employee?.lastName ? String(data.employee.lastName) : "";
+    const full = `${last}`.trim();
+
+    setEmployeeLogged(true);
+    setEmployeeName(full || null);
   }
-
-  const res = await fetch("/api/kiosk/unlock", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ code: clean }),
-  });
-
-  if (!res.ok) {
-    showToast("Code invalide 😭");
-    return;
-  }
-
-  setEmployeeLogged(true);
-}
-
 
   function employeeLogout() {
     setEmployeeLogged(false);
     setEmployeeCode("");
+    setEmployeeName(null);
   }
 
   async function adminLogin() {
@@ -151,7 +161,6 @@ async function employeeConfirm() {
       setShowAdminModal(false);
       setAdminPassword("");
 
-      // refresh server page to recompute isAdminLogged + adminName
       router.refresh();
     } catch {
       setAdminError("Erreur réseau.");
@@ -216,7 +225,7 @@ async function employeeConfirm() {
             <h1 className="kiosk-title kiosk-titleLogged">
               {isAdminLogged
                 ? `Bonjour ${adminName || "Admin"}`
-                : `Salut ${employeeCode}`}
+                : `Salut ${employeeName || employeeCode}`}
             </h1>
           )}
 
@@ -241,9 +250,7 @@ async function employeeConfirm() {
                     key={d}
                     className="kiosk-key"
                     type="button"
-                    onClick={() =>
-                      setEmployeeCode((p) => (p.length >= 10 ? p : p + d))
-                    }
+                    onClick={() => setEmployeeCode((p) => (p.length >= 10 ? p : p + d))}
                   >
                     {d}
                   </button>
@@ -253,9 +260,7 @@ async function employeeConfirm() {
                   <button
                     className="kiosk-key"
                     type="button"
-                    onClick={() =>
-                      setEmployeeCode((p) => (p.length >= 10 ? p : p + "0"))
-                    }
+                    onClick={() => setEmployeeCode((p) => (p.length >= 10 ? p : p + "0"))}
                   >
                     0
                   </button>
@@ -276,16 +281,13 @@ async function employeeConfirm() {
                   onClick={() => {
                     setEmployeeCode("");
                     setEmployeeLogged(false);
+                    setEmployeeName(null);
                   }}
                 >
                   Clear
                 </button>
 
-                <button
-                  className="kiosk-actionBtn kiosk-actionPrimary"
-                  type="button"
-                  onClick={employeeConfirm}
-                >
+                <button className="kiosk-actionBtn kiosk-actionPrimary" type="button" onClick={employeeConfirm}>
                   OK
                 </button>
               </div>
@@ -295,12 +297,7 @@ async function employeeConfirm() {
           {/* EMPLOYEE LOGOUT ACTIONS */}
           {employeeLogged && !isAdminLogged && (
             <div className="kiosk-actions">
-
-              <button
-                className="kiosk-actionBtn kiosk-actionPrimary"
-                type="button"
-                onClick={employeeLogout}
-              >
+              <button className="kiosk-actionBtn kiosk-actionPrimary" type="button" onClick={employeeLogout}>
                 Se déconnecter
               </button>
             </div>
@@ -377,12 +374,7 @@ async function employeeConfirm() {
           <div className="modal-card">
             <div className="modal-head">
               <h2 className="modal-title">Admin</h2>
-              <button
-                className="ghost"
-                type="button"
-                onClick={() => setShowAdminModal(false)}
-                disabled={adminLoading}
-              >
+              <button className="ghost" type="button" onClick={() => setShowAdminModal(false)} disabled={adminLoading}>
                 ✕
               </button>
             </div>
