@@ -116,6 +116,7 @@ export default async function SchedulePage({
   const prevWeek = ymdLocal(addDays(weekStart, -7));
   const nextWeek = ymdLocal(addDays(weekStart, 7));
   const codeQS = code ? `&code=${encodeURIComponent(code)}` : "";
+  const retourHref = code ? `/kiosk?code=${encodeURIComponent(code)}` : "/kiosk";
 
   return (
     <main className="page">
@@ -135,7 +136,7 @@ export default async function SchedulePage({
             <Link className="btn" href={`/schedule?week=${encodeURIComponent(nextWeek)}${codeQS}`}>
               Semaine suivante →
             </Link>
-            <Link className="btn" href={code ? `/kiosk?code=${encodeURIComponent(code)}` : "/kiosk"}>
+            <Link className="btn" href={retourHref}>
               Retour
             </Link>
 

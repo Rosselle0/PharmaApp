@@ -42,6 +42,38 @@ export default function KioskClient({
   const [employeeCode, setEmployeeCode] = useState("");
   const [employeeLogged, setEmployeeLogged] = useState(false);
   const [employeeName, setEmployeeName] = useState<string | null>(null);
+  const [autoSubmitting, setAutoSubmitting] = useState(false);
+  const [blockedCode, setBlockedCode] = useState<string | null>(null);
+
+
+  useEffect(() => {
+    if (isAdminLogged) return; // admin doesn't need kiosk restore
+
+    // read URL: /kiosk?code=1234
+    const params = new URLSearchParams(window.location.search);
+    const urlCode = (params.get("code") ?? "").replace(/\D/g, "").slice(0, PIN_LEN);
+
+    // read storage
+    const lsLogged = localStorage.getItem("kiosk_employee_logged") === "1";
+    const lsCode = (localStorage.getItem("kiosk_employee_code") ?? "").replace(/\D/g, "").slice(0, PIN_LEN);
+    const lsName = (localStorage.getItem("kiosk_employee_name") ?? "").trim();
+
+    const finalCode = urlCode.length === PIN_LEN ? urlCode : lsCode;
+
+    if ((urlCode.length === PIN_LEN) || (lsLogged && finalCode.length === PIN_LEN)) {
+      setEmployeeCode(finalCode);
+      setEmployeeCodeConfirmed(finalCode);
+      setEmployeeLogged(true);
+      setEmployeeName(lsName || null);
+      setPinError(false);
+
+      // keep storage synced
+      localStorage.setItem("kiosk_employee_logged", "1");
+      localStorage.setItem("kiosk_employee_code", finalCode);
+      localStorage.setItem("kiosk_employee_name", lsName);
+    }
+  }, [isAdminLogged]);
+
 
   // PIN UI state
   const [pinError, setPinError] = useState(false);
@@ -81,20 +113,6 @@ export default function KioskClient({
         return;
       }
 
-      // ---- OK (Enter / NumpadEnter) ----
-      if (e.key === "Enter" || e.code === "NumpadEnter") {
-        e.preventDefault();
-        const clean = employeeCode.replace(/\D/g, "").slice(0, PIN_LEN);
-
-        if (clean.length === PIN_LEN) {
-          employeeConfirm();
-        } else {
-          setPinError(true);
-          showToast("Entrez un code valide.");
-          window.setTimeout(() => setPinError(false), 700);
-        }
-        return;
-      }
 
       // ---- CLEAR (Escape) optional but nice ----
       if (e.key === "Escape") {
@@ -108,6 +126,32 @@ export default function KioskClient({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [isAdminLogged, employeeLogged, employeeCode]);
+
+  useEffect(() => {
+    const clean = employeeCode.replace(/\D/g, "").slice(0, PIN_LEN);
+
+    // if user changed the code (or erased), unlock auto submit again
+    if (!blockedCode) return;
+    if (clean !== blockedCode) setBlockedCode(null);
+  }, [employeeCode, blockedCode]);
+
+
+  useEffect(() => {
+    if (isAdminLogged) return;
+    if (employeeLogged) return;
+    if (autoSubmitting) return;
+
+    const clean = employeeCode.replace(/\D/g, "").slice(0, PIN_LEN);
+    if (clean.length !== PIN_LEN) return;
+
+    // stop loops: don't resubmit the same failed code
+    if (blockedCode === clean) return;
+
+    setAutoSubmitting(true);
+    employeeConfirm(clean).finally(() => setAutoSubmitting(false));
+  }, [employeeCode, isAdminLogged, employeeLogged, autoSubmitting, blockedCode]);
+
+
 
 
   // admin modal
@@ -180,10 +224,10 @@ export default function KioskClient({
   }
 
 
-  async function employeeConfirm() {
-    const clean = employeeCode.trim();
+  async function employeeConfirm(forcedCode?: string) {
+    const clean = (forcedCode ?? employeeCode).replace(/\D/g, "").slice(0, PIN_LEN);
 
-    if (!clean || clean.length !== PIN_LEN) {
+    if (clean.length !== PIN_LEN) {
       setPinError(true);
       showToast("Entrez un code valide.");
       window.setTimeout(() => setPinError(false), 700);
@@ -197,28 +241,33 @@ export default function KioskClient({
     });
 
     if (!res.ok) {
+      //  invalid => red UI, keep user on pin screen
       setEmployeeLogged(false);
+      setEmployeeCodeConfirmed(null);
       setEmployeeName(null);
+      setBlockedCode(clean);
       setPinError(true);
       showToast("Code invalide.");
-      window.setTimeout(() => setPinError(false), 700);
+      window.setTimeout(() => setPinError(false), 900);
+
+      // keep the typed code so they can delete/correct
       return;
     }
 
     const data = await res.json().catch(() => null);
-    const last = data?.employee?.lastName ? String(data.employee.lastName) : "";
+    const last  = data?.employee?.lastName  ? String(data.employee.lastName)  : "";
     const full = `${last}`.trim();
 
+    // valid => green UI and logged in
     setEmployeeLogged(true);
     setEmployeeCodeConfirmed(clean);
-    setEmployeeName(full || null);
+    setEmployeeName(full);
     setPinError(false);
-    saveEmployeeSession(clean, full || null);
 
-    localStorage.setItem("kiosk_employee_logged", "1");
-    localStorage.setItem("kiosk_employee_code", clean);
-    localStorage.setItem("kiosk_employee_name", full || "");
+    saveEmployeeSession(clean, full);
 
+    // keep kiosk url carrying the code (so Retour doesn't "lose" it)
+    router.replace(`/kiosk?code=${encodeURIComponent(clean)}`);
   }
 
   function employeeLogout() {
@@ -330,7 +379,7 @@ export default function KioskClient({
             <h1 className="kiosk-title kiosk-titleLogged">
               {isAdminLogged
                 ? `Bonjour ${adminName || "Admin"}`
-                : `Salut ${employeeName || employeeCode}`}
+                : `Salut ${employeeName}`}
             </h1>
 
           )}
@@ -458,7 +507,8 @@ export default function KioskClient({
                 <button
                   className="kiosk-actionBtn kiosk-actionPrimary"
                   type="button"
-                  onClick={employeeConfirm}
+                  onClick={() => employeeConfirm()}
+
                 >
                   OK
                 </button>

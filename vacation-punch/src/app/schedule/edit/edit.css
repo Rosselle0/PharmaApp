@@ -40,7 +40,7 @@
   color: rgba(255,255,255,0.62);
 }
 
-.modalClose{
+/* .modalClose{
   border: 1px solid rgba(255,255,255,0.12);
   background: rgba(255,255,255,0.06);
   color: rgba(255,255,255,0.9);
@@ -54,7 +54,7 @@
   transform: translateY(-1px);
   background: rgba(255,255,255,0.10);
   border-color: rgba(255,255,255,0.18);
-}
+} */
 
 .form{
   padding: 14px 16px 16px;
@@ -90,7 +90,7 @@
 }
 
 
-.quick{
+/* .quick{
   margin-top: 8px;
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -127,7 +127,7 @@
 .chip:active{
   transform: translateY(0px) scale(0.98);
 }
-
+ */
 
 .msg{
   padding: 12px;
@@ -226,12 +226,12 @@
   border-color: rgba(255,255,255,0.18);
 }
 /* Show note inside the shift pill (UI only) */
-.pill{
+/* .pill{
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;                 /* allows note to wrap nicely */
-}
+  flex-wrap: wrap;               
+} */
 
 .pillTime{ font-weight: 900; }
 .pillDash{ opacity: 0.65; }
