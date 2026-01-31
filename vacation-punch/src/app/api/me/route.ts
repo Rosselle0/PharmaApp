@@ -41,7 +41,6 @@ export async function GET() {
   if (!email) {
     return NextResponse.json({ user: null }, { status: 400 });
   }
-const meRes = await fetch("/api/me", { cache: "no-store" });
 
   const companyId = await getCompanyId();
 

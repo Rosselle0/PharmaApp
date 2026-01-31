@@ -149,3 +149,140 @@
   .grid2{ grid-template-columns: 1fr; }
   .quick{ grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }
+
+/* ===== Day hover system (Editor) ===== */
+
+.dayTh{
+  transition: background 160ms ease, box-shadow 160ms ease;
+}
+
+.dayHead{
+  display: grid;
+  gap: 4px;
+}
+
+.dayTop{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dayEditTag{
+  font-size: 11px;
+  font-weight: 900;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(120,190,255,0.18);
+  background: rgba(120,190,255,0.10);
+  opacity: 0;
+  transform: translateY(-1px);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.dayHover .dayEditTag{
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.dayHover{
+  background: rgba(120,190,255,0.10) !important;
+  box-shadow: inset 0 -2px 0 rgba(120,190,255,0.35);
+}
+
+.dayHoverCell{
+  background: rgba(120,190,255,0.07);
+}
+
+.td.cell{
+  transition: background 160ms ease, box-shadow 160ms ease, transform 120ms ease;
+}
+
+.td.cell.empty:hover{
+  background: rgba(120,190,255,0.10);
+  box-shadow: inset 0 0 0 1px rgba(120,190,255,0.28);
+  transform: translateY(-1px);
+}
+
+.td.cell.filled:hover{
+  background: rgba(255,255,255,0.06);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
+}
+
+/* Better modal close button (since you're now using .modalClose) */
+.modalClose{
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.9);
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: transform 140ms ease, background 140ms ease, border-color 140ms ease;
+}
+.modalClose:hover{
+  transform: translateY(-1px);
+  background: rgba(255,255,255,0.10);
+  border-color: rgba(255,255,255,0.18);
+}
+/* Show note inside the shift pill (UI only) */
+.pill{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;                 /* allows note to wrap nicely */
+}
+
+.pillTime{ font-weight: 900; }
+.pillDash{ opacity: 0.65; }
+
+.pillNote{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(120,190,255,0.18);
+  background: rgba(120,190,255,0.10);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .2px;
+  opacity: 0.95;
+  max-width: 100%;
+}
+
+.pillNoteDot{
+  opacity: 0.7;
+}
+.quick{
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.chip{
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.92);
+  border-radius: 999px;
+  padding: 10px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  min-width: 68px;
+  text-align: center;
+  transition: transform 140ms ease, background 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.chip:hover{
+  transform: translateY(-1px);
+  background: rgba(255,255,255,0.10);
+  border-color: rgba(120,190,255,0.45);
+  box-shadow: 0 10px 24px rgba(0,0,0,.35);
+}
+
+.chipActive{
+  border-color: rgba(21,195,154,0.55);
+  background: rgba(21,195,154,0.14);
+  box-shadow: 0 0 0 2px rgba(21,195,154,0.10);
+}

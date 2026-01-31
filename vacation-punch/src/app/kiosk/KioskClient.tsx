@@ -37,7 +37,7 @@ export default function KioskClient({
 }) {
   const router = useRouter();
   const supabase = supabaseBrowser();
-
+  const [employeeCodeConfirmed, setEmployeeCodeConfirmed] = useState<string | null>(null);
   // employee kiosk login
   const [employeeCode, setEmployeeCode] = useState("");
   const [employeeLogged, setEmployeeLogged] = useState(false);
@@ -63,9 +63,10 @@ export default function KioskClient({
   const isAnyLogged = isAdminLogged || employeeLogged;
 
   const canAccessEmployeePages = useMemo(
-    () => isAdminLogged || (employeeLogged && employeeCode.trim().length > 0),
-    [isAdminLogged, employeeLogged, employeeCode]
+    () => isAdminLogged || (!!employeeCodeConfirmed && employeeLogged),
+    [isAdminLogged, employeeLogged, employeeCodeConfirmed]
   );
+
 
   // Actifs empty at start (keep as-is for now)
   const actifs: ActiveRow[] = [];
@@ -76,26 +77,35 @@ export default function KioskClient({
     return boxes;
   }
 
-  function onNavClick(item: NavItem) {
-    // admin routes locked unless admin logged
-    if (item.adminOnly && !isAdminLogged) {
-      showToast("Accès admin requis.");
-      return;
-    }
-
-    // employee pages require employee login (admins allowed too)
-    if (item.requiresEmployeeCode && !canAccessEmployeePages) {
-      showToast("Veuillez entrer votre code.");
-      return;
-    }
-
-    if (item.requiresEmployeeCode) {
-      router.push(`${item.href}?code=${encodeURIComponent(employeeCode.trim())}`);
-      return;
-    }
-
-    router.push(item.href);
+function onNavClick(item: NavItem) {
+  // admin routes locked unless admin logged
+  if (item.adminOnly && !isAdminLogged) {
+    showToast("Accès admin requis.");
+    return;
   }
+
+  // employee pages require employee login (admins allowed too)
+  if (item.requiresEmployeeCode && !canAccessEmployeePages) {
+    showToast("Veuillez entrer votre code.");
+    return;
+  }
+
+  // ✅ ADMIN: go clean, no code param
+  if (item.requiresEmployeeCode && isAdminLogged) {
+    router.push(item.href);
+    return;
+  }
+
+  // ✅ EMPLOYEE: must include code
+  if (item.requiresEmployeeCode) {
+    const clean = employeeCode.trim();
+    router.push(`${item.href}?code=${encodeURIComponent(clean)}`);
+    return;
+  }
+
+  router.push(item.href);
+}
+
 
   async function employeeConfirm() {
     const clean = employeeCode.trim();
@@ -127,12 +137,15 @@ export default function KioskClient({
     const full = `${last}`.trim();
 
     setEmployeeLogged(true);
+    setEmployeeCodeConfirmed(clean);
     setEmployeeName(full || null);
     setPinError(false);
   }
 
   function employeeLogout() {
     setEmployeeLogged(false);
+    setEmployeeCodeConfirmed(null);
+
     setEmployeeCode("");
     setEmployeeName(null);
     setPinError(false);
@@ -276,7 +289,7 @@ export default function KioskClient({
           >
             {!isAnyLogged ? (
               <>
-                <div className="pinTitle">Enter current PIN</div>
+                <div className="pinTitle">Entrez votre pin</div>
 
                 <div className="pinBoxes" role="group" aria-label="PIN">
                   {maskedPinBoxes(employeeCode).map((ch, idx) => (
@@ -352,6 +365,7 @@ export default function KioskClient({
                   onClick={() => {
                     setEmployeeCode("");
                     setEmployeeLogged(false);
+                    setEmployeeCodeConfirmed(null);
                     setEmployeeName(null);
                     setPinError(false);
                   }}

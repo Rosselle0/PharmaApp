@@ -2,28 +2,30 @@
 
 .page {
   min-height: 100vh;
+  width: 100%;
   background: #0b0b10;
   color: #f3f3f7;
 }
 
 .shell {
-  max-width: 1200px;
+  max-width: 1800px;
   margin: 0 auto;
-  padding: 26px 18px 60px;
+  padding: 26px 24px 60px;
 }
 
 .head {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 14px;
+  gap: 16px;
+  margin-bottom: 16px;
 }
 
 .h1 {
   margin: 0;
   font-size: 18px;
-  font-weight: 800;
+  font-weight: 900;
+  letter-spacing: 0.2px;
 }
 
 .p {
@@ -47,34 +49,42 @@
   padding: 10px 12px;
   border-radius: 12px;
   cursor: pointer;
-  font-weight: 700;
+  font-weight: 800;
   text-decoration: none;
+  transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
 }
 
 .btn:hover {
   background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.20);
+  transform: translateY(-1px);
 }
 
 .section {
   margin-top: 16px;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
-  border-radius: 16px;
+  background: radial-gradient(
+    120% 120% at 50% 0%,
+    rgba(255, 255, 255, 0.06),
+    rgba(255, 255, 255, 0.02)
+  );
+  border-radius: 18px;
   overflow: hidden;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
 }
 
 .sectionTop {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 14px;
+  padding: 14px 16px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.10);
 }
 
 .sectionTitle {
   margin: 0;
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 900;
   letter-spacing: 0.3px;
 }
 
@@ -84,19 +94,19 @@
 }
 
 .tableWrap {
-  overflow: auto;
+  overflow: visible; /* ✅ no horizontal scroll */
 }
 
 .table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 980px;
+  table-layout: fixed; /* ✅ equal columns */
 }
 
 .th,
 .td {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 10px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 12px 12px;
   font-size: 12px;
   vertical-align: top;
 }
@@ -107,27 +117,36 @@
   top: 0;
   background: rgba(10, 10, 18, 0.95);
   z-index: 1;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
 }
 
 .nameCell {
-  font-weight: 800;
-  width: 220px;
+  font-weight: 900;
+  width: 260px;
   white-space: nowrap;
+}
+
+.stickyLeft {
+  position: sticky;
+  left: 0;
+  background: rgba(10, 10, 18, 0.98);
+  z-index: 2;
 }
 
 .cell {
   opacity: 0.95;
 }
 
-.shiftPill {
-  display: inline-flex;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(0, 0, 0, 0.20);
-  padding: 6px 8px;
-  border-radius: 999px;
-  margin: 0 6px 6px 0;
-  gap: 6px;
-  font-weight: 700;
+.th:not(.nameCell),
+.td.cell {
+  width: calc((100% - 260px - 90px) / 7);
+}
+
+.th:last-child,
+.td:last-child {
+  width: 90px;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .muted {
@@ -138,14 +157,88 @@
   padding: 14px;
   opacity: 0.75;
 }
-.stickyLeft {
-  position: sticky;
-  left: 0;
-  background: rgba(10, 10, 18, 0.98);
-  z-index: 2;
+
+/* Row hover: subtle */
+tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.03);
 }
 
-.noteDot {
-  margin-left: 6px;
-  opacity: 0.75;
+/* ====== SHIFT PILL (SMOOTH WITH NOTE CHIP) ====== */
+.shiftPill{
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.06);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+  margin: 0 8px 8px 0;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+/* keep time tight */
+.pillTime{
+  font-weight: 900;
+  letter-spacing: .2px;
+  font-variant-numeric: tabular-nums;
+}
+.pillDash{
+  opacity: .6;
+  font-weight: 900;
+}
+
+/* ✅ push note to the right cleanly */
+.shiftPill .noteBadge{
+  margin-left: auto;          /* key */
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(120,190,255,0.30);
+  background: rgba(120,190,255,0.10);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .3px;
+  line-height: 1;
+}
+
+.shiftPill .noteBadgeDot{
+  opacity: .75;
+}
+
+
+/* ====== OPTIONAL NOTE BADGE (C / L / DIS / INV etc.) ====== */
+.noteBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(120, 190, 255, 0.30);
+  background: rgba(120, 190, 255, 0.10);
+  font-size: 11px;
+  font-weight: 900;
+  opacity: 0.95;
+}
+
+.noteBadgeDot {
+  opacity: 0.8;
+}
+
+/* Empty dash */
+.td.cell .muted {
+  opacity: 0.35;
+}
+
+/* Small screens: allow scroll (ONLY when absolutely needed) */
+@media (max-width: 1050px) {
+  .tableWrap {
+    overflow: auto;
+  }
+  .table {
+    min-width: 980px;
+  }
 }

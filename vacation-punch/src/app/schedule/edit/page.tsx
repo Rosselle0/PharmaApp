@@ -1,23 +1,27 @@
 // src/app/schedule/edit/page.tsx
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+import { unstable_noStore as noStore } from "next/cache";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import ScheduleEditorClient from "./ui";
 
-
-function startOfWeek(d: Date) {
+function startOfWeekSunday(d: Date) {
   const x = new Date(d);
-  const day = x.getDay(); // 0 Sun
-  const diff = (day + 6) % 7; // Monday = 0
-  x.setDate(x.getDate() - diff);
+  const day = x.getDay(); // 0 = Sunday
+  x.setDate(x.getDate() - day);
   x.setHours(0, 0, 0, 0);
   return x;
 }
+
 function addDays(d: Date, n: number) {
   const x = new Date(d);
   x.setDate(x.getDate() + n);
   return x;
 }
+
 function ymdLocal(d: Date) {
   const x = new Date(d);
   const y = x.getFullYear();
@@ -39,7 +43,8 @@ export default async function ScheduleEditPage({
 }: {
   searchParams: Promise<{ week?: string }>;
 }) {
-  // ✅ must be logged in admin
+  noStore();
+
   const supabase = await supabaseServer();
   const { data } = await supabase.auth.getUser();
   if (!data?.user) redirect("/login");
@@ -50,13 +55,13 @@ export default async function ScheduleEditPage({
   });
   if (!me || me.role !== "ADMIN") redirect("/dashboard");
 
-  // ✅ keep admin on default company (same as kiosk/employees)
   const company = await getDefaultCompany();
   const companyId = company.id;
 
-  const sp = await searchParams;
+  const sp = await searchParams; // ✅ UNWRAP PROMISE
   const base = sp.week ? new Date(sp.week + "T12:00:00") : new Date();
-  const weekStart = startOfWeek(base);
+
+  const weekStart = startOfWeekSunday(base);
   const weekEnd = addDays(weekStart, 7);
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
@@ -77,12 +82,12 @@ export default async function ScheduleEditPage({
   });
 
   const shiftsForClient = shifts.map((s) => ({
-  id: s.id,
-  employeeId: s.employeeId,
-  startTime: s.startTime.toISOString(),
-  endTime: s.endTime.toISOString(),
-  note: s.note ?? null,
-}));
+    id: s.id,
+    employeeId: s.employeeId,
+    startTime: s.startTime.toISOString(),
+    endTime: s.endTime.toISOString(),
+    note: s.note ?? null,
+  }));
 
   return (
     <ScheduleEditorClient
