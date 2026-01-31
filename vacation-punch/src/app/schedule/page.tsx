@@ -135,9 +135,10 @@ export default async function SchedulePage({
             <Link className="btn" href={`/schedule?week=${encodeURIComponent(nextWeek)}${codeQS}`}>
               Semaine suivante →
             </Link>
-            <Link className="btn" href="/kiosk">
+            <Link className="btn" href={code ? `/kiosk?code=${encodeURIComponent(code)}` : "/kiosk"}>
               Retour
             </Link>
+
           </div>
         </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 import "./kiosk.css";
@@ -43,8 +43,24 @@ export default function KioskClient({
   const [employeeLogged, setEmployeeLogged] = useState(false);
   const [employeeName, setEmployeeName] = useState<string | null>(null);
 
-  // ✅ PIN UI state
+  // PIN UI state
   const [pinError, setPinError] = useState(false);
+  useEffect(() => {
+    if (isAdminLogged) return;
+
+    const logged = localStorage.getItem("kiosk_employee_logged") === "1";
+    if (!logged) return;
+
+    const savedCode = (localStorage.getItem("kiosk_employee_code") ?? "").replace(/\D/g, "").slice(0, PIN_LEN);
+    const savedName = localStorage.getItem("kiosk_employee_name") ?? "";
+
+    if (savedCode && savedCode.length === PIN_LEN) {
+      setEmployeeCode(savedCode);
+      setEmployeeLogged(true);
+      setEmployeeName(savedName || null);
+      setPinError(false);
+    }
+  }, [isAdminLogged]);
 
   // admin modal
   const [showAdminModal, setShowAdminModal] = useState(false);
@@ -61,12 +77,22 @@ export default function KioskClient({
   }
 
   const isAnyLogged = isAdminLogged || employeeLogged;
-
+  const employeeCodeClean = employeeCode.replace(/\D/g, "").slice(0, PIN_LEN);
   const canAccessEmployeePages = useMemo(
-    () => isAdminLogged || (!!employeeCodeConfirmed && employeeLogged),
-    [isAdminLogged, employeeLogged, employeeCodeConfirmed]
+    () => isAdminLogged || (employeeLogged && employeeCodeClean.length === PIN_LEN),
+    [isAdminLogged, employeeLogged, employeeCodeClean]
   );
+  function saveEmployeeSession(code: string, name: string | null) {
+    localStorage.setItem("kiosk_employee_logged", "1");
+    localStorage.setItem("kiosk_employee_code", code);
+    localStorage.setItem("kiosk_employee_name", name ?? "");
+  }
 
+  function clearEmployeeSession() {
+    localStorage.removeItem("kiosk_employee_logged");
+    localStorage.removeItem("kiosk_employee_code");
+    localStorage.removeItem("kiosk_employee_name");
+  }
 
   // Actifs empty at start (keep as-is for now)
   const actifs: ActiveRow[] = [];
@@ -77,34 +103,33 @@ export default function KioskClient({
     return boxes;
   }
 
-function onNavClick(item: NavItem) {
-  // admin routes locked unless admin logged
-  if (item.adminOnly && !isAdminLogged) {
-    showToast("Accès admin requis.");
-    return;
-  }
+  function onNavClick(item: NavItem) {
+    // admin routes locked unless admin logged
+    if (item.adminOnly && !isAdminLogged) {
+      showToast("Accès admin requis.");
+      return;
+    }
 
-  // employee pages require employee login (admins allowed too)
-  if (item.requiresEmployeeCode && !canAccessEmployeePages) {
-    showToast("Veuillez entrer votre code.");
-    return;
-  }
+    // employee pages require employee login (admins allowed too)
+    if (item.requiresEmployeeCode && !canAccessEmployeePages) {
+      showToast("Veuillez entrer votre code.");
+      return;
+    }
 
-  // ✅ ADMIN: go clean, no code param
-  if (item.requiresEmployeeCode && isAdminLogged) {
+    // ✅ ADMIN: never append ?code=...
+    if (item.requiresEmployeeCode && isAdminLogged) {
+      router.push(item.href);
+      return;
+    }
+
+    // ✅ EMPLOYEE: always append the saved 4-digit code
+    if (item.requiresEmployeeCode) {
+      router.push(`${item.href}?code=${encodeURIComponent(employeeCodeClean)}`);
+      return;
+    }
+
     router.push(item.href);
-    return;
   }
-
-  // ✅ EMPLOYEE: must include code
-  if (item.requiresEmployeeCode) {
-    const clean = employeeCode.trim();
-    router.push(`${item.href}?code=${encodeURIComponent(clean)}`);
-    return;
-  }
-
-  router.push(item.href);
-}
 
 
   async function employeeConfirm() {
@@ -140,15 +165,21 @@ function onNavClick(item: NavItem) {
     setEmployeeCodeConfirmed(clean);
     setEmployeeName(full || null);
     setPinError(false);
+    saveEmployeeSession(clean, full || null);
+
+    localStorage.setItem("kiosk_employee_logged", "1");
+    localStorage.setItem("kiosk_employee_code", clean);
+    localStorage.setItem("kiosk_employee_name", full || "");
+
   }
 
   function employeeLogout() {
     setEmployeeLogged(false);
     setEmployeeCodeConfirmed(null);
-
     setEmployeeCode("");
     setEmployeeName(null);
     setPinError(false);
+    clearEmployeeSession();
   }
 
   async function adminLogin() {
