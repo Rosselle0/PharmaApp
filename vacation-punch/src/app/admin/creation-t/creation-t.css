@@ -1,0 +1,288 @@
+.ctPage{
+  min-height: 100vh;
+  background: #0b0b10;
+  color: #f3f3f7;
+}
+
+.ctShell{
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 26px 24px 60px;
+}
+
+.ctTop{
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.ctH1{
+  margin: 0;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: .2px;
+}
+
+.ctP{
+  margin: 6px 0 0;
+  opacity: .75;
+  font-size: 13px;
+  line-height: 1.35;
+  max-width: 68ch;
+}
+
+.ctTopActions{
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ctGrid{
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 14px;
+}
+
+.ctCard{
+  border: 1px solid rgba(255,255,255,0.12);
+  background: radial-gradient(120% 120% at 50% 0%, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.45);
+}
+
+.ctCardHead{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.10);
+}
+
+.ctCardTitle{
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: .3px;
+}
+
+.ctMuted{
+  opacity: .7;
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.ctCardBody{
+  padding: 14px 16px 16px;
+}
+
+.ctLabel{
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.72);
+  font-weight: 800;
+}
+
+.ctInput, .ctSelect{
+  width: 100%;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.92);
+  padding: 10px 12px;
+  border-radius: 12px;
+  outline: none;
+}
+
+.ctInput:focus, .ctSelect:focus{
+  border-color: rgba(120,190,255,0.45);
+  box-shadow: 0 0 0 2px rgba(120,190,255,0.10);
+}
+
+.ctSplitRow{
+  display:flex;
+  justify-content: space-between;
+  align-items:center;
+  margin-top: 12px;
+  margin-bottom: 8px;
+}
+
+.ctTinyBtn{
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+  padding: 8px 10px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.ctTinyBtn:hover{
+  background: rgba(255,255,255,0.10);
+  border-color: rgba(255,255,255,0.20);
+}
+
+.ctList{
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.ctLine{
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(0,0,0,0.20);
+}
+
+.ctLineInput{
+  width: 100%;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.92);
+  padding: 9px 10px;
+  border-radius: 12px;
+  outline: none;
+}
+
+.ctCheck{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  opacity: .85;
+}
+
+.ctIconBtn{
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.88);
+  cursor: pointer;
+}
+
+.ctIconBtn:hover{
+  background: rgba(255,255,255,0.10);
+}
+
+.ctEmpty{
+  opacity: .7;
+  font-size: 12px;
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px dashed rgba(255,255,255,0.14);
+}
+
+.ctActions{
+  display:flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.ctBtn, .ctBtnPrimary, .ctBtnDanger{
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+  padding: 10px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 900;
+  text-decoration: none;
+  transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+
+.ctBtn:hover, .ctBtnPrimary:hover, .ctBtnDanger:hover{
+  background: rgba(255,255,255,0.10);
+  border-color: rgba(255,255,255,0.20);
+  transform: translateY(-1px);
+}
+
+.ctBtnPrimary{
+  border-color: rgba(120,190,255,0.35);
+  background: rgba(120,190,255,0.14);
+}
+
+.ctBtnDanger{
+  border-color: rgba(255,90,120,0.35);
+  background: rgba(255,90,120,0.10);
+}
+
+.ctMsg{
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.06);
+  font-size: 12px;
+  font-weight: 800;
+  opacity: .95;
+}
+
+.ctPills{
+  display:flex;
+  gap: 8px;
+}
+
+.ctPill{
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.90);
+  padding: 8px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 900;
+  font-size: 12px;
+}
+
+.ctPill.on{
+  border-color: rgba(120,190,255,0.35);
+  background: rgba(120,190,255,0.16);
+}
+
+.ctGrid2{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.ctBlock{
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(0,0,0,0.22);
+}
+
+.ctHint{
+  font-size: 12px;
+  opacity: .9;
+}
+
+.ctHintSmall{
+  margin-top: 6px;
+  font-size: 12px;
+  opacity: .65;
+}
+
+.ctFooterTip{
+  margin-top: 14px;
+  font-size: 12px;
+  opacity: .6;
+}
+
+@media (max-width: 1050px){
+  .ctGrid{ grid-template-columns: 1fr; }
+  .ctGrid2{ grid-template-columns: 1fr; }
+  .ctLine{ grid-template-columns: 1fr; }
+}

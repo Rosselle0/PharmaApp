@@ -15,7 +15,7 @@ type NavItem = {
 const NAV_ITEMS: NavItem[] = [
   { label: "Horaire", href: "/schedule", requiresEmployeeCode: true },
   { label: "Changement", href: "/change", requiresEmployeeCode: true },
-  { label: "Task list", href: "/tasks", requiresEmployeeCode: true },
+  { label: "Task list", href: "/task-list", requiresEmployeeCode: true },
   { label: "Conge", href: "/vacation", requiresEmployeeCode: true },
 
   { label: "Modifier c", href: "/admin/modify", adminOnly: true },
@@ -251,7 +251,6 @@ export default function KioskClient({
       setEmployeeName(null);
       setBlockedCode(clean);
       setPinError(true);
-      showToast("Code invalide.");
       window.setTimeout(() => setPinError(false), 900);
 
       // keep the typed code so they can delete/correct
@@ -464,7 +463,7 @@ export default function KioskClient({
 
                 <div className="pinHint">
                   {pinError ? (
-                    <span className="pinOops">Oops! Wrong PIN</span>
+                    <span className="pinOops">Oops! Pin invalide</span>
                   ) : (
                     <span>&nbsp;</span>
                   )}

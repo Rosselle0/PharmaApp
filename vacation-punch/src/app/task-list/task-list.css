@@ -1,0 +1,158 @@
+.tlPage{
+  min-height: 100vh;
+  background: #0b0b10;
+  color: #f3f3f7;
+}
+
+.tlShell{
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 26px 24px 60px;
+}
+
+.tlTop{
+  display:flex;
+  justify-content: space-between;
+  align-items:flex-start;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.tlH1{ margin: 0; font-size: 18px; font-weight: 900; letter-spacing: .2px; }
+.tlP{ margin: 6px 0 0; opacity: .75; font-size: 13px; line-height: 1.35; }
+
+.tlActions{
+  display:flex;
+  gap: 10px;
+  align-items:center;
+  flex-wrap: wrap;
+}
+
+.tlBtn{
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+  padding: 10px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 900;
+}
+.tlBtn:hover{
+  background: rgba(255,255,255,0.10);
+  border-color: rgba(255,255,255,0.20);
+}
+
+.tlDate{
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.92);
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+
+.tlMsg{
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.06);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.tlGrid{
+  display:grid;
+  gap: 12px;
+}
+
+.tlCard{
+  border: 1px solid rgba(255,255,255,0.12);
+  background: radial-gradient(120% 120% at 50% 0%, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.45);
+}
+
+.tlCardHead{
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.10);
+}
+
+.tlTitle{ font-size: 14px; font-weight: 900; letter-spacing: .3px; }
+.tlMeta{ opacity: .65; font-size: 12px; margin-top: 2px; }
+
+.tlCardBody{ padding: 14px 16px 16px; }
+.tlEmpty{ opacity: .7; font-size: 12px; }
+
+.tlTasks{
+  display:grid;
+  gap: 8px;
+}
+
+.tlTask{
+  width: 100%;
+  display:grid;
+  grid-template-columns: 34px 1fr auto;
+  gap: 10px;
+  align-items:center;
+
+  padding: 12px 12px;
+  border-radius: 14px;
+
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(0,0,0,0.20);
+  color: rgba(255,255,255,0.92);
+  cursor: pointer;
+  text-align: left;
+}
+
+.tlTask:hover{
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.14);
+}
+
+.tlTask.done{
+  border-color: rgba(21,195,154,0.40);
+  background: rgba(21,195,154,0.10);
+}
+
+.tlCheck{
+  width: 26px;
+  height: 26px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.14);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight: 900;
+}
+
+.tlTask.done .tlCheck{
+  border-color: rgba(21,195,154,0.50);
+}
+
+.tlText{
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.tlReq, .tlOpt{
+  font-size: 11px;
+  font-weight: 900;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(120,190,255,0.30);
+  background: rgba(120,190,255,0.10);
+  letter-spacing: .3px;
+}
+
+.tlReq{
+  border-color: rgba(255,170,60,0.35);
+  background: rgba(255,170,60,0.10);
+}
+
+@media (max-width: 720px){
+  .tlTask{ grid-template-columns: 34px 1fr; }
+  .tlReq, .tlOpt{ justify-self: start; }
+}
