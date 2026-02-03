@@ -1,22 +1,24 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-
 import "./creation-t.css";
 
-type Employee = {
-  id: string;
-  code?: string | null;
-  firstName?: string | null;
-  lastName?: string | null;
-  name?: string | null; // fallback
-};
-
 type TemplateItem = { text: string; required: boolean };
+
 type Template = {
   id: string;
   title: string;
   items: TemplateItem[];
+};
+
+type WorkingEmployee = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  employeeCode: string; // still exists in payload, but we won't display it
+  department: string;
+  startISO: string;
+  endISO: string;
 };
 
 function ymd(d = new Date()) {
@@ -31,56 +33,8 @@ function normStr(v: any) {
   return String(v);
 }
 
-function employeeLabel(e: Employee) {
-  const full =
-    `${normStr(e.firstName).trim()} ${normStr(e.lastName).trim()}`.trim() ||
-    normStr(e.name).trim() ||
-    "";
-  if (full) return e.code ? `${full} (${e.code})` : full;
-  return e.code ? `Employé (${e.code})` : "Employé";
-}
-
-async function tryGetJson(urls: string[]) {
-  let lastErr = "";
-  for (const url of urls) {
-    try {
-      const res = await fetch(url, { cache: "no-store" });
-      const text = await res.text();
-      const data = text ? JSON.parse(text) : null;
-
-      if (res.ok) return { ok: true as const, url, data };
-      lastErr = `${url} -> ${res.status} ${res.statusText} :: ${text?.slice(0, 300)}`;
-    } catch (e: any) {
-      lastErr = `fetch/json failed :: ${e?.message ?? String(e)}`;
-    }
-  }
-  return { ok: false as const, error: lastErr };
-}
-
-function normalizeEmployees(payload: any): Employee[] {
-  const raw =
-    payload?.employees ??
-    payload?.data?.employees ??
-    payload?.rows ??
-    payload?.data ??
-    payload ??
-    [];
-
-  const arr = Array.isArray(raw) ? raw : [];
-  return arr
-    .map((r: any) => {
-      const id = r?.id ?? r?.e_id ?? r?.employeeId ?? r?.uuid;
-      if (!id) return null;
-
-      return {
-        id: String(id),
-        code: r?.code ?? r?.employeeCode ?? r?.pin ?? r?.kiosk_code ?? r?.e_code ?? null,
-        firstName: r?.firstName ?? r?.prenom ?? r?.e_prenom ?? null,
-        lastName: r?.lastName ?? r?.nom ?? r?.e_nom ?? null,
-        name: r?.name ?? r?.fullName ?? null,
-      } as Employee;
-    })
-    .filter(Boolean) as Employee[];
+function safeArray<T>(v: any): T[] {
+  return Array.isArray(v) ? v : [];
 }
 
 function normalizeTemplates(payload: any): Template[] {
@@ -92,28 +46,22 @@ function normalizeTemplates(payload: any): Template[] {
     payload ??
     [];
 
-  const arr = Array.isArray(raw) ? raw : [];
-  return arr
-    .map((t: any) => {
+  return safeArray<any>(raw)
+    .map((t) => {
       const id = t?.id ?? t?.templateId ?? t?.e_id ?? t?.uuid;
       const title = t?.title ?? t?.name ?? t?.templateTitle ?? "";
       const itemsRaw = t?.items ?? t?.tasks ?? t?.lines ?? t?.templateItems ?? [];
-      const itemsArr = Array.isArray(itemsRaw) ? itemsRaw : [];
 
-      const items = itemsArr
-        .map((x: any) => ({
-          text: normStr(x?.text ?? x?.label ?? x?.task ?? x?.name),
-          required: Boolean(x?.required ?? x?.isRequired ?? x?.req ?? true),
+      const items = safeArray<any>(itemsRaw)
+        .map((x) => ({
+          text: normStr(x?.text ?? x?.label ?? x?.task ?? x?.name).trim(),
+          required: x?.required === undefined ? true : Boolean(x?.required),
         }))
-        .filter((x: any) => x.text.trim().length > 0);
+        .filter((x) => x.text.length > 0);
 
       if (!id || !String(title).trim()) return null;
 
-      return {
-        id: String(id),
-        title: String(title),
-        items,
-      } as Template;
+      return { id: String(id), title: String(title), items } as Template;
     })
     .filter(Boolean) as Template[];
 }
@@ -122,11 +70,11 @@ export default function CreationTPage() {
   // -------------------
   // DATA
   // -------------------
-  const [employees, setEmployees] = useState<Employee[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
-
-  const [loadingEmployees, setLoadingEmployees] = useState(true);
   const [loadingTemplates, setLoadingTemplates] = useState(true);
+
+  const [workingEmployees, setWorkingEmployees] = useState<WorkingEmployee[]>([]);
+  const [loadingWorking, setLoadingWorking] = useState(false);
 
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -150,48 +98,59 @@ export default function CreationTPage() {
     [templates, templateId]
   );
 
-
   // -------------------
-  // LOAD EMPLOYEES
+  // LOAD WORKING EMPLOYEES (BY DATE)
   // -------------------
   useEffect(() => {
     let cancelled = false;
 
-    async function load() {
-      setLoadingEmployees(true);
+    async function loadWorking() {
+      setLoadingWorking(true);
       setMsg(null);
 
-      const result = await tryGetJson([
-        "/api/admin/employees",
-        "/api/employees",
-        "/api/kiosk/employees",
-        "/api/admin/list-employees",
-      ]);
-
-      if (cancelled) return;
-
-      if (!result.ok) {
-        setEmployees([]);
-        setMsg(`Employees load failed: ${result.error}`);
-        setLoadingEmployees(false);
-        return;
-      }
-
-      const normalized = normalizeEmployees(result.data);
-      setEmployees(normalized);
-      if (normalized.length === 0) {
-        setMsg(
-          `Employees loaded from ${result.url} but list is EMPTY. Your API response shape is wrong or DB query returns nothing.`
+      try {
+        const res = await fetch(
+          `/api/admin/schedule/employees-working?date=${encodeURIComponent(dateYMD)}`,
+          { cache: "no-store" }
         );
+
+        const text = await res.text();
+        let data: any = null;
+        try {
+          data = text ? JSON.parse(text) : null;
+        } catch {
+          throw new Error(`Réponse non-JSON: ${text.slice(0, 120)}`);
+        }
+
+        if (!res.ok) throw new Error(data?.error || "Failed to load working employees");
+
+        const list = safeArray<WorkingEmployee>(data?.employees);
+
+        if (!cancelled) {
+          setWorkingEmployees(list);
+
+          // reset selection if no longer valid
+          if (employeeId && !list.some((e) => e.id === employeeId)) {
+            setEmployeeId("");
+          }
+        }
+      } catch (e: any) {
+        if (!cancelled) {
+          setWorkingEmployees([]);
+          setEmployeeId("");
+          setMsg(e?.message ?? "Erreur.");
+        }
+      } finally {
+        if (!cancelled) setLoadingWorking(false);
       }
-      setLoadingEmployees(false);
     }
 
-    load();
+    loadWorking();
     return () => {
       cancelled = true;
     };
-  }, []);
+    // IMPORTANT: do NOT depend on employeeId, or you'll refetch infinitely.
+  }, [dateYMD]);
 
   // -------------------
   // LOAD TEMPLATES
@@ -200,28 +159,42 @@ export default function CreationTPage() {
     setLoadingTemplates(true);
     setMsg(null);
 
-    const result = await tryGetJson([
+    const urls = [
       "/api/admin/task-templates",
       "/api/admin/templates",
       "/api/task-templates",
       "/api/templates",
-    ]);
+    ];
 
-    if (!result.ok) {
-      setTemplates([]);
-      setMsg(`Templates load failed: ${result.error}`);
-      setLoadingTemplates(false);
-      return;
+    let lastErr = "";
+    for (const url of urls) {
+      try {
+        const res = await fetch(url, { cache: "no-store" });
+        const text = await res.text();
+        const data = text ? JSON.parse(text) : null;
+
+        if (!res.ok) {
+          lastErr = `${url} -> ${res.status} ${res.statusText} :: ${text.slice(0, 200)}`;
+          continue;
+        }
+
+        const normalized = normalizeTemplates(data);
+        setTemplates(normalized);
+
+        if (keepSelection && templateId) {
+          const exists = normalized.some((t) => t.id === templateId);
+          if (!exists) setTemplateId("");
+        }
+
+        setLoadingTemplates(false);
+        return;
+      } catch (e: any) {
+        lastErr = `fetch/json failed :: ${e?.message ?? String(e)}`;
+      }
     }
 
-    const normalized = normalizeTemplates(result.data);
-    setTemplates(normalized);
-
-    if (keepSelection && templateId) {
-      const exists = normalized.some((t) => t.id === templateId);
-      if (!exists) setTemplateId("");
-    }
-
+    setTemplates([]);
+    setMsg(`Templates load failed: ${lastErr}`);
     setLoadingTemplates(false);
   }
 
@@ -230,7 +203,7 @@ export default function CreationTPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // When picking a template, mirror it into editor (so you can tweak/duplicate)
+  // When picking a template, mirror it into editor
   useEffect(() => {
     if (tab !== "templates") return;
     if (!selectedTemplate) return;
@@ -288,7 +261,6 @@ export default function CreationTPage() {
     setBusySave(true);
     setMsg(null);
 
-    // We try multiple save endpoints. First that works wins.
     const urls = [
       "/api/admin/task-templates",
       "/api/admin/templates",
@@ -297,12 +269,10 @@ export default function CreationTPage() {
     ];
 
     const payload: any = {
-      // if your backend supports upsert, it can use this id
       id: templateId || undefined,
       title: title.trim(),
       items: cleanedLines,
       companyId: "1",
-
     };
 
     let lastError = "";
@@ -313,15 +283,21 @@ export default function CreationTPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
-        const text = await res.text();
-        const data = text ? JSON.parse(text) : null;
 
-        if (!res.ok) {
-          lastError = `${url} -> ${res.status} ${res.statusText} :: ${text?.slice(0, 300)}`;
+        const text = await res.text();
+        let data: any = null;
+        try {
+          data = text ? JSON.parse(text) : null;
+        } catch {
+          lastError = `${url} -> non-JSON :: ${text.slice(0, 200)}`;
           continue;
         }
 
-        // success — try to keep id if returned
+        if (!res.ok) {
+          lastError = `${url} -> ${res.status} ${res.statusText} :: ${text.slice(0, 200)}`;
+          continue;
+        }
+
         const newId =
           data?.template?.id ??
           data?.id ??
@@ -357,14 +333,13 @@ export default function CreationTPage() {
 
     const urls = ["/api/templates"];
 
-
     let lastError = "";
     for (const url of urls) {
       try {
         const res = await fetch(url, { method: "DELETE" });
         const text = await res.text();
         if (!res.ok) {
-          lastError = `${url} -> ${res.status} ${res.statusText} :: ${text?.slice(0, 300)}`;
+          lastError = `${url} -> ${res.status} ${res.statusText} :: ${text.slice(0, 200)}`;
           continue;
         }
         setMsg("🗑️ Template supprimé.");
@@ -431,10 +406,11 @@ export default function CreationTPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
+
         const text = await res.text();
 
         if (!res.ok) {
-          lastError = `${url} -> ${res.status} ${res.statusText} :: ${text?.slice(0, 300)}`;
+          lastError = `${url} -> ${res.status} ${res.statusText} :: ${text.slice(0, 300)}`;
           continue;
         }
 
@@ -456,19 +432,18 @@ export default function CreationTPage() {
   return (
     <div className="ctPage">
       <style jsx global>{`
-      /* Fix dropdown options being white-on-white */
-      select option {
-        color: #0b0b10 !important;
-        background: #ffffff !important;
-      }
-    `}</style>
+        select option {
+          color: #0b0b10 !important;
+          background: #ffffff !important;
+        }
+      `}</style>
+
       <div className="ctShell">
         <div className="ctTop">
           <div>
             <h1 className="ctH1">Creation T</h1>
             <p className="ctP">
-              Crée des templates de tâches réutilisables, puis assigne-les à un employé pour une date. Ou fais du
-              custom pour une checklist unique.
+              Crée des templates de tâches réutilisables, puis assigne-les à un employé planifié pour une date.
             </p>
           </div>
 
@@ -485,13 +460,15 @@ export default function CreationTPage() {
           </div>
         </div>
 
+        {msg ? <div className="ctMsg">{msg}</div> : null}
+
         <div className="ctGrid">
           {/* LEFT: ASSIGN */}
           <div className="ctCard">
             <div className="ctCardHead">
               <div>
                 <div className="ctCardTitle">Assignation</div>
-                <div className="ctMuted">Choisis l’employé + la date, puis assigne.</div>
+                <div className="ctMuted">Choisis la date → vois qui travaille → assigne.</div>
               </div>
               <div className="ctPills">
                 <button
@@ -512,27 +489,59 @@ export default function CreationTPage() {
             </div>
 
             <div className="ctCardBody">
-              <label className="ctLabel">Employé</label>
-              <select
-                className="ctSelect"
-                value={employeeId}
-                onChange={(e) => setEmployeeId(e.target.value)}
-                disabled={loadingEmployees}
-              >
-                <option value="">{loadingEmployees ? "Chargement..." : "— Choisir —"}</option>
-                {employees.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {employeeLabel(e)}
-                  </option>
-                ))}
-              </select>
-
               <div className="ctGrid2">
                 <div>
                   <label className="ctLabel">Date</label>
-                  <input className="ctInput" type="date" value={dateYMD} onChange={(e) => setDateYMD(e.target.value)} />
+                  <input
+                    className="ctInput"
+                    type="date"
+                    value={dateYMD}
+                    onChange={(e) => setDateYMD(e.target.value)}
+                  />
+                  <div className="ctHintSmall">
+                    {loadingWorking
+                      ? "Chargement des employés planifiés…"
+                      : `${workingEmployees.length} employé(s) planifié(s)`}
+                  </div>
                 </div>
 
+                <div>
+                  <label className="ctLabel">Employé (planifié)</label>
+                  <select
+                    className="ctSelect"
+                    value={employeeId}
+                    onChange={(e) => setEmployeeId(e.target.value)}
+                    disabled={loadingWorking}
+                  >
+                    <option value="">
+                      {loadingWorking
+                        ? "Chargement..."
+                        : workingEmployees.length
+                        ? "— Choisir —"
+                        : "Aucun employé planifié"}
+                    </option>
+
+                    {workingEmployees.map((e) => {
+                      const start = new Date(e.startISO).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      });
+                      const end = new Date(e.endISO).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      });
+
+                      return (
+                        <option key={e.id} value={e.id}>
+                          {e.firstName} {e.lastName} • {start}–{end}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+              </div>
+
+              <div className="ctGrid2" style={{ marginTop: 10 }}>
                 {tab === "templates" ? (
                   <div>
                     <label className="ctLabel">Template</label>
@@ -563,24 +572,13 @@ export default function CreationTPage() {
                 )}
               </div>
 
-              <div className="ctBlock">
-                <div className="ctHint">
-                  {tab === "templates" ? (
-                    <>
-                      Assignation du template sélectionné à la date choisie.
-                      <div className="ctHintSmall">Tip: tu peux aussi “Dupliquer vers custom” si tu veux modifier.</div>
-                    </>
-                  ) : (
-                    <>
-                      Tu vas assigner une checklist custom (non enregistrée en template) à la date choisie.
-                      <div className="ctHintSmall">Tip: clique “Créer/Enregistrer” si tu veux la réutiliser.</div>
-                    </>
-                  )}
-                </div>
-              </div>
-
               <div className="ctActions">
-                <button className="ctBtnPrimary" type="button" onClick={assignToEmployee} disabled={busyAssign}>
+                <button
+                  className="ctBtnPrimary"
+                  type="button"
+                  onClick={assignToEmployee}
+                  disabled={busyAssign || loadingWorking || workingEmployees.length === 0}
+                >
                   {busyAssign ? "..." : "Assigner"}
                 </button>
               </div>
@@ -686,17 +684,10 @@ export default function CreationTPage() {
               <div className="ctFooterTip">
                 Si ça ne sauvegarde pas: regarde le message d’erreur. Il contient la route + status + body.
               </div>
-
-              {msg ? <div className="ctMsg">{msg}</div> : null}
             </div>
           </div>
         </div>
-
-        {/* Big message area if needed */}
-        {msg && <div className="ctMsg">{msg}</div>}
       </div>
     </div>
-
   );
-
 }
