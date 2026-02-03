@@ -3,15 +3,14 @@ import "../schedule.css";
 import "./edit.css";
 import { useEffect, useMemo, useState } from "react";
 
-type Department = "FLOOR" | "CASH_LAB";
+type Department = "FLOOR" | "CASH" | "LAB";
 
-type Employee = {
+export type Employee = {
     id: string;
     firstName: string;
     lastName: string;
     department: Department;
 };
-
 type Shift = {
     id: string;
     employeeId: string;
@@ -261,7 +260,7 @@ export default function ScheduleEditorClient(props: {
                             Semaine suivante →
                         </a>
 
-                        <a className="btn" href= "/admin/dashboard">
+                        <a className="btn" href="/admin/dashboard">
                             Retour
                         </a>
                     </div>
@@ -305,7 +304,14 @@ export default function ScheduleEditorClient(props: {
                                     <tr key={emp.id}>
                                         <td className="td sticky">
                                             <div className="name">{emp.firstName} {emp.lastName}</div>
-                                            <div className="muted">{emp.department === "CASH_LAB" ? "Caisse / Lab" : "Plancher"}</div>
+                                            <div className="muted">
+                                                {emp.department === "CASH"
+                                                    ? "Caisse"
+                                                    : emp.department === "LAB"
+                                                        ? "Lab"
+                                                        : "Plancher"}
+                                            </div>
+
                                         </td>
 
                                         {days.map((d, i) => {

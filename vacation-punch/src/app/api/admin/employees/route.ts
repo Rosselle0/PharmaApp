@@ -3,11 +3,22 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { Department } from "@prisma/client";
+import { Department, Role } from "@prisma/client";
 import { getCompanyId } from "@/lib/company";
 
 function normalizeDepartment(dep: any): Department {
-  return dep === "CASH_LAB" || dep === "FLOOR" ? dep : Department.FLOOR;
+  const v = String(dep ?? "").toUpperCase();
+  if (v === "CASH") return Department.CASH;
+  if (v === "LAB") return Department.LAB;
+  if (v === "FLOOR") return Department.FLOOR;
+  return Department.FLOOR;
+}
+
+function normalizeRole(role: any): Role {
+  const v = String(role ?? "").toUpperCase();
+  if (v === "ADMIN") return Role.ADMIN;
+  if (v === "MANAGER") return Role.MANAGER;
+  return Role.EMPLOYEE;
 }
 
 export async function GET() {
@@ -22,6 +33,7 @@ export async function GET() {
       lastName: true,
       employeeCode: true,
       department: true,
+      role: true,          // ✅ ADD THIS
       paidBreak30: true,
       isActive: true,
     },
@@ -35,7 +47,8 @@ export async function GET() {
       employeeCode: e.employeeCode,
       department: e.department,
       paid30: e.paidBreak30,
-      role: "EMPLOYEE", // UI expects it, but model doesn't have it
+      role: e.role,        // ✅ REAL ROLE
+      isActive: e.isActive,
     })),
   });
 }
@@ -48,6 +61,7 @@ export async function POST(req: Request) {
     const lastName = String(body.lastName ?? "").trim();
     const employeeCode = String(body.employeeCode ?? "").trim();
     const department = normalizeDepartment(body.department);
+    const role = normalizeRole(body.role); // ✅ READ ROLE
 
     const paidBreak30 =
       body.paidBreak30 !== undefined ? Boolean(body.paidBreak30) : Boolean(body.paid30);
@@ -78,6 +92,7 @@ export async function POST(req: Request) {
         lastName,
         employeeCode,
         department,
+        role,               // ✅ STORE ROLE
         paidBreak30,
         isActive: true,
       },
@@ -87,6 +102,7 @@ export async function POST(req: Request) {
         lastName: true,
         employeeCode: true,
         department: true,
+        role: true,         // ✅ RETURN ROLE
         paidBreak30: true,
         isActive: true,
         createdAt: true,
@@ -98,7 +114,6 @@ export async function POST(req: Request) {
         employee: {
           ...created,
           paid30: created.paidBreak30,
-          role: "EMPLOYEE",
         },
       },
       { status: 201 }
