@@ -33,7 +33,7 @@ export async function POST(req: Request) {
       firstName: true,
       lastName: true,
       employeeCode: true,
-      role: true, // ✅ now exists on Employee
+      role: true, 
     },
   });
 
