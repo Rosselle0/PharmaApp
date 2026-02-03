@@ -60,10 +60,12 @@ export async function GET(req: Request) {
     // Normalize to what your TaskListPage expects: assignments[].tasks
     const assignments = rows.map((a) => ({
       id: a.id,
+      title: a.title ?? "Tâches",
       dateYMD: a.date.toISOString().slice(0, 10),
       startHHMM: null,
       endHHMM: null,
-      title: a.title ?? "Tâches",
+      notes: a.notes ?? null,
+      // UI accepts tasks OR items — return tasks to be clean
       tasks: a.items.map((it) => ({
         id: it.id,
         text: it.text,
@@ -73,6 +75,7 @@ export async function GET(req: Request) {
     }));
 
     return NextResponse.json({ assignments });
+
   } catch (e: any) {
     console.error("GET /api/tasks/my failed:", e);
     return NextResponse.json({ error: e?.message ?? "Server error" }, { status: 500 });
