@@ -4,65 +4,77 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-async function getCompanyId() {
-  const company = await prisma.company.findFirst({
-    where: { name: process.env.DEFAULT_COMPANY_NAME ?? "RxPlanning" },
-  });
-  if (!company) throw new Error("Company not found. Seed Company first.");
-  return company.id;
+function startOfDayUTC(ymd: string) {
+  // ymd = "YYYY-MM-DD"
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0));
 }
 
-function toDayBounds(dateYMD: string) {
-  const start = new Date(dateYMD);
-  const end = new Date(start);
-  end.setUTCDate(end.getUTCDate() + 1);
-  return { start, end };
+function nextDayUTC(ymd: string) {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + 1, 0, 0, 0, 0));
 }
 
 export async function GET(req: Request) {
   try {
-    const companyId = await getCompanyId();
-    const { searchParams } = new URL(req.url);
+    const url = new URL(req.url);
+    const code = (url.searchParams.get("code") ?? "").replace(/\D/g, "");
+    const ymd = (url.searchParams.get("date") ?? "").slice(0, 10);
 
-    const code = String(searchParams.get("code") ?? "").replace(/\D/g, "").slice(0, 4);
-    const dateYMD = String(searchParams.get("date") ?? "").trim();
-
-    if (!code || code.length !== 4) {
-      return NextResponse.json({ error: "Missing/invalid code" }, { status: 400 });
+    if (!code) {
+      return NextResponse.json({ error: "Missing code" }, { status: 400 });
     }
-    if (!dateYMD) {
-      return NextResponse.json({ error: "Missing date" }, { status: 400 });
+    if (!/^\d{8}$/.test(code)) {
+      return NextResponse.json({ error: "Invalid code (expected 8 digits)" }, { status: 400 });
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) {
+      return NextResponse.json({ error: "Missing/invalid date" }, { status: 400 });
     }
 
-    const employee = await prisma.employee.findFirst({
-      where: { companyId, employeeCode: code, isActive: true },
-      select: { id: true, firstName: true, lastName: true, employeeCode: true },
+    const employee = await prisma.employee.findUnique({
+      where: { employeeCode: code },
+      select: { id: true, firstName: true, lastName: true },
     });
 
     if (!employee) {
-      return NextResponse.json({ assignments: [], employee: null });
+      return NextResponse.json({ assignments: [] });
     }
 
-    const { start, end } = toDayBounds(dateYMD);
+    const dayStart = startOfDayUTC(ymd);
+    const dayEnd = nextDayUTC(ymd);
 
-    const assignment = await prisma.taskAssignment.findFirst({
+    const rows = await prisma.taskAssignment.findMany({
       where: {
-        companyId,
         employeeId: employee.id,
-        date: { gte: start, lt: end },
+        date: {
+          gte: dayStart,
+          lt: dayEnd,
+        },
       },
+      orderBy: { createdAt: "desc" },
       include: {
         items: { orderBy: { order: "asc" } },
       },
     });
 
-    const employeeName = `${employee.firstName} ${employee.lastName}`.trim();
+    // Normalize to what your TaskListPage expects: assignments[].tasks
+    const assignments = rows.map((a) => ({
+      id: a.id,
+      dateYMD: a.date.toISOString().slice(0, 10),
+      startHHMM: null,
+      endHHMM: null,
+      title: a.title ?? "Tâches",
+      tasks: a.items.map((it) => ({
+        id: it.id,
+        text: it.text,
+        done: it.done,
+        required: it.required,
+      })),
+    }));
 
-    return NextResponse.json({
-      employee: { name: employeeName, code: employee.employeeCode },
-      assignments: assignment ? [assignment] : [],
-    });
+    return NextResponse.json({ assignments });
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message ?? "Load failed" }, { status: 500 });
+    console.error("GET /api/tasks/my failed:", e);
+    return NextResponse.json({ error: e?.message ?? "Server error" }, { status: 500 });
   }
 }

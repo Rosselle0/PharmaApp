@@ -15,7 +15,7 @@ type Assignment = {
   tasks: Task[]; // normalized
 };
 
-const PIN_LEN = 4;
+const PIN_LEN = 8;
 
 function readEmployeeCodeFromUrlOrStorage(): string | null {
   const params = new URLSearchParams(window.location.search);

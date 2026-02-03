@@ -26,7 +26,7 @@ const NAV_ITEMS: NavItem[] = [
 
 type ActiveRow = { name: string; status: "GREEN" | "RED" | "GRAY"; time: string };
 
-const PIN_LEN = 4;
+const PIN_LEN = 8;
 
 export default function KioskClient({
   isAdminLogged,
