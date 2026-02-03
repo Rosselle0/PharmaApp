@@ -16,7 +16,6 @@ async function getDefaultCompany() {
 export async function POST(req: Request) {
   const { code } = await req.json().catch(() => ({ code: "" }));
 
-  // numeric only, max 10 digits
   const clean = String(code ?? "").replace(/\D/g, "").slice(0, 10);
   if (!clean) {
     return NextResponse.json({ ok: false, error: "Missing code" }, { status: 400 });
@@ -34,6 +33,7 @@ export async function POST(req: Request) {
       firstName: true,
       lastName: true,
       employeeCode: true,
+      role: true, // ✅ now exists on Employee
     },
   });
 
@@ -41,7 +41,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "Invalid code" }, { status: 401 });
   }
 
-  const exp = Date.now() + 1000 * 60 * 60 * 8; // 8 hours
+  const role = employee.role ?? "EMPLOYEE";
+  const exp = Date.now() + 1000 * 60 * 60 * 8;
 
   const res = NextResponse.json({
     ok: true,
@@ -49,23 +50,14 @@ export async function POST(req: Request) {
       firstName: employee.firstName,
       lastName: employee.lastName,
       employeeCode: employee.employeeCode,
+      role,
       fullName: `${employee.firstName} ${employee.lastName}`.trim(),
     },
   });
 
-  // unlock cookie
-  res.cookies.set("kiosk_unlock_exp", String(exp), {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-  });
-
-  // store code too (still useful)
-  res.cookies.set("kiosk_code", clean, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-  });
+  res.cookies.set("kiosk_role", role, { httpOnly: true, sameSite: "lax", path: "/" });
+  res.cookies.set("kiosk_unlock_exp", String(exp), { httpOnly: true, sameSite: "lax", path: "/" });
+  res.cookies.set("kiosk_code", clean, { httpOnly: true, sameSite: "lax", path: "/" });
 
   return res;
 }

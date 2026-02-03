@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import "./modify.css";
 
 type Role = "EMPLOYEE" | "MANAGER" | "ADMIN";
-type Department = "FLOOR" | "CASH_LAB";
+type Department = "FLOOR" | "CASH" | "LAB";
 
 type Account = {
   id: string;
@@ -147,7 +147,7 @@ export default function ModifyAccountsPage() {
     <main className="m-page">
       <header className="m-topbar">
         <div className="m-topLeft">
-          <button className="m-btn" type="button" onClick={() => router.push( "/admin/dashboard")}>
+          <button className="m-btn" type="button" onClick={() => router.push("/admin/dashboard")}>
             ← Retour
           </button>
           <button className="m-btn" type="button" onClick={() => router.push("/admin/create-account")}>
@@ -207,8 +207,14 @@ export default function ModifyAccountsPage() {
                         {a.firstName} {a.lastName}
                       </div>
                       <div className="m-sub">
-                        Code <b>{a.employeeCode}</b> · {a.department === "CASH_LAB" ? "Caisse/Lab" : "Plancher"}
+                        Code <b>{a.employeeCode}</b> ·{" "}
+                        {a.department === "CASH"
+                          ? "Caisse"
+                          : a.department === "LAB"
+                            ? "Lab"
+                            : "Plancher"}
                       </div>
+
                     </div>
 
                     <div className="m-pill">{a.paid30 ? "30 payé" : "30 non"}</div>
@@ -277,7 +283,8 @@ export default function ModifyAccountsPage() {
                   onChange={(e) => setDraft({ ...draft, department: e.target.value as Department })}
                 >
                   <option value="FLOOR">Plancher</option>
-                  <option value="CASH_LAB">Caisse / Lab</option>
+                  <option value="CASH">Caisse</option>
+                  <option value="LAB">Lab</option>
                 </select>
               </div>
 

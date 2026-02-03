@@ -31,130 +31,33 @@ const PIN_LEN = 8;
 export default function KioskClient({
   isAdminLogged,
   adminName,
+  isManagerLogged,
 }: {
   isAdminLogged: boolean;
   adminName?: string;
+  isManagerLogged: boolean;
 }) {
   const router = useRouter();
   const supabase = supabaseBrowser();
-  const [employeeCodeConfirmed, setEmployeeCodeConfirmed] = useState<string | null>(null);
+
+  const isPrivilegedLogged = isAdminLogged || isManagerLogged;
+
   // employee kiosk login
+  const [employeeCodeConfirmed, setEmployeeCodeConfirmed] = useState<string | null>(null);
   const [employeeCode, setEmployeeCode] = useState("");
   const [employeeLogged, setEmployeeLogged] = useState(false);
   const [employeeName, setEmployeeName] = useState<string | null>(null);
+
   const [autoSubmitting, setAutoSubmitting] = useState(false);
   const [blockedCode, setBlockedCode] = useState<string | null>(null);
-  const [pinSuccess, setPinSuccess] = useState(false);
-  const [pinFlash, setPinFlash] = useState(false); // triggers animation
-
-
-  useEffect(() => {
-    if (isAdminLogged) return; // admin doesn't need kiosk restore
-
-    // read URL: /kiosk?code=1234
-    const params = new URLSearchParams(window.location.search);
-    const urlCode = (params.get("code") ?? "").replace(/\D/g, "").slice(0, PIN_LEN);
-
-    // read storage
-    const lsLogged = localStorage.getItem("kiosk_employee_logged") === "1";
-    const lsCode = (localStorage.getItem("kiosk_employee_code") ?? "").replace(/\D/g, "").slice(0, PIN_LEN);
-    const lsName = (localStorage.getItem("kiosk_employee_name") ?? "").trim();
-
-    const finalCode = urlCode.length === PIN_LEN ? urlCode : lsCode;
-
-    if ((urlCode.length === PIN_LEN) || (lsLogged && finalCode.length === PIN_LEN)) {
-      setEmployeeCode(finalCode);
-      setEmployeeCodeConfirmed(finalCode);
-      setEmployeeLogged(true);
-      setEmployeeName(lsName || null);
-      setPinError(false);
-
-      // keep storage synced
-      localStorage.setItem("kiosk_employee_logged", "1");
-      localStorage.setItem("kiosk_employee_code", finalCode);
-      localStorage.setItem("kiosk_employee_name", lsName);
-    }
-  }, [isAdminLogged]);
-
 
   // PIN UI state
   const [pinError, setPinError] = useState(false);
-  useEffect(() => {
-    // Only when employee mode (not admin) and not already logged
-    if (isAdminLogged || employeeLogged) return;
+  const [pinSuccess, setPinSuccess] = useState(false);
+  const [pinFlash, setPinFlash] = useState(false);
 
-    const onKeyDown = (e: KeyboardEvent) => {
-      // Don't steal typing from inputs/modals
-      const el = document.activeElement as HTMLElement | null;
-      const tag = (el?.tagName ?? "").toLowerCase();
-      if (tag === "input" || tag === "textarea" || el?.getAttribute("contenteditable") === "true") return;
-
-      // ---- DIGITS (top row + numpad) ----
-      // e.key handles most cases ("1"), e.code helps for numpad
-      const isDigitKey = e.key >= "0" && e.key <= "9";
-      const isNumpadDigit = /^Numpad[0-9]$/.test(e.code);
-
-      if (isDigitKey || isNumpadDigit) {
-        e.preventDefault();
-        setPinError(false);
-
-        const digit = isNumpadDigit ? e.code.replace("Numpad", "") : e.key;
-
-        setEmployeeCode((p) => {
-          const next = (p + digit).replace(/\D/g, "").slice(0, PIN_LEN);
-          return next;
-        });
-        return;
-      }
-
-      // ---- ERASE (Backspace / Delete) ----
-      if (e.key === "Backspace" || e.key === "Delete") {
-        e.preventDefault();
-        setPinError(false);
-        setEmployeeCode((p) => p.slice(0, -1));
-        return;
-      }
-
-
-      // ---- CLEAR (Escape) optional but nice ----
-      if (e.key === "Escape") {
-        e.preventDefault();
-        setEmployeeCode("");
-        setPinError(false);
-        return;
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [isAdminLogged, employeeLogged, employeeCode]);
-
-  useEffect(() => {
-    const clean = employeeCode.replace(/\D/g, "").slice(0, PIN_LEN);
-
-    // if user changed the code (or erased), unlock auto submit again
-    if (!blockedCode) return;
-    if (clean !== blockedCode) setBlockedCode(null);
-  }, [employeeCode, blockedCode]);
-
-
-  useEffect(() => {
-    if (isAdminLogged) return;
-    if (employeeLogged) return;
-    if (autoSubmitting) return;
-
-    const clean = employeeCode.replace(/\D/g, "").slice(0, PIN_LEN);
-    if (clean.length !== PIN_LEN) return;
-
-    // stop loops: don't resubmit the same failed code
-    if (blockedCode === clean) return;
-
-    setAutoSubmitting(true);
-    employeeConfirm(clean).finally(() => setAutoSubmitting(false));
-  }, [employeeCode, isAdminLogged, employeeLogged, autoSubmitting, blockedCode]);
-
-
-
+  // role stored locally for kiosk-only gating (employee/admin)
+  const [kioskRole, setKioskRole] = useState<string | null>(null);
 
   // admin modal
   const [showAdminModal, setShowAdminModal] = useState(false);
@@ -170,53 +73,162 @@ export default function KioskClient({
     window.setTimeout(() => setToast(null), 1800);
   }
 
-  const isAnyLogged = isAdminLogged || employeeLogged;
-  const employeeCodeClean = employeeCode.replace(/\D/g, "").slice(0, PIN_LEN);
-  const canAccessEmployeePages = useMemo(
-    () => isAdminLogged || (employeeLogged && employeeCodeClean.length === PIN_LEN),
-    [isAdminLogged, employeeLogged, employeeCodeClean]
-  );
-  function saveEmployeeSession(code: string, name: string | null) {
-    localStorage.setItem("kiosk_employee_logged", "1");
-    localStorage.setItem("kiosk_employee_code", code);
-    localStorage.setItem("kiosk_employee_name", name ?? "");
-  }
+  const isAnyLogged = isPrivilegedLogged || employeeLogged;
 
-  function clearEmployeeSession() {
-    localStorage.removeItem("kiosk_employee_logged");
-    localStorage.removeItem("kiosk_employee_code");
-    localStorage.removeItem("kiosk_employee_name");
-  }
+  const employeeCodeClean = employeeCode.replace(/\D/g, "").slice(0, PIN_LEN);
+
+  const canAccessEmployeePages = useMemo(
+    () => isPrivilegedLogged || (employeeLogged && employeeCodeClean.length === PIN_LEN),
+    [isPrivilegedLogged, employeeLogged, employeeCodeClean]
+  );
+
+  // Logs should be allowed when ADMIN or MANAGER (either via real auth OR kioskRole)
+  const canAccessLogs = useMemo(() => {
+    if (isPrivilegedLogged) return true;
+    return kioskRole === "ADMIN" || kioskRole === "MANAGER";
+  }, [isPrivilegedLogged, kioskRole]);
 
   // Actifs empty at start (keep as-is for now)
   const actifs: ActiveRow[] = [];
 
   function maskedPinBoxes(value: string) {
     const digits = value.slice(0, PIN_LEN);
-    const boxes = Array.from({ length: PIN_LEN }, (_, i) => digits[i] ?? "");
-    return boxes;
+    return Array.from({ length: PIN_LEN }, (_, i) => digits[i] ?? "");
   }
 
+function saveEmployeeSession(code: string, name: string | null, role: string) {
+  localStorage.setItem("kiosk_employee_logged", "1");
+  localStorage.setItem("kiosk_employee_code", code);
+  localStorage.setItem("kiosk_employee_name", name ?? "");
+  localStorage.setItem("kiosk_role", role); // ✅ store it correctly
+}
+
+
+function clearEmployeeSession() {
+  localStorage.removeItem("kiosk_employee_logged");
+  localStorage.removeItem("kiosk_employee_code");
+  localStorage.removeItem("kiosk_employee_name");
+  localStorage.removeItem("kiosk_role"); // ✅ remove it too
+}
+
+
+  // restore kioskRole on mount
+  useEffect(() => {
+    const r = (localStorage.getItem("kiosk_role") ?? "").trim();
+    setKioskRole(r || null);
+  }, []);
+
+  // restore employee kiosk session (only if no admin/manager logged)
+  useEffect(() => {
+    if (isPrivilegedLogged) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const urlCode = (params.get("code") ?? "").replace(/\D/g, "").slice(0, PIN_LEN);
+
+    const lsLogged = localStorage.getItem("kiosk_employee_logged") === "1";
+    const lsCode = (localStorage.getItem("kiosk_employee_code") ?? "").replace(/\D/g, "").slice(0, PIN_LEN);
+    const lsName = (localStorage.getItem("kiosk_employee_name") ?? "").trim();
+    const lsRole = (localStorage.getItem("kiosk_role") ?? "").trim();
+
+    const finalCode = urlCode.length === PIN_LEN ? urlCode : lsCode;
+
+    if (urlCode.length === PIN_LEN || (lsLogged && finalCode.length === PIN_LEN)) {
+      setEmployeeCode(finalCode);
+      setEmployeeCodeConfirmed(finalCode);
+      setEmployeeLogged(true);
+      setEmployeeName(lsName || null);
+      setPinError(false);
+
+      // keep storage synced
+      localStorage.setItem("kiosk_employee_logged", "1");
+      localStorage.setItem("kiosk_employee_code", finalCode);
+      localStorage.setItem("kiosk_employee_name", lsName);
+      if (lsRole) {
+        localStorage.setItem("kiosk_role", lsRole);
+        setKioskRole(lsRole);
+      }
+    }
+  }, [isPrivilegedLogged]);
+
+  // keyboard capture for PIN (only when employee mode and not logged)
+  useEffect(() => {
+    if (isPrivilegedLogged || employeeLogged) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      const el = document.activeElement as HTMLElement | null;
+      const tag = (el?.tagName ?? "").toLowerCase();
+      if (tag === "input" || tag === "textarea" || el?.getAttribute("contenteditable") === "true") return;
+
+      const isDigitKey = e.key >= "0" && e.key <= "9";
+      const isNumpadDigit = /^Numpad[0-9]$/.test(e.code);
+
+      if (isDigitKey || isNumpadDigit) {
+        e.preventDefault();
+        setPinError(false);
+
+        const digit = isNumpadDigit ? e.code.replace("Numpad", "") : e.key;
+        setEmployeeCode((p) => (p + digit).replace(/\D/g, "").slice(0, PIN_LEN));
+        return;
+      }
+
+      if (e.key === "Backspace" || e.key === "Delete") {
+        e.preventDefault();
+        setPinError(false);
+        setEmployeeCode((p) => p.slice(0, -1));
+        return;
+      }
+
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setEmployeeCode("");
+        setPinError(false);
+        return;
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isPrivilegedLogged, employeeLogged]);
+
+  // unblock auto submit if user changes code
+  useEffect(() => {
+    const clean = employeeCode.replace(/\D/g, "").slice(0, PIN_LEN);
+    if (!blockedCode) return;
+    if (clean !== blockedCode) setBlockedCode(null);
+  }, [employeeCode, blockedCode]);
+
+  // auto-submit when PIN complete
+  useEffect(() => {
+    if (isPrivilegedLogged) return;
+    if (employeeLogged) return;
+    if (autoSubmitting) return;
+
+    const clean = employeeCode.replace(/\D/g, "").slice(0, PIN_LEN);
+    if (clean.length !== PIN_LEN) return;
+    if (blockedCode === clean) return;
+
+    setAutoSubmitting(true);
+    employeeConfirm(clean).finally(() => setAutoSubmitting(false));
+  }, [employeeCode, isPrivilegedLogged, employeeLogged, autoSubmitting, blockedCode]);
+
   function onNavClick(item: NavItem) {
-    // admin routes locked unless admin logged
-    if (item.adminOnly && !isAdminLogged) {
+    if (item.adminOnly && !isPrivilegedLogged) {
       showToast("Accès admin requis.");
       return;
     }
 
-    // employee pages require employee login (admins allowed too)
     if (item.requiresEmployeeCode && !canAccessEmployeePages) {
       showToast("Veuillez entrer votre code.");
       return;
     }
 
-    // ✅ ADMIN: never append ?code=...
-    if (item.requiresEmployeeCode && isAdminLogged) {
+    // privileged: never append ?code=
+    if (item.requiresEmployeeCode && isPrivilegedLogged) {
       router.push(item.href);
       return;
     }
 
-    // ✅ EMPLOYEE: always append the saved 4-digit code
+    // employee: append ?code=
     if (item.requiresEmployeeCode) {
       router.push(`${item.href}?code=${encodeURIComponent(employeeCodeClean)}`);
       return;
@@ -224,7 +236,6 @@ export default function KioskClient({
 
     router.push(item.href);
   }
-
 
   async function employeeConfirm(forcedCode?: string) {
     const clean = (forcedCode ?? employeeCode).replace(/\D/g, "").slice(0, PIN_LEN);
@@ -245,23 +256,28 @@ export default function KioskClient({
     if (!res.ok) {
       setPinSuccess(false);
       setPinFlash(false);
-      //  invalid => red UI, keep user on pin screen
+
       setEmployeeLogged(false);
       setEmployeeCodeConfirmed(null);
       setEmployeeName(null);
+
       setBlockedCode(clean);
       setPinError(true);
       window.setTimeout(() => setPinError(false), 900);
-
-      // keep the typed code so they can delete/correct
       return;
     }
 
     const data = await res.json().catch(() => null);
+    const role = data?.employee?.role ?? "EMPLOYEE";
+
+
+    // you were using last name only — kept that behavior
     const last = data?.employee?.lastName ? String(data.employee.lastName) : "";
     const full = `${last}`.trim();
 
-    // valid => green UI and logged in
+    // role from API if present, otherwise EMPLOYEE
+    const roleFromApi = (data?.employee?.role ? String(data.employee.role) : "EMPLOYEE").toUpperCase();
+
     setPinError(false);
     setPinSuccess(true);
     setPinFlash(true);
@@ -272,31 +288,26 @@ export default function KioskClient({
       setEmployeeCodeConfirmed(clean);
       setEmployeeName(full);
 
-      saveEmployeeSession(clean, full);
+      saveEmployeeSession(clean, full, role);
       router.replace(`/kiosk?code=${encodeURIComponent(clean)}`);
     }, 650);
   }
 
   function employeeLogout() {
-    // auth state
     setEmployeeLogged(false);
     setEmployeeCodeConfirmed(null);
     setEmployeeName(null);
 
-    // PIN state
     setEmployeeCode("");
     setPinError(false);
     setPinSuccess(false);
     setPinFlash(false);
     setAutoSubmitting(false);
+    setBlockedCode(null);
 
-    // cleanup
     clearEmployeeSession();
-
-    // optional: clean URL so kiosk is truly reset
     router.replace("/kiosk");
   }
-
 
   async function adminLogin() {
     if (!adminEmail.trim() || adminPassword.length < 6) return;
@@ -315,7 +326,6 @@ export default function KioskClient({
         return;
       }
 
-      // make sure Prisma user exists + role is set
       const meRes = await fetch("/api/me", { cache: "no-store" });
       if (!meRes.ok) {
         setAdminError("Connexion OK, mais /api/me a échoué.");
@@ -323,28 +333,31 @@ export default function KioskClient({
       }
 
       const meJson = await meRes.json();
-      const role = meJson?.user?.role;
+      const role = String(meJson?.user?.role ?? "").toUpperCase();
 
-      // strict: only ADMIN/MANAGER gets kiosk admin unlock
       if (role !== "ADMIN" && role !== "MANAGER") {
         setAdminError("Accès refusé.");
         await supabase.auth.signOut();
         return;
       }
+
+      // store role so Logs button can unlock immediately if needed
+      localStorage.setItem("kiosk_role", role);
+      setKioskRole(role);
+
+      // wipe employee state
       setEmployeeLogged(false);
       setEmployeeCodeConfirmed(null);
       setEmployeeName(null);
-
       setEmployeeCode("");
       setPinError(false);
       setPinSuccess(false);
       setPinFlash(false);
       setAutoSubmitting(false);
       setBlockedCode(null);
-
       clearEmployeeSession();
-      router.replace("/kiosk");
 
+      router.replace("/kiosk");
       setShowAdminModal(false);
       setAdminPassword("");
       router.refresh();
@@ -359,6 +372,9 @@ export default function KioskClient({
     try {
       await supabase.auth.signOut();
     } finally {
+      // optional: clear kiosk role on admin logout too
+      localStorage.removeItem("kiosk_role");
+      setKioskRole(null);
       router.refresh();
     }
   }
@@ -373,12 +389,7 @@ export default function KioskClient({
           <nav className="kiosk-nav">
             <div className="kiosk-navMain">
               {NAV_ITEMS.slice(0, 4).map((it) => (
-                <button
-                  key={it.label}
-                  className="kiosk-navBtn"
-                  type="button"
-                  onClick={() => onNavClick(it)}
-                >
+                <button key={it.label} className="kiosk-navBtn" type="button" onClick={() => onNavClick(it)}>
                   {it.label}
                 </button>
               ))}
@@ -389,15 +400,14 @@ export default function KioskClient({
                 className="kiosk-navBtn kiosk-navLogs"
                 type="button"
                 onClick={() => router.push("/admin/dashboard")}
-                disabled={!isAdminLogged}
-                title={!isAdminLogged ? "Connexion admin requise" : undefined}
+                disabled={!canAccessLogs}
+                title={!canAccessLogs ? "Connexion admin ou manager requise" : undefined}
               >
                 <span>Logs</span>
-                {!isAdminLogged && <span className="lockBadge">🔒</span>}
+                {!canAccessLogs && <span className="lockBadge">🔒</span>}
               </button>
             </div>
           </nav>
-
         </aside>
 
         {/* CENTER */}
@@ -406,25 +416,20 @@ export default function KioskClient({
             <h1 className="kiosk-title">Bienvenue</h1>
           ) : (
             <h1 className="kiosk-title kiosk-titleLogged">
-              {isAdminLogged
-                ? `Bonjour ${adminName || "Admin"}`
-                : `Salut ${employeeName}`}
+              {isPrivilegedLogged ? `Bonjour ${adminName || "Admin"}` : `Salut ${employeeName}`}
             </h1>
-
           )}
+
           {isAnyLogged && (
             <div className="loggedWrap">
               <div className="loggedBrand">
-                <img
-                  src="/Logo-ACC.png"
-                  alt="Accès Pharma"
-                  className="brandLogo"
-                  draggable={false}
-                />
+                <img src="/Logo-ACC.png" alt="Accès Pharma" className="brandLogo" draggable={false} />
               </div>
 
               <div className="loggedStatus">
-                <span className="loggedCheck" aria-hidden="true">✓</span>
+                <span className="loggedCheck" aria-hidden="true">
+                  ✓
+                </span>
                 <div className="loggedStatusText">
                   <div className="loggedStatusTitle">Accès autorisé</div>
                   <div className="loggedStatusSub">Session active — vous pouvez naviguer.</div>
@@ -433,9 +438,7 @@ export default function KioskClient({
             </div>
           )}
 
-
-
-          {/* PIN DISPLAY (reference style) */}
+          {/* PIN DISPLAY */}
           {!isAnyLogged && (
             <div
               className={[
@@ -456,16 +459,10 @@ export default function KioskClient({
               </div>
 
               <div className="pinHint">
-                {pinError ? (
-                  <span className="pinOops">Oops! Pin invalide</span>
-                ) : (
-                  <span>{"\u00A0"}</span>
-                )}
+                {pinError ? <span className="pinOops">Oops! Pin invalide</span> : <span>{"\u00A0"}</span>}
               </div>
             </div>
           )}
-
-
 
           {/* SHOW KEYPAD ONLY WHEN NOT LOGGED */}
           {!isAnyLogged && (
@@ -480,7 +477,6 @@ export default function KioskClient({
                       setPinError(false);
                       setEmployeeCode((p) => (p + d).replace(/\D/g, "").slice(0, PIN_LEN));
                     }}
-
                   >
                     {d}
                   </button>
@@ -494,7 +490,6 @@ export default function KioskClient({
                       setPinError(false);
                       setEmployeeCode((p) => (p + "0").replace(/\D/g, "").slice(0, PIN_LEN));
                     }}
-
                   >
                     0
                   </button>
@@ -506,7 +501,6 @@ export default function KioskClient({
                       setEmployeeCode((p) => p.slice(0, -1));
                       setPinError(false);
                     }}
-
                   >
                     ⌫
                   </button>
@@ -528,12 +522,7 @@ export default function KioskClient({
                   Clear
                 </button>
 
-                <button
-                  className="kiosk-actionBtn kiosk-actionPrimary"
-                  type="button"
-                  onClick={() => employeeConfirm()}
-
-                >
+                <button className="kiosk-actionBtn kiosk-actionPrimary" type="button" onClick={() => employeeConfirm()}>
                   OK
                 </button>
               </div>
@@ -541,13 +530,9 @@ export default function KioskClient({
           )}
 
           {/* EMPLOYEE LOGOUT ACTIONS */}
-          {employeeLogged && !isAdminLogged && (
+          {employeeLogged && !isPrivilegedLogged && (
             <div className="kiosk-actions">
-              <button
-                className="kiosk-actionBtn kiosk-actionPrimary"
-                type="button"
-                onClick={employeeLogout}
-              >
+              <button className="kiosk-actionBtn kiosk-actionPrimary" type="button" onClick={employeeLogout}>
                 Se déconnecter
               </button>
             </div>
@@ -557,12 +542,11 @@ export default function KioskClient({
         {/* RIGHT COLUMN (Admin + Actifs) */}
         <aside className="kiosk-rightCol">
           <div className="adminPanelHead">
-
             <button
               className="kiosk-adminBtn"
               type="button"
               onClick={() => {
-                if (isAdminLogged) {
+                if (isPrivilegedLogged) {
                   adminLogout();
                   return;
                 }
@@ -571,7 +555,7 @@ export default function KioskClient({
                 setShowAdminModal(true);
               }}
             >
-              {isAdminLogged ? "Se déconnecter" : "Admin"}
+              {isPrivilegedLogged ? "Se déconnecter" : "Admin"}
             </button>
           </div>
 
@@ -621,7 +605,7 @@ export default function KioskClient({
       </div>
 
       {/* ADMIN LOGIN MODAL */}
-      {showAdminModal && !isAdminLogged && (
+      {showAdminModal && !isPrivilegedLogged && (
         <div
           className="modal-overlay"
           role="dialog"
@@ -631,12 +615,7 @@ export default function KioskClient({
           <div className="modal-card">
             <div className="modal-head">
               <h2 className="modal-title">Admin</h2>
-              <button
-                className="ghost"
-                type="button"
-                onClick={() => setShowAdminModal(false)}
-                disabled={adminLoading}
-              >
+              <button className="ghost" type="button" onClick={() => setShowAdminModal(false)} disabled={adminLoading}>
                 ✕
               </button>
             </div>

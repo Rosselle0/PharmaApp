@@ -4,12 +4,16 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { Department } from "@prisma/client";
+import { Department, Role } from "@prisma/client";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 function normalizeDepartment(dep: any): Department {
-  return dep === "CASH_LAB" || dep === "FLOOR" ? dep : Department.FLOOR;
+  return dep === "CASH" || dep === "LAB" || dep === "FLOOR" ? dep : Department.FLOOR;
+}
+
+function normalizeRole(role: any): Role {
+  return role === "ADMIN" || role === "MANAGER" || role === "EMPLOYEE" ? role : Role.EMPLOYEE;
 }
 
 export async function PATCH(req: NextRequest, context: Ctx) {
@@ -20,7 +24,9 @@ export async function PATCH(req: NextRequest, context: Ctx) {
     const firstName = String(body.firstName ?? "").trim();
     const lastName = String(body.lastName ?? "").trim();
     const employeeCode = String(body.employeeCode ?? "").trim();
+
     const department = normalizeDepartment(body.department);
+    const role = normalizeRole(body.role);
 
     const paidBreak30 =
       body.paidBreak30 !== undefined ? Boolean(body.paidBreak30) : Boolean(body.paid30);
@@ -39,6 +45,7 @@ export async function PATCH(req: NextRequest, context: Ctx) {
         lastName,
         employeeCode,
         department,
+        role,
         paidBreak30,
         isActive: body.isActive === undefined ? undefined : Boolean(body.isActive),
       },
@@ -48,6 +55,7 @@ export async function PATCH(req: NextRequest, context: Ctx) {
         lastName: true,
         employeeCode: true,
         department: true,
+        role: true,
         paidBreak30: true,
         isActive: true,
       },
@@ -60,8 +68,9 @@ export async function PATCH(req: NextRequest, context: Ctx) {
         lastName: updated.lastName,
         employeeCode: updated.employeeCode,
         department: updated.department,
+        role: updated.role,
         paid30: updated.paidBreak30,
-        role: "EMPLOYEE",
+        isActive: updated.isActive,
       },
     });
   } catch (e: any) {

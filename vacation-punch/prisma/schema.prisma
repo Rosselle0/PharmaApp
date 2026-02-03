@@ -9,67 +9,192 @@ datasource db {
 }
 
 model Company {
-  id        String   @id @default(uuid())
-  name      String
-  createdAt DateTime @default(now())
-
-  users           User[]
+  id              String           @id @default(uuid())
+  name            String
+  createdAt       DateTime         @default(now())
   employees       Employee[]
-  taskTemplates   TaskTemplate[]
   taskAssignments TaskAssignment[]
-}
-
-enum Department {
-  CASH_LAB
-  FLOOR
+  taskTemplates   TaskTemplate[]
+  users           User[]
 }
 
 model User {
-  id         String  @id @default(uuid())
-  authUserId String  @unique
-  email      String  @unique
-  name       String?
-  role       Role    @default(EMPLOYEE)
-
-  employeeNumber Int? // <-- ADD THIS (nullable for now)
-
-  department Department @default(FLOOR)
-
-  companyId String
-  company   Company @relation(fields: [companyId], references: [id])
-
-  createdAt DateTime @default(now())
-
-  vacationRequests VacationRequest[]
-  timeOffs         TimeOff[]
+  id               String            @id @default(uuid())
+  authUserId       String            @unique
+  email            String            @unique
+  role             Role              @default(EMPLOYEE)
+  companyId        String
+  createdAt        DateTime          @default(now())
+  name             String?
+  department       Department        @default(FLOOR)
+  employeeNumber   Int?
   punchEvents      PunchEvent[]
+  timeOffs         TimeOff[]
+  company          Company           @relation(fields: [companyId], references: [id])
+  vacationRequests VacationRequest[]
 
-  @@unique([companyId, employeeNumber]) // <-- ADD THIS
+  @@unique([companyId, employeeNumber])
   @@index([companyId])
   @@index([companyId, department])
 }
 
 model Employee {
-  id        String  @id @default(uuid())
-  companyId String
-  company   Company @relation(fields: [companyId], references: [id])
-
+  id           String     @id @default(uuid())
+  companyId    String
   firstName    String
   lastName     String
-  employeeCode String  @unique
-  paidBreak30  Boolean @default(false)
+  employeeCode String     @unique
 
-  department Department @default(FLOOR)
-  isActive   Boolean    @default(true)
+  role         Role       @default(EMPLOYEE) // <-- AJOUTE ÇA
+  department   Department @default(FLOOR)     // <-- GARDE ÇA (Option A)
 
-  shifts Shift[]
+  paidBreak30  Boolean    @default(false)
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  company      Company    @relation(fields: [companyId], references: [id])
+  shifts       Shift[]
   TaskAssignment TaskAssignment[]
 
   @@index([companyId])
   @@index([companyId, department])
+}
+
+
+model VacationRequest {
+  id        String         @id @default(uuid())
+  userId    String
+  startDate DateTime
+  endDate   DateTime
+  status    VacationStatus @default(PENDING)
+  reason    String?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  timeOff   TimeOff?
+  user      User           @relation(fields: [userId], references: [id])
+
+  @@index([userId, status])
+  @@index([startDate, endDate])
+}
+
+model TimeOff {
+  id        String           @id @default(uuid())
+  userId    String
+  startDate DateTime
+  endDate   DateTime
+  type      TimeOffType      @default(VACATION)
+  requestId String?          @unique
+  createdAt DateTime         @default(now())
+  request   VacationRequest? @relation(fields: [requestId], references: [id])
+  user      User             @relation(fields: [userId], references: [id])
+
+  @@index([userId, startDate])
+  @@index([startDate, endDate])
+}
+
+model Shift {
+  id          String       @id @default(uuid())
+  startTime   DateTime
+  endTime     DateTime
+  status      ShiftStatus  @default(PLANNED)
+  note        String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  employeeId  String
+  punchEvents PunchEvent[]
+  employee    Employee     @relation(fields: [employeeId], references: [id])
+
+  @@index([employeeId, startTime])
+  @@index([startTime, endTime])
+}
+
+model PunchEvent {
+  id        String      @id @default(uuid())
+  userId    String
+  shiftId   String?
+  type      PunchType
+  at        DateTime
+  source    PunchSource @default(MOBILE)
+  createdAt DateTime    @default(now())
+  shift     Shift?      @relation(fields: [shiftId], references: [id])
+  user      User        @relation(fields: [userId], references: [id])
+
+  @@index([userId, at])
+  @@index([shiftId])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  actorId   String?
+  action    String
+  target    String
+  createdAt DateTime @default(now())
+  companyId String?
+  meta      Json?
+
+  @@index([companyId, createdAt])
+  @@index([actorId, createdAt])
+}
+
+model TaskTemplate {
+  id        String             @id @default(uuid())
+  companyId String
+  title     String
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  notes     String?
+  company   Company            @relation(fields: [companyId], references: [id])
+  items     TaskTemplateItem[]
+
+  @@index([companyId])
+}
+
+model TaskTemplateItem {
+  id         String       @id @default(uuid())
+  templateId String
+  text       String
+  required   Boolean      @default(true)
+  order      Int
+  template   TaskTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+}
+
+model TaskAssignment {
+  id         String               @id @default(uuid())
+  companyId  String
+  employeeId String
+  date       DateTime
+  title      String?
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+  notes      String?
+  company    Company              @relation(fields: [companyId], references: [id])
+  employee   Employee             @relation(fields: [employeeId], references: [id])
+  items      TaskAssignmentItem[]
+
+  @@index([companyId, date])
+  @@index([employeeId, date])
+}
+
+model TaskAssignmentItem {
+  id           String         @id @default(uuid())
+  assignmentId String
+  order        Int
+  text         String
+  required     Boolean        @default(true)
+  done         Boolean        @default(false)
+  doneAt       DateTime?
+  assignment   TaskAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  @@index([assignmentId])
+}
+
+enum Department {
+  CASH
+  LAB
+  FLOOR
 }
 
 enum Role {
@@ -78,57 +203,10 @@ enum Role {
   EMPLOYEE
 }
 
-//
-// VACATION REQUEST FLOW (workflow)
-//
-model VacationRequest {
-  id     String @id @default(uuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id])
-
-  startDate DateTime
-  endDate   DateTime
-
-  status VacationStatus @default(PENDING)
-  reason String?
-
-  // When approved, we create exactly one TimeOff linked to this request
-  timeOff TimeOff?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId, status])
-  @@index([startDate, endDate])
-}
-
 enum VacationStatus {
   PENDING
   APPROVED
   REJECTED
-}
-
-//
-// TIME OFF (used by scheduling + punch rules)
-// Created when a request is approved, but can also be created by admins directly.
-//
-model TimeOff {
-  id     String @id @default(uuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id])
-
-  startDate DateTime
-  endDate   DateTime
-  type      TimeOffType @default(VACATION)
-
-  // Link back to the original request (optional, but if present, unique)
-  requestId String?          @unique
-  request   VacationRequest? @relation(fields: [requestId], references: [id])
-
-  createdAt DateTime @default(now())
-
-  @@index([userId, startDate])
-  @@index([startDate, endDate])
 }
 
 enum TimeOffType {
@@ -138,59 +216,11 @@ enum TimeOffType {
   OTHER
 }
 
-//
-// SCHEDULE (planned work)
-//
-model Shift {
-  id String @id @default(uuid())
-
-  employeeId String
-  employee   Employee @relation(fields: [employeeId], references: [id])
-
-  startTime DateTime
-  endTime   DateTime
-  status    ShiftStatus @default(PLANNED)
-  note      String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  punchEvents PunchEvent[]
-
-  @@index([employeeId, startTime])
-  @@index([startTime, endTime])
-}
-
 enum ShiftStatus {
   PLANNED
   ON_LEAVE
   COMPLETED
   CANCELED
-}
-
-//
-// PUNCHES (actual work)
-// Event-based punches: IN/OUT/BREAK_START/BREAK_END
-//
-model PunchEvent {
-  id String @id @default(uuid())
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id])
-
-  // Optional link to a shift (you can match later if needed)
-  shiftId String?
-  shift   Shift?  @relation(fields: [shiftId], references: [id])
-
-  type PunchType
-  at   DateTime
-
-  source PunchSource @default(MOBILE)
-
-  createdAt DateTime @default(now())
-
-  @@index([userId, at])
-  @@index([shiftId])
 }
 
 enum PunchType {
@@ -204,84 +234,4 @@ enum PunchSource {
   MOBILE
   WEB
   ADMIN
-}
-
-//
-// AUDIT LOG (who did what)
-//
-model AuditLog {
-  id String @id @default(uuid())
-
-  companyId String?
-  actorId   String?
-  action    String
-  target    String
-
-  meta Json?
-
-  createdAt DateTime @default(now())
-
-  @@index([companyId, createdAt])
-  @@index([actorId, createdAt])
-}
-
-model TaskTemplate {
-  id        String  @id @default(uuid())
-  companyId String
-  company   Company @relation(fields: [companyId], references: [id])
-
-  title     String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  notes     String?  
-
-  items TaskTemplateItem[]
-
-  @@index([companyId])
-}
-
-model TaskTemplateItem {
-  id         String       @id @default(uuid())
-  templateId String
-  template   TaskTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-
-  order    Int
-  text     String
-  required Boolean @default(true)
-
-  @@index([templateId])
-}
-
-model TaskAssignment {
-  id        String  @id @default(uuid())
-  companyId String
-  company   Company @relation(fields: [companyId], references: [id])
-
-  employeeId String
-  employee   Employee @relation(fields: [employeeId], references: [id])
-
-  date  DateTime
-  title String?
-  notes String?  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  items TaskAssignmentItem[]
-
-  @@index([companyId, date])
-  @@index([employeeId, date])
-}
-
-model TaskAssignmentItem {
-  id           String         @id @default(uuid())
-  assignmentId String
-  assignment   TaskAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-
-  order    Int
-  text     String
-  required Boolean   @default(true)
-  done     Boolean   @default(false)
-  doneAt   DateTime?
-
-  @@index([assignmentId])
 }

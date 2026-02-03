@@ -126,7 +126,8 @@ export default function CreateAccountPage() {
               <label>Département</label>
               <select value={department} onChange={(e) => setDepartment(e.target.value as Department)}>
                 <option value="FLOOR">Plancher</option>
-                <option value="CASH_LAB">Caisse / Lab</option>
+                <option value="CASH">Caisse</option>
+                <option value="LAB">Lab</option>
               </select>
             </div>
 

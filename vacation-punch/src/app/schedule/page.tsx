@@ -210,7 +210,14 @@ export default async function SchedulePage({
                       <tr key={u.id}>
                         <td className="td nameCell stickyLeft">
                           {u.firstName} {u.lastName}
-                          <div className="muted">{u.department === "CASH_LAB" ? "Caisse / Lab" : "Plancher"}</div>
+                          <div className="muted">
+                            {u.department === "CASH"
+                              ? "Caisse"
+                              : u.department === "LAB"
+                                ? "Lab"
+                                : "Plancher"}
+                          </div>
+
                         </td>
                         {cells}
                         <td className="td">
