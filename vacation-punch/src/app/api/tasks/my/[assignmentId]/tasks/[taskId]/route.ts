@@ -22,7 +22,20 @@ export async function PATCH(req: Request, ctx: Ctx) {
 
     const body = await req.json().catch(() => null);
     const nextDone = Boolean(body?.done);
+    const code = String(body?.code ?? "").replace(/\D/g, "");
+    if (!/^\d{8}$/.test(code)) return NextResponse.json({ error: "Invalid code" }, { status: 400 });
 
+    const employee = await prisma.employee.findUnique({
+      where: { employeeCode: code },
+      select: { id: true },
+    });
+    if (!employee) return NextResponse.json({ error: "Invalid employee" }, { status: 403 });
+
+    const ok = await prisma.taskAssignmentItem.findFirst({
+      where: { id: taskId, assignmentId, assignment: { employeeId: employee.id } },
+      select: { id: true },
+    });
+    if (!ok) return NextResponse.json({ error: "Not allowed" }, { status: 403 });
     // safety: ensure item belongs to that assignment
     const existing = await prisma.taskAssignmentItem.findFirst({
       where: { id: taskId, assignmentId },

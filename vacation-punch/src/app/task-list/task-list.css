@@ -156,3 +156,28 @@
   .tlTask{ grid-template-columns: 34px 1fr; }
   .tlReq, .tlOpt{ justify-self: start; }
 }
+/* Notes block inside assignment card */
+.tlNotes {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 0 0 16px 16px;
+}
+
+.tlNotesTitle {
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.75;
+  margin-bottom: 8px;
+}
+
+.tlNotesText {
+  font-size: 14px;
+  line-height: 1.4;
+  white-space: pre-wrap;    /* keeps line breaks */
+  word-break: break-word;   /* prevents overflow */
+  opacity: 0.95;
+}
+

@@ -15,7 +15,7 @@ type WorkingEmployee = {
   id: string;
   firstName: string;
   lastName: string;
-  employeeCode: string; // still exists in payload, but we won't display it
+  employeeCode: string; // exists in payload, but we won't display it
   department: string;
   startISO: string;
   endISO: string;
@@ -60,7 +60,6 @@ function normalizeTemplates(payload: any): Template[] {
         .filter((x) => x.text.length > 0);
 
       if (!id || !String(title).trim()) return null;
-
       return { id: String(id), title: String(title), items } as Template;
     })
     .filter(Boolean) as Template[];
@@ -79,23 +78,43 @@ export default function CreationTPage() {
   const [msg, setMsg] = useState<string | null>(null);
 
   // -------------------
-  // UI STATE
+  // UI PRIORITY
   // -------------------
+  const [templatesVisible, setTemplatesVisible] = useState(false);
+
+  // -------------------
+  // ASSIGN UI STATE
+  // -------------------
+  const [tab, setTab] = useState<"templates" | "custom">("templates");
   const [employeeId, setEmployeeId] = useState("");
   const [dateYMD, setDateYMD] = useState(ymd());
+  const [assignTemplateId, setAssignTemplateId] = useState("");
 
-  const [templateId, setTemplateId] = useState("");
-  const [title, setTitle] = useState("");
-  const [lines, setLines] = useState<TemplateItem[]>([{ text: "", required: true }]);
+  // notes for the ASSIGNMENT (works for both template + custom)
+  const [assignNotes, setAssignNotes] = useState("");
 
-  const [tab, setTab] = useState<"templates" | "custom">("templates");
+  // custom assignment editor (independent — no bleed)
+  const [customTitle, setCustomTitle] = useState("");
+  const [customLines, setCustomLines] = useState<TemplateItem[]>([{ text: "", required: true }]);
+
+  // -------------------
+  // TEMPLATE EDITOR STATE (right panel only)
+  // -------------------
+  const [tmplEditId, setTmplEditId] = useState("");
+  const [tmplEditTitle, setTmplEditTitle] = useState("");
+  const [tmplEditLines, setTmplEditLines] = useState<TemplateItem[]>([{ text: "", required: true }]);
 
   const [busySave, setBusySave] = useState(false);
   const [busyAssign, setBusyAssign] = useState(false);
 
-  const selectedTemplate = useMemo(
-    () => templates.find((t) => t.id === templateId) ?? null,
-    [templates, templateId]
+  const assignSelectedTemplate = useMemo(
+    () => templates.find((t) => t.id === assignTemplateId) ?? null,
+    [templates, assignTemplateId]
+  );
+
+  const tmplSelected = useMemo(
+    () => templates.find((t) => t.id === tmplEditId) ?? null,
+    [templates, tmplEditId]
   );
 
   // -------------------
@@ -128,11 +147,7 @@ export default function CreationTPage() {
 
         if (!cancelled) {
           setWorkingEmployees(list);
-
-          // reset selection if no longer valid
-          if (employeeId && !list.some((e) => e.id === employeeId)) {
-            setEmployeeId("");
-          }
+          if (employeeId && !list.some((e) => e.id === employeeId)) setEmployeeId("");
         }
       } catch (e: any) {
         if (!cancelled) {
@@ -149,13 +164,12 @@ export default function CreationTPage() {
     return () => {
       cancelled = true;
     };
-    // IMPORTANT: do NOT depend on employeeId, or you'll refetch infinitely.
   }, [dateYMD]);
 
   // -------------------
   // LOAD TEMPLATES
   // -------------------
-  async function reloadTemplates(keepSelection = true) {
+  async function reloadTemplates() {
     setLoadingTemplates(true);
     setMsg(null);
 
@@ -181,10 +195,9 @@ export default function CreationTPage() {
         const normalized = normalizeTemplates(data);
         setTemplates(normalized);
 
-        if (keepSelection && templateId) {
-          const exists = normalized.some((t) => t.id === templateId);
-          if (!exists) setTemplateId("");
-        }
+        // keep selected ids valid
+        if (assignTemplateId && !normalized.some((t) => t.id === assignTemplateId)) setAssignTemplateId("");
+        if (tmplEditId && !normalized.some((t) => t.id === tmplEditId)) setTmplEditId("");
 
         setLoadingTemplates(false);
         return;
@@ -199,58 +212,85 @@ export default function CreationTPage() {
   }
 
   useEffect(() => {
-    reloadTemplates(true);
+    reloadTemplates();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // When picking a template, mirror it into editor
+  // -------------------
+  // TEMPLATE EDITOR: when choose a template in right panel, load into editor state
+  // -------------------
   useEffect(() => {
-    if (tab !== "templates") return;
-    if (!selectedTemplate) return;
+    if (!templatesVisible) return;
+    if (!tmplSelected) return;
 
-    setTitle(selectedTemplate.title);
-    setLines(
-      selectedTemplate.items.length
-        ? selectedTemplate.items.map((x) => ({ text: x.text, required: x.required }))
+    setTmplEditTitle(tmplSelected.title);
+    setTmplEditLines(
+      tmplSelected.items.length
+        ? tmplSelected.items.map((x) => ({ text: x.text, required: x.required }))
         : [{ text: "", required: true }]
     );
-  }, [selectedTemplate, tab]);
+  }, [tmplSelected, templatesVisible]);
 
   // -------------------
-  // EDITOR HELPERS
+  // HELPERS: CUSTOM LINES
   // -------------------
-  function addLine() {
-    setLines((p) => [...p, { text: "", required: true }]);
+  function addCustomLine() {
+    setCustomLines((p) => [...p, { text: "", required: true }]);
+  }
+  function updateCustomLine(i: number, patch: Partial<TemplateItem>) {
+    setCustomLines((p) => p.map((x, idx) => (idx === i ? { ...x, ...patch } : x)));
+  }
+  function removeCustomLine(i: number) {
+    setCustomLines((p) => p.filter((_, idx) => idx !== i));
   }
 
-  function updateLine(i: number, patch: Partial<TemplateItem>) {
-    setLines((p) => p.map((x, idx) => (idx === i ? { ...x, ...patch } : x)));
-  }
-
-  function removeLine(i: number) {
-    setLines((p) => p.filter((_, idx) => idx !== i));
-  }
-
-  function newTemplate() {
-    setTemplateId("");
-    setTitle("");
-    setLines([{ text: "", required: true }]);
-    setTab("templates");
-    setMsg(null);
-  }
-
-  const cleanedLines = useMemo(() => {
-    return lines
+  const cleanedCustomLines = useMemo(() => {
+    return customLines
       .map((l) => ({ text: l.text.trim(), required: !!l.required }))
       .filter((l) => l.text.length > 0);
-  }, [lines]);
-
-  const canSaveTemplate = useMemo(() => {
-    return title.trim().length > 0 && cleanedLines.length > 0;
-  }, [title, cleanedLines]);
+  }, [customLines]);
 
   // -------------------
-  // SAVE TEMPLATE
+  // HELPERS: TEMPLATE EDIT LINES (right panel)
+  // -------------------
+  function addTmplLine() {
+    setTmplEditLines((p) => [...p, { text: "", required: true }]);
+  }
+  function updateTmplLine(i: number, patch: Partial<TemplateItem>) {
+    setTmplEditLines((p) => p.map((x, idx) => (idx === i ? { ...x, ...patch } : x)));
+  }
+  function removeTmplLine(i: number) {
+    setTmplEditLines((p) => p.filter((_, idx) => idx !== i));
+  }
+
+  const cleanedTmplEditLines = useMemo(() => {
+    return tmplEditLines
+      .map((l) => ({ text: l.text.trim(), required: !!l.required }))
+      .filter((l) => l.text.length > 0);
+  }, [tmplEditLines]);
+
+  const canSaveTemplate = useMemo(() => {
+    return tmplEditTitle.trim().length > 0 && cleanedTmplEditLines.length > 0;
+  }, [tmplEditTitle, cleanedTmplEditLines]);
+
+  // -------------------
+  // DUPLICATE TEMPLATE -> CUSTOM (ASSIGN SIDE)
+  // -------------------
+  function duplicateAssignTemplateToCustom() {
+    if (!assignSelectedTemplate) return;
+
+    setTab("custom");
+    setCustomTitle(assignSelectedTemplate.title);
+    setCustomLines(
+      assignSelectedTemplate.items.length
+        ? assignSelectedTemplate.items.map((x) => ({ text: x.text, required: x.required }))
+        : [{ text: "", required: true }]
+    );
+    setMsg("Copié vers custom (modifie sans toucher au template).");
+  }
+
+  // -------------------
+  // SAVE TEMPLATE (RIGHT PANEL)
   // -------------------
   async function saveTemplate() {
     if (!canSaveTemplate || busySave) {
@@ -269,9 +309,9 @@ export default function CreationTPage() {
     ];
 
     const payload: any = {
-      id: templateId || undefined,
-      title: title.trim(),
-      items: cleanedLines,
+      id: tmplEditId || undefined,
+      title: tmplEditTitle.trim(),
+      items: cleanedTmplEditLines,
       companyId: "1",
     };
 
@@ -306,8 +346,8 @@ export default function CreationTPage() {
           null;
 
         setMsg("Template enregistré.");
-        await reloadTemplates(true);
-        if (newId) setTemplateId(String(newId));
+        await reloadTemplates();
+        if (newId) setTmplEditId(String(newId));
         setBusySave(false);
         return;
       } catch (e: any) {
@@ -319,34 +359,52 @@ export default function CreationTPage() {
     setBusySave(false);
   }
 
-  // -------------------
-  // DELETE TEMPLATE
-  // -------------------
+  //Delete
   async function deleteTemplate() {
-    if (!templateId || busySave) return;
+    if (busySave) return;
+    if (!tmplEditId) {
+      setMsg("Choisis un template à supprimer.");
+      return;
+    }
 
-    const sure = window.confirm("Supprimer ce template ?");
+    const sure = window.confirm("Supprimer ce template ? Cette action est irréversible.");
     if (!sure) return;
 
     setBusySave(true);
     setMsg(null);
 
-    const urls = ["/api/templates"];
+    // Try multiple delete endpoints (like your save)
+    const urls = [
+      "/api/admin/task-templates",
+      "/api/admin/templates",
+      "/api/task-templates",
+      "/api/templates",
+    ];
 
     let lastError = "";
-    for (const url of urls) {
+    for (const base of urls) {
+      // we send id as query param to avoid guessing your backend body parsing
+      const url = `${base}?id=${encodeURIComponent(tmplEditId)}`;
+
       try {
         const res = await fetch(url, { method: "DELETE" });
         const text = await res.text();
+
         if (!res.ok) {
           lastError = `${url} -> ${res.status} ${res.statusText} :: ${text.slice(0, 200)}`;
           continue;
         }
+
+        // Success: clear editor + refresh list
         setMsg("🗑️ Template supprimé.");
-        setTemplateId("");
-        setTitle("");
-        setLines([{ text: "", required: true }]);
-        await reloadTemplates(false);
+        setTmplEditId("");
+        setTmplEditTitle("");
+        setTmplEditLines([{ text: "", required: true }]);
+
+        // Also clear assignment selection if it was this template
+        if (assignTemplateId === tmplEditId) setAssignTemplateId("");
+
+        await reloadTemplates();
         setBusySave(false);
         return;
       } catch (e: any) {
@@ -364,23 +422,21 @@ export default function CreationTPage() {
   async function assignToEmployee() {
     if (busyAssign) return;
 
-    if (!employeeId) {
-      setMsg("Choisis un employé.");
-      return;
-    }
-    if (!dateYMD) {
-      setMsg("Choisis une date.");
-      return;
+    if (!employeeId) return setMsg("Choisis un employé.");
+    if (!dateYMD) return setMsg("Choisis une date.");
+
+    if (tab === "templates" && !assignTemplateId) {
+      return setMsg("Choisis un template à assigner.");
     }
 
-    if (tab === "templates" && !templateId) {
-      setMsg("Choisis un template à assigner.");
-      return;
-    }
+    if (tab === "custom") {
+      const hasTitle = customTitle.trim().length > 0;
+      const hasItems = cleanedCustomLines.length > 0;
+      const hasNotes = assignNotes.trim().length > 0;
 
-    if (tab === "custom" && (!title.trim() || cleanedLines.length === 0)) {
-      setMsg("En custom: titre + au moins 1 tâche.");
-      return;
+      if (!hasTitle && !hasItems && !hasNotes) {
+        return setMsg("En custom: mets au moins un titre, une note, ou une tâche.");
+      }
     }
 
     setBusyAssign(true);
@@ -388,8 +444,19 @@ export default function CreationTPage() {
 
     const payload =
       tab === "templates"
-        ? { employeeId, date: dateYMD, templateId }
-        : { employeeId, date: dateYMD, title: title.trim(), items: cleanedLines };
+        ? {
+          employeeId,
+          date: dateYMD,
+          templateId: assignTemplateId,
+          notes: assignNotes.trim() || null,
+        }
+        : {
+          employeeId,
+          date: dateYMD,
+          title: customTitle.trim() || null,
+          items: cleanedCustomLines,
+          notes: assignNotes.trim() || null,
+        };
 
     const urls = [
       "/api/admin/task-assignments",
@@ -415,6 +482,11 @@ export default function CreationTPage() {
         }
 
         setMsg("✅ Assignation créée.");
+        setAssignNotes("");
+        if (tab === "custom") {
+          setCustomTitle("");
+          setCustomLines([{ text: "", required: true }]);
+        }
         setBusyAssign(false);
         return;
       } catch (e: any) {
@@ -442,34 +514,35 @@ export default function CreationTPage() {
         <div className="ctTop">
           <div>
             <h1 className="ctH1">Creation T</h1>
-            <p className="ctP">
-              Crée des templates de tâches réutilisables, puis assigne-les à un employé planifié pour une date.
-            </p>
+            <p className="ctP">Assignation d’abord. Gestion des templates seulement si nécessaire.</p>
           </div>
 
           <div className="ctTopActions">
             <a className="ctBtn" href="/admin/dashboard">
               Retour
             </a>
-            <button className="ctBtn" type="button" onClick={() => reloadTemplates(true)} disabled={loadingTemplates}>
+
+            <button className="ctBtn" type="button" onClick={reloadTemplates} disabled={loadingTemplates}>
               {loadingTemplates ? "..." : "Rafraîchir templates"}
             </button>
-            <button className="ctBtn" type="button" onClick={newTemplate}>
-              + Nouveau template
+
+            <button className="ctBtn" type="button" onClick={() => setTemplatesVisible((v) => !v)}>
+              {templatesVisible ? "Fermer templates" : "Gérer templates"}
             </button>
           </div>
         </div>
 
         {msg ? <div className="ctMsg">{msg}</div> : null}
 
-        <div className="ctGrid">
-          {/* LEFT: ASSIGN */}
+        <div className="ctGrid" style={{ gridTemplateColumns: templatesVisible ? "1fr 1fr" : "1fr" }}>
+          {/* LEFT: ASSIGN (PRIORITY) */}
           <div className="ctCard">
             <div className="ctCardHead">
               <div>
                 <div className="ctCardTitle">Assignation</div>
                 <div className="ctMuted">Choisis la date → vois qui travaille → assigne.</div>
               </div>
+
               <div className="ctPills">
                 <button
                   type="button"
@@ -492,16 +565,9 @@ export default function CreationTPage() {
               <div className="ctGrid2">
                 <div>
                   <label className="ctLabel">Date</label>
-                  <input
-                    className="ctInput"
-                    type="date"
-                    value={dateYMD}
-                    onChange={(e) => setDateYMD(e.target.value)}
-                  />
+                  <input className="ctInput" type="date" value={dateYMD} onChange={(e) => setDateYMD(e.target.value)} />
                   <div className="ctHintSmall">
-                    {loadingWorking
-                      ? "Chargement des employés planifiés…"
-                      : `${workingEmployees.length} employé(s) planifié(s)`}
+                    {loadingWorking ? "Chargement…" : `${workingEmployees.length} employé(s) planifié(s)`}
                   </div>
                 </div>
 
@@ -517,19 +583,13 @@ export default function CreationTPage() {
                       {loadingWorking
                         ? "Chargement..."
                         : workingEmployees.length
-                        ? "— Choisir —"
-                        : "Aucun employé planifié"}
+                          ? "— Choisir —"
+                          : "Aucun employé planifié"}
                     </option>
 
                     {workingEmployees.map((e) => {
-                      const start = new Date(e.startISO).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      });
-                      const end = new Date(e.endISO).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      });
+                      const start = new Date(e.startISO).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+                      const end = new Date(e.endISO).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
                       return (
                         <option key={e.id} value={e.id}>
@@ -541,38 +601,101 @@ export default function CreationTPage() {
                 </div>
               </div>
 
-              <div className="ctGrid2" style={{ marginTop: 10 }}>
-                {tab === "templates" ? (
-                  <div>
-                    <label className="ctLabel">Template</label>
-                    <select
-                      className="ctSelect"
-                      value={templateId}
-                      onChange={(e) => setTemplateId(e.target.value)}
-                      disabled={loadingTemplates}
+              {/* MAIN CONTENT */}
+              {tab === "templates" ? (
+                <div className="ctBlock" style={{ marginTop: 10 }}>
+                  <label className="ctLabel">Template à assigner</label>
+                  <select
+                    className="ctSelect"
+                    value={assignTemplateId}
+                    onChange={(e) => setAssignTemplateId(e.target.value)}
+                    disabled={loadingTemplates}
+                  >
+                    <option value="">{loadingTemplates ? "Chargement..." : "— Choisir —"}</option>
+                    {templates.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.title}
+                      </option>
+                    ))}
+                  </select>
+
+                  {/* ✅ YOUR BUTTON IS BACK: only shows when template is selected */}
+                  <div className="ctActions" style={{ marginTop: 10 }}>
+                    <button
+                      className="ctBtn"
+                      type="button"
+                      onClick={duplicateAssignTemplateToCustom}
+                      disabled={!assignSelectedTemplate}
                     >
-                      <option value="">{loadingTemplates ? "Chargement..." : "— Choisir —"}</option>
-                      {templates.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.title}
-                        </option>
-                      ))}
-                    </select>
+                      Dupliquer vers custom
+                    </button>
                   </div>
-                ) : (
-                  <div>
-                    <label className="ctLabel">Titre (custom)</label>
-                    <input
-                      className="ctInput"
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      placeholder="Ex: Fermeture - Soir"
-                    />
+                </div>
+              ) : (
+                <div className="ctBlock" style={{ marginTop: 10 }}>
+                  <label className="ctLabel">Titre (custom) — optionnel</label>
+                  <input
+                    className="ctInput"
+                    value={customTitle}
+                    onChange={(e) => setCustomTitle(e.target.value)}
+                    placeholder="Ex: Fermeture - Soir"
+                  />
+
+                  <div className="ctSplitRow" style={{ marginTop: 12 }}>
+                    <div className="ctCardTitle" style={{ fontSize: 13 }}>
+                      Checklist (optionnel)
+                    </div>
+                    <button className="ctTinyBtn" type="button" onClick={addCustomLine}>
+                      + Ajouter
+                    </button>
                   </div>
-                )}
+
+                  <div className="ctList">
+                    {customLines.length === 0 ? (
+                      <div className="ctEmpty">Aucune tâche.</div>
+                    ) : (
+                      customLines.map((l, idx) => (
+                        <div className="ctLine" key={idx}>
+                          <input
+                            className="ctLineInput"
+                            value={l.text}
+                            onChange={(e) => updateCustomLine(idx, { text: e.target.value })}
+                            placeholder={`Tâche ${idx + 1}`}
+                          />
+
+                          <label className="ctCheck">
+                            <input
+                              type="checkbox"
+                              checked={l.required}
+                              onChange={(e) => updateCustomLine(idx, { required: e.target.checked })}
+                            />
+                            <span>Requis</span>
+                          </label>
+
+                          <button className="ctIconBtn" type="button" onClick={() => removeCustomLine(idx)} aria-label="Remove">
+                            ✕
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* NOTES FOR BOTH */}
+              <div className="ctBlock" style={{ marginTop: 12 }}>
+                <label className="ctLabel">Notes (optionnel)</label>
+                <textarea
+                  className="ctInput"
+                  value={assignNotes}
+                  onChange={(e) => setAssignNotes(e.target.value)}
+                  placeholder="Ex: Priorité sur la caisse. Vérifie le frigo."
+                  style={{ minHeight: 90, resize: "vertical" }}
+                />
+                <div className="ctHintSmall">Visible par l’employé en bas de ses tâches.</div>
               </div>
 
-              <div className="ctActions">
+              <div className="ctActions" style={{ marginTop: 12 }}>
                 <button
                   className="ctBtnPrimary"
                   type="button"
@@ -585,107 +708,115 @@ export default function CreationTPage() {
             </div>
           </div>
 
-          {/* RIGHT: TEMPLATE BUILDER */}
-          <div className="ctCard">
-            <div className="ctCardHead">
-              <div>
-                <div className="ctCardTitle">Templates</div>
-                <div className="ctMuted">Construis une checklist que tu peux réutiliser.</div>
-              </div>
-              <div className="ctTopActions">
-                <select
-                  className="ctSelect"
-                  value={templateId}
-                  onChange={(e) => setTemplateId(e.target.value)}
-                  disabled={loadingTemplates}
-                  style={{ maxWidth: 320 }}
-                >
-                  <option value="">{loadingTemplates ? "Chargement..." : "— Choisir —"}</option>
-                  {templates.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="ctCardBody">
-              <label className="ctLabel">Titre</label>
-              <input
-                className="ctInput"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Ex: Ouverture - Matin"
-              />
-
-              <div className="ctSplitRow">
-                <div className="ctCardTitle" style={{ fontSize: 13 }}>
-                  Tâches
+          {/* RIGHT: TEMPLATE MANAGER (OPTIONAL, TOGGLED) */}
+          {templatesVisible ? (
+            <div className="ctCard">
+              <div className="ctCardHead">
+                <div>
+                  <div className="ctCardTitle">Gestion des templates</div>
+                  <div className="ctMuted">Édite / crée des templates (ne touche pas au custom).</div>
                 </div>
-                <button className="ctTinyBtn" type="button" onClick={addLine}>
-                  + Ajouter
-                </button>
+
+                <div className="ctTopActions">
+                  <select
+                    className="ctSelect"
+                    value={tmplEditId}
+                    onChange={(e) => setTmplEditId(e.target.value)}
+                    disabled={loadingTemplates}
+                    style={{ maxWidth: 320 }}
+                  >
+                    <option value="">{loadingTemplates ? "Chargement..." : "— Choisir —"}</option>
+                    {templates.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.title}
+                      </option>
+                    ))}
+                  </select>
+
+                  <button
+                    className="ctBtn"
+                    type="button"
+                    onClick={() => {
+                      setTmplEditId("");
+                      setTmplEditTitle("");
+                      setTmplEditLines([{ text: "", required: true }]);
+                      setMsg(null);
+                    }}
+                  >
+                    + Nouveau
+                  </button>
+                </div>
               </div>
 
-              <div className="ctList">
-                {lines.length === 0 ? (
-                  <div className="ctEmpty">Aucune tâche.</div>
-                ) : (
-                  lines.map((l, idx) => (
-                    <div className="ctLine" key={idx}>
-                      <input
-                        className="ctLineInput"
-                        value={l.text}
-                        onChange={(e) => updateLine(idx, { text: e.target.value })}
-                        placeholder={`Tâche ${idx + 1}`}
-                      />
+              <div className="ctCardBody">
+                <label className="ctLabel">Titre</label>
+                <input
+                  className="ctInput"
+                  value={tmplEditTitle}
+                  onChange={(e) => setTmplEditTitle(e.target.value)}
+                  placeholder="Ex: Ouverture - Matin"
+                />
 
-                      <label className="ctCheck">
+                <div className="ctSplitRow">
+                  <div className="ctCardTitle" style={{ fontSize: 13 }}>
+                    Tâches
+                  </div>
+                  <button className="ctTinyBtn" type="button" onClick={addTmplLine}>
+                    + Ajouter
+                  </button>
+                </div>
+
+                <div className="ctList">
+                  {tmplEditLines.length === 0 ? (
+                    <div className="ctEmpty">Aucune tâche.</div>
+                  ) : (
+                    tmplEditLines.map((l, idx) => (
+                      <div className="ctLine" key={idx}>
                         <input
-                          type="checkbox"
-                          checked={l.required}
-                          onChange={(e) => updateLine(idx, { required: e.target.checked })}
+                          className="ctLineInput"
+                          value={l.text}
+                          onChange={(e) => updateTmplLine(idx, { text: e.target.value })}
+                          placeholder={`Tâche ${idx + 1}`}
                         />
-                        <span>Requis</span>
-                      </label>
 
-                      <button className="ctIconBtn" type="button" onClick={() => removeLine(idx)} aria-label="Remove">
-                        ✕
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
+                        <label className="ctCheck">
+                          <input
+                            type="checkbox"
+                            checked={l.required}
+                            onChange={(e) => updateTmplLine(idx, { required: e.target.checked })}
+                          />
+                          <span>Requis</span>
+                        </label>
 
-              <div className="ctActions">
-                <button className="ctBtnPrimary" type="button" onClick={saveTemplate} disabled={busySave}>
-                  {busySave ? "..." : "Créer / Enregistrer"}
-                </button>
+                        <button className="ctIconBtn" type="button" onClick={() => removeTmplLine(idx)} aria-label="Remove">
+                          ✕
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
 
-                <button className="ctBtnDanger" type="button" onClick={deleteTemplate} disabled={busySave || !templateId}>
-                  Supprimer
-                </button>
+                <div className="ctActions">
+                  <button className="ctBtnPrimary" type="button" onClick={saveTemplate} disabled={busySave}>
+                    {busySave ? "..." : "Créer / Enregistrer"}
+                  </button>
 
-                <button
-                  className="ctBtn"
-                  type="button"
-                  onClick={() => {
-                    setTab("custom");
-                    setTemplateId("");
-                    setMsg("Copié vers custom.");
-                  }}
-                  disabled={lines.length === 0}
-                >
-                  Dupliquer vers custom
-                </button>
-              </div>
+                  <button
+                    className="ctBtnDanger"
+                    type="button"
+                    onClick={deleteTemplate}
+                    disabled={busySave || !tmplEditId}
+                  >
+                    Supprimer
+                  </button>
+                </div>
 
-              <div className="ctFooterTip">
-                Si ça ne sauvegarde pas: regarde le message d’erreur. Il contient la route + status + body.
+                <div className="ctFooterTip">
+                  Si tu modifies ici, ça modifie le template (normal). Le custom reste indépendant.
+                </div>
               </div>
             </div>
-          </div>
+          ) : null}
         </div>
       </div>
     </div>

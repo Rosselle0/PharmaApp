@@ -12,6 +12,7 @@ type Assignment = {
   startHHMM?: string | null;
   endHHMM?: string | null;
   title: string;
+  notes?: string | null;
   tasks: Task[]; // normalized
 };
 
@@ -48,6 +49,7 @@ function normTask(raw: any): Task | null {
 // Accept BOTH shapes:
 // - API returns assignments[].tasks  (old UI shape)
 // - API returns assignments[].items  (Prisma TaskAssignmentItem[])
+
 function normalizeAssignments(payload: any): Assignment[] {
   const rawAssignments =
     payload?.assignments ??
@@ -68,6 +70,8 @@ function normalizeAssignments(payload: any): Assignment[] {
       const startHHMM = a?.startHHMM ?? a?.start ?? null;
       const endHHMM = a?.endHHMM ?? a?.end ?? null;
 
+      const notes = a?.notes ?? a?.note ?? a?.message ?? null;
+
       // key line: accept either "tasks" or "items"
       const rawTasks = a?.tasks ?? a?.items ?? a?.taskItems ?? a?.assignmentItems ?? [];
       const tasks = safeArray<any>(rawTasks).map(normTask).filter(Boolean) as Task[];
@@ -78,6 +82,7 @@ function normalizeAssignments(payload: any): Assignment[] {
         dateYMD: dateYMD ? String(dateYMD).slice(0, 10) : undefined,
         startHHMM,
         endHHMM,
+        notes: notes ? String(notes) : null,
         tasks,
       } as Assignment;
     })
@@ -181,9 +186,9 @@ export default function TaskListPage() {
         a.id !== assignmentId
           ? a
           : {
-              ...a,
-              tasks: safeArray<Task>(a.tasks).map((t) => (t.id === taskId ? { ...t, done: nextDone } : t)),
-            }
+            ...a,
+            tasks: safeArray<Task>(a.tasks).map((t) => (t.id === taskId ? { ...t, done: nextDone } : t)),
+          }
       )
     );
 
@@ -213,9 +218,9 @@ export default function TaskListPage() {
           a.id !== assignmentId
             ? a
             : {
-                ...a,
-                tasks: safeArray<Task>(a.tasks).map((t) => (t.id === taskId ? { ...t, done: !nextDone } : t)),
-              }
+              ...a,
+              tasks: safeArray<Task>(a.tasks).map((t) => (t.id === taskId ? { ...t, done: !nextDone } : t)),
+            }
         )
       );
       setMsg(e?.message ?? "Erreur.");
@@ -292,6 +297,13 @@ export default function TaskListPage() {
                     ))}
                   </div>
                 </div>
+                {a.notes?.trim() ? (
+                  <div className="tlNotes">
+                    <div className="tlNotesTitle">Notes</div>
+                    <div className="tlNotesText">{a.notes}</div>
+                  </div>
+                ) : null}
+
               </section>
             ))}
           </div>
