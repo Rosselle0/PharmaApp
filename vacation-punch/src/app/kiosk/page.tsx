@@ -11,6 +11,7 @@ export default async function KioskPage() {
 
   let isAdminLogged = false;
   let adminName: string | undefined;
+  let isManagerLogged = false;
 
   if (data?.user) {
     const me = await prisma.user.findUnique({
@@ -27,5 +28,5 @@ export default async function KioskPage() {
     }
   }
 
-  return <KioskClient isAdminLogged={isAdminLogged} adminName={adminName} />;
+  return <KioskClient isAdminLogged={isAdminLogged} adminName={adminName} isManagerLogged={isManagerLogged}/>;
 }
