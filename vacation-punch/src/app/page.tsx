@@ -8,7 +8,7 @@ export default async function HomePage() {
   const { data } = await supabase.auth.getUser();
 
  if (data?.user) {
-    redirect("/dashboard");
+    redirect("/kiosk");
   }
 
   // Everyone else → kiosk main screen
