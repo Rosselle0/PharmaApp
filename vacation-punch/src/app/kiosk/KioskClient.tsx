@@ -426,10 +426,9 @@ export default function KioskClient({
                   );
                 }
 
-                // Hide other admin-only buttons for non-admins
-                if (it.adminOnly && !isPrivilegedLogged) return null;
+                // Never show admin-only shortcuts here (they live in Logs only)
+                if (it.adminOnly) return null;
 
-                // Show admin-only buttons only for admins/managers
                 return (
                   <button
                     key={it.label}
@@ -440,6 +439,7 @@ export default function KioskClient({
                     {it.label}
                   </button>
                 );
+
               })}
 
               {/* Logs button stays visible */}

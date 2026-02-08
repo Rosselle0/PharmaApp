@@ -1078,3 +1078,33 @@
     border-color: rgba(72, 187, 120, 0.45);
   }
 }
+/* QUICK FIX: all left-nav buttons same full size */
+.kiosk-left,
+.kiosk-nav,
+.kiosk-navTop,
+.kiosk-navBottom {
+  width: 100%;
+}
+
+.kiosk-navBtn {
+  width: 100% !important;         /* force full width */
+  display: flex;                   /* consistent layout */
+  align-items: center;
+  justify-content: space-between;  /* text left, emoji/icon right */
+  height: 64px;                    /* pick ONE height */
+  padding: 0 14px;
+  white-space: nowrap;             /* prevent wrapping */
+  border-radius: 0;                /* optional: keep clean blocks */
+}
+
+/* If you want the icon to always line up nicely */
+.kiosk-navBtn > *:last-child {
+  margin-left: 12px;
+  flex: 0 0 auto;
+}
+
+/* Make sure hover/active doesn't shift sizes */
+.kiosk-navBtn:hover,
+.kiosk-navBtn:active {
+  transform: none; /* remove translateX that makes it feel uneven */
+}
