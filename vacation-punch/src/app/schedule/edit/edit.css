@@ -286,3 +286,14 @@
   background: rgba(21,195,154,0.14);
   box-shadow: 0 0 0 2px rgba(21,195,154,0.10);
 }
+.checkRow{
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 14px;
+  opacity: 0.95;
+}
+.checkRow input{
+  width: 16px;
+  height: 16px;
+}

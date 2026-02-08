@@ -39,28 +39,28 @@ model User {
 }
 
 model Employee {
-  id           String     @id @default(uuid())
+  id           String @id @default(uuid())
   companyId    String
   firstName    String
   lastName     String
-  employeeCode String     @unique
+  employeeCode String @unique
 
-  role         Role       @default(EMPLOYEE) // <-- AJOUTE ÇA
-  department   Department @default(FLOOR)     // <-- GARDE ÇA (Option A)
+  role       Role       @default(EMPLOYEE) // <-- AJOUTE ÇA
+  department Department @default(FLOOR) // <-- GARDE ÇA (Option A)
 
-  paidBreak30  Boolean    @default(false)
-  isActive     Boolean    @default(true)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  paidBreak30 Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  company      Company    @relation(fields: [companyId], references: [id])
-  shifts       Shift[]
+  company        Company              @relation(fields: [companyId], references: [id])
+  shifts         Shift[]
   TaskAssignment TaskAssignment[]
+  recurringRules RecurringShiftRule[]
 
   @@index([companyId])
   @@index([companyId, department])
 }
-
 
 model VacationRequest {
   id        String         @id @default(uuid())
@@ -91,22 +91,6 @@ model TimeOff {
 
   @@index([userId, startDate])
   @@index([startDate, endDate])
-}
-
-model Shift {
-  id          String       @id @default(uuid())
-  startTime   DateTime
-  endTime     DateTime
-  status      ShiftStatus  @default(PLANNED)
-  note        String?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  employeeId  String
-  punchEvents PunchEvent[]
-  employee    Employee     @relation(fields: [employeeId], references: [id])
-
-  @@index([employeeId, startTime])
-  @@index([startTime, endTime])
 }
 
 model PunchEvent {
@@ -234,4 +218,53 @@ enum PunchSource {
   MOBILE
   WEB
   ADMIN
+}
+
+enum ShiftSource {
+  MANUAL
+  RECURRING
+}
+
+model RecurringShiftRule {
+  id         String    @id @default(uuid())
+  employeeId String
+  dayOfWeek  Int // 0=Sun ... 6=Sat
+  startHHMM  String // "08:00"
+  endHHMM    String // "17:00"
+  note       String?
+  active     Boolean   @default(true)
+  locked     Boolean   @default(false)
+  startsOn   DateTime  @default(now())
+  endsOn     DateTime?
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  Shift     Shift[]
+
+  @@unique([employeeId, dayOfWeek])
+  @@index([employeeId])
+}
+
+model Shift {
+  id        String      @id @default(uuid())
+  startTime DateTime
+  endTime   DateTime
+  status    ShiftStatus @default(PLANNED)
+  note      String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  employeeId  String
+  punchEvents PunchEvent[]
+  employee    Employee     @relation(fields: [employeeId], references: [id])
+
+  source ShiftSource         @default(MANUAL)
+  ruleId String?
+  rule   RecurringShiftRule? @relation(fields: [ruleId], references: [id])
+
+  @@index([employeeId, startTime])
+  @@index([startTime, endTime])
+  @@index([ruleId])
 }
