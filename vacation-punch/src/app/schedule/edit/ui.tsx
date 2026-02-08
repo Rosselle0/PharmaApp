@@ -83,6 +83,9 @@ export default function ScheduleEditorClient(props: {
     const [note, setNote] = useState("");
     const [saving, setSaving] = useState(false);
     const [msg, setMsg] = useState<string | null>(null);
+    const [repeatWeekly, setRepeatWeekly] = useState(false);
+    const [locked, setLocked] = useState(false);
+
 
     useEffect(() => {
         setShifts(props.shifts);
@@ -135,6 +138,8 @@ export default function ScheduleEditorClient(props: {
             setEndHHMM("17:00");
             setNote("");
         }
+        setRepeatWeekly(false);
+        setLocked(false);
 
         setOpen(true);
     }
@@ -179,6 +184,10 @@ export default function ScheduleEditorClient(props: {
                     startTime: start.toISOString(),
                     endTime: end.toISOString(),
                     note: note.trim() || null,
+                    repeatWeekly,
+                    locked,
+                    dayOfWeek: new Date(activeDayISO + "T12:00:00").getDay(),
+
                 }),
             });
 
@@ -263,6 +272,37 @@ export default function ScheduleEditorClient(props: {
                         <a className="btn" href="/admin/dashboard">
                             Retour
                         </a>
+                        <button
+                            className="btn"
+                            type="button"
+                            disabled={saving}
+                            onClick={async () => {
+                                setSaving(true);
+                                setMsg(null);
+                                try {
+                                    const res = await fetch("/api/schedule/weeks/apply-recurring", {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({
+                                            weekStartYMD: ymdLocal(weekStart),
+                                            mode: "OVERWRITE_RECURRING",
+                                        }),
+                                    });
+
+                                    const data = await res.json().catch(() => null);
+                                    if (!res.ok) throw new Error(data?.error || "Erreur");
+
+                                    setShifts(data.shifts ?? []);
+                                } catch (e: any) {
+                                    setMsg(e?.message ?? "Erreur");
+                                } finally {
+                                    setSaving(false);
+                                }
+                            }}
+                        >
+                            Re-générer (templates)
+                        </button>
+
                     </div>
 
                 </div>
@@ -418,6 +458,27 @@ export default function ScheduleEditorClient(props: {
                                 <label>Note</label>
                                 <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optionnel" />
                             </div>
+                            <div className="grid2">
+                                <label className="checkRow">
+                                    <input
+                                        type="checkbox"
+                                        checked={repeatWeekly}
+                                        onChange={(e) => setRepeatWeekly(e.target.checked)}
+                                    />
+                                    Répéter chaque semaine (template)
+                                </label>
+
+                                <label className="checkRow">
+                                    <input
+                                        type="checkbox"
+                                        checked={locked}
+                                        onChange={(e) => setLocked(e.target.checked)}
+                                        disabled={!repeatWeekly}
+                                    />
+                                    Verrouiller
+                                </label>
+                            </div>
+
 
                             {msg ? <div className="msg">{msg}</div> : null}
 

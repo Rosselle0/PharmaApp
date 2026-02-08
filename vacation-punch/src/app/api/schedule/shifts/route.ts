@@ -21,6 +21,12 @@ function timePartsInTZ(d: Date) {
   return { hh, mm };
 }
 
+function hhmmInTZ(d: Date) {
+  const { hh, mm } = timePartsInTZ(d);
+  if (!Number.isFinite(hh) || !Number.isFinite(mm)) return null;
+  return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+}
+
 function ymdInTZ(d: Date) {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: TZ,
@@ -83,8 +89,6 @@ export async function POST(req: Request) {
     const sh = Number(m1[1]), sm = Number(m1[2]);
     const eh = Number(m2[1]), em = Number(m2[2]);
 
-    // Build using the SAME instant base day, then set hours in SERVER local
-    // (validation uses TZ so this is safe)
     startTime = new Date(base);
     endTime = new Date(base);
     startTime.setHours(sh, sm, 0, 0);
@@ -108,12 +112,54 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Allowed range is 08:00–21:00" }, { status: 400 });
   }
 
+  // ✅ OPTIONAL RECURRING TEMPLATE
+  // Frontend sends: repeatWeekly, locked, dayOfWeek (0..6)
+  const repeatWeekly = Boolean(body.repeatWeekly);
+  const locked = Boolean(body.locked);
+  const dayOfWeek = Number(body.dayOfWeek);
+
+  let ruleId: string | null = null;
+
+  if (repeatWeekly) {
+    if (!Number.isInteger(dayOfWeek) || dayOfWeek < 0 || dayOfWeek > 6) {
+      return NextResponse.json({ error: "Invalid dayOfWeek" }, { status: 400 });
+    }
+
+    const startHHMM = hhmmInTZ(startTime);
+    const endHHMM = hhmmInTZ(endTime);
+    if (!startHHMM || !endHHMM) {
+      return NextResponse.json({ error: "Invalid time format" }, { status: 400 });
+    }
+
+    // ✅ Upsert rule (requires @@unique([employeeId, dayOfWeek]))
+    const rule = await prisma.recurringShiftRule.upsert({
+      where: { employeeId_dayOfWeek: { employeeId, dayOfWeek } },
+      update: {
+        startHHMM,
+        endHHMM,
+        note,
+        locked,
+        active: true,
+      },
+      create: {
+        employeeId,
+        dayOfWeek,
+        startHHMM,
+        endHHMM,
+        note,
+        locked,
+        active: true,
+      },
+      select: { id: true },
+    });
+
+    ruleId = rule.id;
+  }
+
   // ✅ 1 shift per employee per local day (TZ-safe)
   const dayKey = ymdInTZ(startTime);
 
-  // Use a safe range query: [dayStart, nextDayStart) in TZ by converting via Intl is hard.
-  // So we match by dayKey using a broader range and then verify in code.
-  // Pragmatic MVP: fetch shifts in +/- 36h window and compare dayKey in TZ.
+  // MVP window scan (your existing approach)
   const windowStart = new Date(startTime.getTime() - 36 * 3600 * 1000);
   const windowEnd = new Date(startTime.getTime() + 36 * 3600 * 1000);
 
@@ -128,15 +174,26 @@ export async function POST(req: Request) {
 
   const existing = candidates.find((s) => ymdInTZ(new Date(s.startTime)) === dayKey);
 
+  // ✅ If boss checked "repeatWeekly", saved shift is RECURRING + linked to rule.
+  // ✅ If not, treat it as manual override: MANUAL + ruleId null.
+  const shiftData = {
+    startTime,
+    endTime,
+    note,
+    ...(repeatWeekly
+      ? { source: "RECURRING" as const, ruleId }
+      : { source: "MANUAL" as const, ruleId: null }),
+  };
+
   const shift = existing
     ? await prisma.shift.update({
         where: { id: existing.id },
-        data: { startTime, endTime, note },
-        select: { id: true, employeeId: true, startTime: true, endTime: true, note: true },
+        data: shiftData,
+        select: { id: true, employeeId: true, startTime: true, endTime: true, note: true, source: true, ruleId: true },
       })
     : await prisma.shift.create({
-        data: { employeeId, startTime, endTime, note, status: "PLANNED" },
-        select: { id: true, employeeId: true, startTime: true, endTime: true, note: true },
+        data: { employeeId, ...shiftData, status: "PLANNED" },
+        select: { id: true, employeeId: true, startTime: true, endTime: true, note: true, source: true, ruleId: true },
       });
 
   return NextResponse.json({ shift });
