@@ -18,6 +18,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Liste des tâches📋", href: "/task-list", requiresEmployeeCode: true },
   { label: "Vacance/Congé🌴", href: "/vacation", requiresEmployeeCode: true },
 
+  { label: "Parametres⚙️", href: "/settings", requiresEmployeeCode: true },
   { label: "Modifier c", href: "/admin/modify", adminOnly: true },
   { label: "Creation c", href: "/admin/create-account", adminOnly: true },
   { label: "Creation T", href: "/admin/creation-t", adminOnly: true },
@@ -96,22 +97,22 @@ export default function KioskClient({
     return Array.from({ length: PIN_LEN }, (_, i) => digits[i] ?? "");
   }
 
-function saveEmployeeSession(code: string, name: string | null, role: string) {
-  const r = String(role ?? "").toUpperCase();
-  localStorage.setItem("kiosk_employee_logged", "1");
-  localStorage.setItem("kiosk_employee_code", code);
-  localStorage.setItem("kiosk_employee_name", name ?? "");
-  localStorage.setItem("kiosk_role", r);
-}
+  function saveEmployeeSession(code: string, name: string | null, role: string) {
+    const r = String(role ?? "").toUpperCase();
+    localStorage.setItem("kiosk_employee_logged", "1");
+    localStorage.setItem("kiosk_employee_code", code);
+    localStorage.setItem("kiosk_employee_name", name ?? "");
+    localStorage.setItem("kiosk_role", r);
+  }
 
 
 
-function clearEmployeeSession() {
-  localStorage.removeItem("kiosk_employee_logged");
-  localStorage.removeItem("kiosk_employee_code");
-  localStorage.removeItem("kiosk_employee_name");
-  localStorage.removeItem("kiosk_role"); // ✅ remove it too
-}
+  function clearEmployeeSession() {
+    localStorage.removeItem("kiosk_employee_logged");
+    localStorage.removeItem("kiosk_employee_code");
+    localStorage.removeItem("kiosk_employee_name");
+    localStorage.removeItem("kiosk_role"); // ✅ remove it too
+  }
 
 
   // restore kioskRole on mount
@@ -239,62 +240,62 @@ function clearEmployeeSession() {
     router.push(item.href);
   }
 
-async function employeeConfirm(forcedCode?: string) {
-  const clean = (forcedCode ?? employeeCode).replace(/\D/g, "").slice(0, PIN_LEN);
+  async function employeeConfirm(forcedCode?: string) {
+    const clean = (forcedCode ?? employeeCode).replace(/\D/g, "").slice(0, PIN_LEN);
 
-  if (clean.length !== PIN_LEN) {
-    setPinError(true);
-    showToast("Entrez un code valide.");
-    window.setTimeout(() => setPinError(false), 700);
-    return;
+    if (clean.length !== PIN_LEN) {
+      setPinError(true);
+      showToast("Entrez un code valide.");
+      window.setTimeout(() => setPinError(false), 700);
+      return;
+    }
+
+    const res = await fetch("/api/kiosk/unlock", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: clean }),
+    });
+
+    if (!res.ok) {
+      setPinSuccess(false);
+      setPinFlash(false);
+
+      setEmployeeLogged(false);
+      setEmployeeCodeConfirmed(null);
+      setEmployeeName(null);
+
+      setBlockedCode(clean);
+      setPinError(true);
+      window.setTimeout(() => setPinError(false), 900);
+      return;
+    }
+
+    const data = await res.json().catch(() => null);
+
+    // ✅ normalize role ONCE
+    const roleFromApi = String(data?.employee?.role ?? "EMPLOYEE").toUpperCase();
+
+    // last name only (kept your behavior)
+    const last = data?.employee?.lastName ? String(data.employee.lastName) : "";
+    const full = last.trim();
+
+    setPinError(false);
+    setPinSuccess(true);
+    setPinFlash(true);
+    window.setTimeout(() => setPinFlash(false), 650);
+
+    window.setTimeout(() => {
+      setEmployeeLogged(true);
+      setEmployeeCodeConfirmed(clean);
+      setEmployeeName(full);
+
+      // ✅ sync storage + state (NO REFRESH REQUIRED)
+      saveEmployeeSession(clean, full, roleFromApi);
+      setKioskRole(roleFromApi);
+
+      router.replace(`/kiosk?code=${encodeURIComponent(clean)}`);
+    }, 650);
   }
-
-  const res = await fetch("/api/kiosk/unlock", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ code: clean }),
-  });
-
-  if (!res.ok) {
-    setPinSuccess(false);
-    setPinFlash(false);
-
-    setEmployeeLogged(false);
-    setEmployeeCodeConfirmed(null);
-    setEmployeeName(null);
-
-    setBlockedCode(clean);
-    setPinError(true);
-    window.setTimeout(() => setPinError(false), 900);
-    return;
-  }
-
-  const data = await res.json().catch(() => null);
-
-  // ✅ normalize role ONCE
-  const roleFromApi = String(data?.employee?.role ?? "EMPLOYEE").toUpperCase();
-
-  // last name only (kept your behavior)
-  const last = data?.employee?.lastName ? String(data.employee.lastName) : "";
-  const full = last.trim();
-
-  setPinError(false);
-  setPinSuccess(true);
-  setPinFlash(true);
-  window.setTimeout(() => setPinFlash(false), 650);
-
-  window.setTimeout(() => {
-    setEmployeeLogged(true);
-    setEmployeeCodeConfirmed(clean);
-    setEmployeeName(full);
-
-    // ✅ sync storage + state (NO REFRESH REQUIRED)
-    saveEmployeeSession(clean, full, roleFromApi);
-    setKioskRole(roleFromApi);
-
-    router.replace(`/kiosk?code=${encodeURIComponent(clean)}`);
-  }, 650);
-}
 
 
   function employeeLogout() {
@@ -391,15 +392,57 @@ async function employeeConfirm(forcedCode?: string) {
           <div className="kiosk-leftTop" />
 
           <nav className="kiosk-nav">
-            <div className="kiosk-navMain">
+            {/* TOP BUTTONS */}
+            <div className="kiosk-navTop">
               {NAV_ITEMS.slice(0, 4).map((it) => (
-                <button key={it.label} className="kiosk-navBtn" type="button" onClick={() => onNavClick(it)}>
+                <button
+                  key={it.label}
+                  className="kiosk-navBtn"
+                  type="button"
+                  onClick={() => onNavClick(it)}
+                  disabled={it.adminOnly && !isPrivilegedLogged}
+                  title={it.adminOnly && !isPrivilegedLogged ? "Accès admin ou manager requis" : undefined}
+                >
                   {it.label}
+                  {it.adminOnly && !isPrivilegedLogged && <span className="lockBadge">🔒</span>}
                 </button>
               ))}
             </div>
 
+            {/* BOTTOM BUTTONS */}
             <div className="kiosk-navBottom">
+              {NAV_ITEMS.slice(4).map((it) => {
+                // Show "Parametres⚙️" always
+                if (it.label === "Parametres⚙️") {
+                  return (
+                    <button
+                      key={it.label}
+                      className="kiosk-navBtn"
+                      type="button"
+                      onClick={() => onNavClick(it)}
+                    >
+                      {it.label}
+                    </button>
+                  );
+                }
+
+                // Hide other admin-only buttons for non-admins
+                if (it.adminOnly && !isPrivilegedLogged) return null;
+
+                // Show admin-only buttons only for admins/managers
+                return (
+                  <button
+                    key={it.label}
+                    className="kiosk-navBtn"
+                    type="button"
+                    onClick={() => onNavClick(it)}
+                  >
+                    {it.label}
+                  </button>
+                );
+              })}
+
+              {/* Logs button stays visible */}
               <button
                 className="kiosk-navBtn kiosk-navLogs"
                 type="button"
@@ -411,8 +454,10 @@ async function employeeConfirm(forcedCode?: string) {
                 {!canAccessLogs && <span className="lockBadge">🔒</span>}
               </button>
             </div>
+
           </nav>
         </aside>
+
 
         {/* CENTER */}
         <section className="kiosk-center">

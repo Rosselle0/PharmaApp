@@ -960,3 +960,121 @@
   cursor: not-allowed;
 }
 
+/* =========================================================
+   DARK MODE — Access Pharma (NO layout changes)
+   ========================================================= */
+
+[data-theme="dark"] {
+    /* Ink / text */
+    --ap-ink: #e6ebf3;
+    --ap-muted: rgba(230, 235, 243, 0.65);
+
+    /* Background layers */
+    --ap-bg-0: #0b1220;   /* page base */
+    --ap-bg-1: #0f172a;   /* depth gradient */
+
+    /* Surfaces / glass */
+    --ap-surface: rgba(18, 26, 44, 0.72);
+    --ap-surface-2: rgba(22, 32, 54, 0.88);
+
+    /* Lines & borders */
+    --ap-line: rgba(160, 180, 220, 0.12);
+    --ap-line-strong: rgba(160, 180, 220, 0.22);
+
+    /* Brand colors (slightly lifted for dark) */
+    --ap-blue: #4c8dff;
+    --ap-cyan: #36d1e3;
+    --ap-teal: #32e0b0;
+
+    /* Status */
+    --ap-danger: #ff6b77;
+
+    /* Shadows (deeper, more cinematic) */
+    --ap-shadow: 0 28px 90px rgba(0, 0, 0, 0.65);
+    --ap-shadow-2: 0 16px 44px rgba(0, 0, 0, 0.55);
+}
+
+/* =========================================================
+   Dark shell gradient (keeps exact visual structure)
+   ========================================================= */
+
+[data-theme="dark"] .kiosk-shell {
+    background:
+        radial-gradient(1200px 700px at 18% 12%, rgba(54, 209, 227, 0.18), transparent 55%),
+        radial-gradient(900px 600px at 85% 18%, rgba(76, 141, 255, 0.22), transparent 60%),
+        linear-gradient(180deg, var(--ap-bg-0), var(--ap-bg-1));
+}
+
+/* =========================================================
+   NEUTRAL DARK MODE — remove blue tint
+   ========================================================= */
+
+[data-theme="dark"] {
+
+  /* ---------- CORE SURFACES ---------- */
+  .kiosk-left,
+  .kiosk-center,
+  .kiosk-rightCol,
+  .loggedWrap,
+  .pinWrap,
+  .kiosk-actifsCard,
+  .adminPanelHead,
+  .kiosk-emptyNote {
+    background: rgba(16, 18, 22, 0.92) !important;
+    backdrop-filter: none;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
+  }
+
+  /* ---------- REMOVE BRAND GRADIENT BLEED ---------- */
+  .kiosk-leftTop,
+  .brandWrap::before,
+  .kiosk-navSpacer,
+  .kiosk-navBottom {
+    background: none !important;
+  }
+
+  /* ---------- TABLES / LISTS ---------- */
+  .kiosk-table,
+  .kiosk-row,
+  .kiosk-row > div {
+    background: rgba(20, 22, 26, 0.9);
+    color: #e6e6e6;
+  }
+
+  .kiosk-head > div {
+    background: rgba(255, 255, 255, 0.06);
+    color: #f0f0f0;
+  }
+
+  /* ---------- INPUTS / BUTTONS ---------- */
+  .pinBox,
+  .kiosk-key,
+  .kiosk-actionBtn,
+  .kiosk-adminBtn {
+    background: rgba(26, 28, 32, 0.95) !important;
+    border-color: rgba(255, 255, 255, 0.08);
+    color: #f5f5f5;
+  }
+
+  /* ---------- TEXT TUNING ---------- */
+  body,
+  .pinTitle,
+  .pinHint,
+  .loggedStatusTitle,
+  .loggedStatusSub {
+    color: #eaeaea;
+  }
+
+  /* ---------- ACCENTS ONLY ---------- */
+  .kiosk-actionBtn.primary,
+  .kiosk-navLogs,
+  .loggedLogoutBtn {
+    background: #2563eb; /* controlled blue */
+  }
+
+  /* ---------- STATUS CARD ---------- */
+  .loggedStatus {
+    background: rgba(22, 24, 28, 0.95);
+    border-color: rgba(72, 187, 120, 0.45);
+  }
+}
