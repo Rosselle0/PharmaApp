@@ -67,6 +67,11 @@ if (!me) redirect("/login");
             <p>View assigned shifts and upcoming workdays.</p>
         </Link>
 
+        <Link href="/settings" className="card">
+            <div className="card-icon">⚙️</div>
+            <h2>Settings</h2>
+            <p>Manage your account settings and preferences.</p>
+        </Link>
 
         <div className="card disabled">
           <div className="card-icon">👤</div>
