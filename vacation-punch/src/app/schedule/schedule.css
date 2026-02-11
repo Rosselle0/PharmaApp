@@ -295,6 +295,10 @@ tbody tr:hover td {
 .td.cell .muted {
   opacity: 0.35;
 }
+.pillVac {
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
 
 /* Small screens: allow scroll (ONLY when absolutely needed) */
 @media (max-width: 1050px) {

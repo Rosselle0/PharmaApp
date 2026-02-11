@@ -272,36 +272,6 @@ export default function ScheduleEditorClient(props: {
                         <a className="btn" href="/admin/dashboard">
                             Retour
                         </a>
-                        <button
-                            className="btn"
-                            type="button"
-                            disabled={saving}
-                            onClick={async () => {
-                                setSaving(true);
-                                setMsg(null);
-                                try {
-                                    const res = await fetch("/api/schedule/weeks/apply-recurring", {
-                                        method: "POST",
-                                        headers: { "Content-Type": "application/json" },
-                                        body: JSON.stringify({
-                                            weekStartYMD: ymdLocal(weekStart),
-                                            mode: "OVERWRITE_RECURRING",
-                                        }),
-                                    });
-
-                                    const data = await res.json().catch(() => null);
-                                    if (!res.ok) throw new Error(data?.error || "Erreur");
-
-                                    setShifts(data.shifts ?? []);
-                                } catch (e: any) {
-                                    setMsg(e?.message ?? "Erreur");
-                                } finally {
-                                    setSaving(false);
-                                }
-                            }}
-                        >
-                            Re-générer (templates)
-                        </button>
 
                     </div>
 

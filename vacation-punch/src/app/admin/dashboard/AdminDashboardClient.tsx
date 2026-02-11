@@ -42,6 +42,13 @@ export default function AdminDashboardClient({ role }: { role: Role }) {
       roles: ["ADMIN", "MANAGER"],
     },
     {
+      title: "Requests",
+      desc: "Approuver/refuser les demandes (vacances pour l’instant).",
+      href: "/admin/requests",
+      roles: ["ADMIN", "MANAGER"],
+    },
+
+    {
       title: "Logs",
       desc: "Consulter l’historique des actions.",
       href: "/admin/logs",

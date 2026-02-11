@@ -53,28 +53,38 @@ model Employee {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  company        Company              @relation(fields: [companyId], references: [id])
-  shifts         Shift[]
-  TaskAssignment TaskAssignment[]
-  recurringRules RecurringShiftRule[]
+  company         Company              @relation(fields: [companyId], references: [id])
+  shifts          Shift[]
+  TaskAssignment  TaskAssignment[]
+  recurringRules  RecurringShiftRule[]
+  VacationRequest VacationRequest[]
 
   @@index([companyId])
   @@index([companyId, department])
 }
 
 model VacationRequest {
-  id        String         @id @default(uuid())
-  userId    String
+  id String @id @default(uuid())
+
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
   startDate DateTime
   endDate   DateTime
   status    VacationStatus @default(PENDING)
   reason    String?
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
-  timeOff   TimeOff?
-  user      User           @relation(fields: [userId], references: [id])
 
-  @@index([userId, status])
+  decidedAt       DateTime?
+  decidedByUserId String?
+  decidedByUser   User?     @relation(fields: [decidedByUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  shifts  Shift[]
+  TimeOff TimeOff?
+
+  @@index([employeeId, status])
   @@index([startDate, endDate])
 }
 
@@ -191,6 +201,7 @@ enum VacationStatus {
   PENDING
   APPROVED
   REJECTED
+  CANCELLED
 }
 
 enum TimeOffType {
@@ -263,6 +274,9 @@ model Shift {
   source ShiftSource         @default(MANUAL)
   ruleId String?
   rule   RecurringShiftRule? @relation(fields: [ruleId], references: [id])
+
+  vacationRequestId String?
+  vacationRequest   VacationRequest? @relation(fields: [vacationRequestId], references: [id], onDelete: SetNull)
 
   @@index([employeeId, startTime])
   @@index([startTime, endTime])

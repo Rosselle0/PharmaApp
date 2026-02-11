@@ -190,15 +190,20 @@ export default async function SchedulePage({
                           ) : (
                             list.map((sh, idx) => (
                               <div key={idx} className="shiftPill" title={sh.note ?? ""}>
-                                <span className="pillTime">{hmLocal(new Date(sh.startTime))}</span>
-                                <span className="pillDash">–</span>
-                                <span className="pillTime">{hmLocal(new Date(sh.endTime))}</span>
+                                {sh.note === "VAC" ? (
+                                  <span className="pillVac">VAC</span>
+                                ) : (
+                                  <>
+                                    <span className="pillTime">{hmLocal(new Date(sh.startTime))}</span>
+                                    <span className="pillDash">–</span>
+                                    <span className="pillTime">{hmLocal(new Date(sh.endTime))}</span>
 
-                                {sh.note ? (
-                                  <span className="pillOpt">{sh.note}</span>
-                                ) : null}
+                                    {sh.note ? <span className="pillOpt">{sh.note}</span> : null}
+                                  </>
+                                )}
                               </div>
                             ))
+
                           )}
                         </td>
                       );

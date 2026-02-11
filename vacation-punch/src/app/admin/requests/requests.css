@@ -1,0 +1,17 @@
+.page { padding: 24px; }
+.shell { max-width: 1100px; margin: 0 auto; display: grid; gap: 16px; }
+.head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.h1 { font-size: 28px; margin: 0; }
+.p { margin: 6px 0 0; color: #666; }
+.card { background: white; border: 1px solid #e6e6e6; border-radius: 12px; padding: 16px; }
+.h2 { margin: 0 0 12px; font-size: 18px; }
+.muted { color: #777; }
+
+.row { display: flex; gap: 8px; justify-content: flex-end; }
+.btn { padding: 10px 12px; border: 1px solid #ddd; border-radius: 10px; background: #fafafa; cursor: pointer; }
+.btn:hover { background: #f3f3f3; }
+.btn.danger { border-color: #f2b8b8; background: #fff5f5; }
+
+.table { width: 100%; border-collapse: collapse; }
+.table th, .table td { padding: 10px 8px; border-top: 1px solid #eee; text-align: left; vertical-align: top; }
+.tag { display: inline-block; padding: 4px 8px; border: 1px solid #ddd; border-radius: 999px; font-size: 12px; }

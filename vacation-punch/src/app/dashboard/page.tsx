@@ -72,6 +72,7 @@ if (!me) redirect("/login");
             <h2>Settings</h2>
             <p>Manage your account settings and preferences.</p>
         </Link>
+        
 
         <div className="card disabled">
           <div className="card-icon">👤</div>
