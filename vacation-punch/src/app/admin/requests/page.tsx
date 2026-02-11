@@ -4,12 +4,14 @@ import { prisma } from "@/lib/prisma";
 import { VacationStatus } from "@prisma/client";
 import { getAdminContextOrRedirect } from "./_helper";
 
+
 function fmt(d: Date) {
   return d.toLocaleDateString("fr-CA");
 }
 
 export default async function AdminRequestsPage() {
   const { companyIds } = await getAdminContextOrRedirect();
+  
 
   const pendingVac = await prisma.vacationRequest.findMany({
     where: {
@@ -70,10 +72,10 @@ export default async function AdminRequestsPage() {
                     <td className="muted">{r.reason ?? "—"}</td>
                     <td style={{ textAlign: "right" }}>
                       <div className="row">
-                        <form action={async () => { "use server"; const { approveVacation } = await import("./actions"); await approveVacation(r.id); }}>
+                        <form action={async () => { "use server"; const { approveVacation } = await import("./action"); await approveVacation(r.id); }}>
                           <button className="btn" type="submit">Approuver</button>
                         </form>
-                        <form action={async () => { "use server"; const { rejectVacation } = await import("./actions"); await rejectVacation(r.id); }}>
+                        <form action={async () => { "use server"; const { rejectVacation } = await import("./action"); await rejectVacation(r.id); }}>
                           <button className="btn danger" type="submit">Refuser</button>
                         </form>
                       </div>
@@ -110,7 +112,7 @@ export default async function AdminRequestsPage() {
                     <td><span className="tag">{r.status}</span></td>
                     <td style={{ textAlign: "right" }}>
                       {r.status === "APPROVED" ? (
-                        <form action={async () => { "use server"; const { cancelApprovedVacation } = await import("./actions"); await cancelApprovedVacation(r.id); }}>
+                        <form action={async () => { "use server"; const { cancelApprovedVacation } = await import("./action"); await cancelApprovedVacation(r.id); }}>
                           <button className="btn danger" type="submit">Annuler l’approbation</button>
                         </form>
                       ) : (

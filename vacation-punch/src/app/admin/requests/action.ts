@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { ShiftStatus, VacationStatus } from "@prisma/client";
 import { getAdminContextOrRedirect } from "./_helper";
+import { requireKioskManagerOrAdmin } from "@/lib/kioskAuth";
+
 
 function addDaysNoon(d: Date, n: number): Date {
   const x = new Date(d);

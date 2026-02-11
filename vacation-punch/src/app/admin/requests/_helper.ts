@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { supabaseServer } from "@/lib/supabase/server";
+import { Role } from "@prisma/client";
+
 
 export async function getDefaultCompanyId() {
   const companyName = process.env.DEFAULT_COMPANY_NAME ?? "RxPlanning";
@@ -21,14 +23,16 @@ export async function getAdminContextOrRedirect() {
   });
 
   if (!me) redirect("/kiosk");
-  if (me.role !== "ADMIN") redirect("/kiosk"); // ✅ ADMIN ONLY
+
+  // ✅ ADMIN OR MANAGER
+  const allowed = me.role === Role.ADMIN || me.role === Role.MANAGER;
+  if (!allowed) redirect("/kiosk");
 
   const defaultCompanyId = await getDefaultCompanyId();
 
-  // ✅ accept both ids (dedup)
   const companyIds = Array.from(
     new Set([me.companyId, defaultCompanyId].filter(Boolean) as string[])
   );
 
-  return { adminUserId: me.id, companyIds };
+  return { adminUserId: me.id, companyIds, role: me.role };
 }

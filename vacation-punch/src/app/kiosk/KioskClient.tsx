@@ -298,11 +298,14 @@ export default function KioskClient({
   }
 
 
-  function employeeLogout() {
+  async function employeeLogout() {
+    try {
+      await fetch("/api/kiosk/logout", { method: "POST" });
+    } catch { }
+
     setEmployeeLogged(false);
     setEmployeeCodeConfirmed(null);
     setEmployeeName(null);
-
     setEmployeeCode("");
     setPinError(false);
     setPinSuccess(false);
@@ -311,8 +314,10 @@ export default function KioskClient({
     setBlockedCode(null);
 
     clearEmployeeSession();
-    router.replace("/kiosk");
+    await fetch("/api/kiosk/logout", { method: "POST" }).catch(() => { });
+
   }
+
 
   async function adminLogin() {
     if (!adminEmail.trim() || adminPassword.length < 6) return;
@@ -349,6 +354,8 @@ export default function KioskClient({
       // store role so Logs button can unlock immediately if needed
       localStorage.setItem("kiosk_role", role);
       setKioskRole(role);
+      await fetch("/api/kiosk/logout", { method: "POST" }).catch(() => { });
+
 
       // wipe employee state
       setEmployeeLogged(false);
@@ -377,12 +384,13 @@ export default function KioskClient({
     try {
       await supabase.auth.signOut();
     } finally {
-      // optional: clear kiosk role on admin logout too
+      await fetch("/api/kiosk/logout", { method: "POST" }).catch(() => { });
       localStorage.removeItem("kiosk_role");
       setKioskRole(null);
       router.refresh();
     }
   }
+
 
   return (
     <main className="kiosk-shell">
