@@ -86,8 +86,9 @@ export default function KioskClient({
   // Logs should be allowed when ADMIN or MANAGER (either via real auth OR kioskRole)
   const canAccessLogs = useMemo(() => {
     if (isPrivilegedLogged) return true;
-    return kioskRole === "ADMIN" || kioskRole === "MANAGER";
-  }, [isPrivilegedLogged, kioskRole]);
+    return employeeLogged && (kioskRole === "ADMIN" || kioskRole === "MANAGER");
+  }, [isPrivilegedLogged, employeeLogged, kioskRole]);
+
 
   // Actifs empty at start (keep as-is for now)
   const actifs: ActiveRow[] = [];
@@ -314,8 +315,9 @@ export default function KioskClient({
     setBlockedCode(null);
 
     clearEmployeeSession();
-    await fetch("/api/kiosk/logout", { method: "POST" }).catch(() => { });
+    setKioskRole(null);
 
+    await fetch("/api/kiosk/logout", { method: "POST" }).catch(() => { });
   }
 
 
@@ -346,10 +348,11 @@ export default function KioskClient({
       const role = String(meJson?.user?.role ?? "").toUpperCase();
 
       if (role !== "ADMIN" && role !== "MANAGER") {
-        setAdminError("Accès refusé.");
+        setAdminError(`Accès refusé. Role=${role || "NONE"}`);
         await supabase.auth.signOut();
         return;
       }
+
 
       // store role so Logs button can unlock immediately if needed
       localStorage.setItem("kiosk_role", role);

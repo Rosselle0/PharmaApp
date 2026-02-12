@@ -4,10 +4,9 @@ export const revalidate = 0;
 
 import { unstable_noStore as noStore } from "next/cache";
 import { redirect } from "next/navigation";
-import { supabaseServer } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import ScheduleEditorClient from "./ui";
-
+import { requireKioskManagerOrAdmin } from "@/lib/kioskAuth"; // <-- use your kiosk+supabase guard
 
 const TZ = process.env.APP_TZ || "America/Toronto";
 
@@ -44,20 +43,17 @@ function partsInTZ(d: Date) {
   };
 }
 
-// Construct a Date that represents (ymd + hhmm) in TZ (DST-safe enough for Montreal)
+// Construct a Date that represents (ymd + hhmm) in TZ
 function makeDateInTZ(ymd: string, hhmm: string) {
   const [Y, M, D] = ymd.split("-").map(Number);
   const [hh, mm] = hhmm.split(":").map(Number);
 
-  // initial guess: treat wall time as UTC
   let utc = Date.UTC(Y, M - 1, D, hh, mm, 0, 0);
 
-  // iterate to correct to the TZ wall time
   for (let i = 0; i < 3; i++) {
     const guess = new Date(utc);
     const p = partsInTZ(guess);
 
-    // difference between desired wall time and current wall time in minutes
     const diffMin =
       (p.y - Y) * 525600 +
       (p.mo - M) * 43200 +
@@ -73,7 +69,6 @@ function makeDateInTZ(ymd: string, hhmm: string) {
 }
 
 async function applyRecurringFillMissing(companyId: string, weekStart: Date, weekEnd: Date) {
-  // rules for active employees in this company
   const rules = await prisma.recurringShiftRule.findMany({
     where: {
       active: true,
@@ -94,7 +89,6 @@ async function applyRecurringFillMissing(companyId: string, weekStart: Date, wee
 
   if (!rules.length) return;
 
-  // Fetch existing shifts in a broader window and compare by TZ day key (same trick you used)
   const windowStart = new Date(weekStart.getTime() - 36 * 3600 * 1000);
   const windowEnd = new Date(weekEnd.getTime() + 36 * 3600 * 1000);
 
@@ -112,7 +106,6 @@ async function applyRecurringFillMissing(companyId: string, weekStart: Date, wee
     existingKeys.add(`${s.employeeId}:${ymdInTZ(new Date(s.startTime))}`);
   }
 
-  // build the 7 day keys (ymd) in TZ based on the provided weekStart (which is Sunday)
   const daysYMD: string[] = [];
   for (let i = 0; i < 7; i++) {
     const d = new Date(weekStart);
@@ -127,7 +120,7 @@ async function applyRecurringFillMissing(companyId: string, weekStart: Date, wee
     if (!dayYMD) continue;
 
     const key = `${r.employeeId}:${dayYMD}`;
-    if (existingKeys.has(key)) continue; // FILL_MISSING
+    if (existingKeys.has(key)) continue;
 
     const startTime = makeDateInTZ(dayYMD, r.startHHMM);
     const endTime = makeDateInTZ(dayYMD, r.endHHMM);
@@ -152,10 +145,9 @@ async function applyRecurringFillMissing(companyId: string, weekStart: Date, wee
   }
 }
 
-
 function startOfWeekSunday(d: Date) {
   const x = new Date(d);
-  const day = x.getDay(); // 0 = Sunday
+  const day = x.getDay();
   x.setDate(x.getDate() - day);
   x.setHours(0, 0, 0, 0);
   return x;
@@ -176,11 +168,13 @@ function ymdLocal(d: Date) {
 }
 
 async function getDefaultCompany() {
-  const companyName = process.env.DEFAULT_COMPANY_NAME ?? "RxPlanning";
-  return (
-    (await prisma.company.findFirst({ where: { name: companyName } })) ??
-    (await prisma.company.create({ data: { name: companyName } }))
-  );
+  const companyName = (process.env.DEFAULT_COMPANY_NAME?.trim() || "RxPlanning");
+  return prisma.company.upsert({
+    where: { name: companyName },
+    create: { name: companyName },
+    update: {},
+    select: { id: true, name: true },
+  });
 }
 
 export default async function ScheduleEditPage({
@@ -190,25 +184,20 @@ export default async function ScheduleEditPage({
 }) {
   noStore();
 
-  const supabase = await supabaseServer();
-  const { data } = await supabase.auth.getUser();
-  if (!data?.user) redirect("/login");
-
-  const me = await prisma.user.findUnique({
-    where: { authUserId: data.user.id },
-    select: { role: true },
-  });
-  if (!me || me.role !== "ADMIN") redirect("/dashboard");
+  // ✅ Allow kiosk managers/admins OR supabase managers/admins
+  const auth = await requireKioskManagerOrAdmin();
+  if (!auth.ok) redirect("/kiosk"); // or "/login" if you want, but kiosk is your entry point
 
   const company = await getDefaultCompany();
   const companyId = company.id;
 
-  const sp = await searchParams; // ✅ UNWRAP PROMISE
+  const sp = await searchParams;
   const base = sp.week ? new Date(sp.week + "T12:00:00") : new Date();
 
   const weekStart = startOfWeekSunday(base);
   const weekEnd = addDays(weekStart, 7);
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+
   await applyRecurringFillMissing(companyId, weekStart, weekEnd);
 
   const employees = await prisma.employee.findMany({

@@ -4,9 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { ShiftStatus, VacationStatus } from "@prisma/client";
-import { getAdminContextOrRedirect } from "./_helper";
-import { requireKioskManagerOrAdmin } from "@/lib/kioskAuth";
-
+import { getPrivilegedContextOrRedirect } from "@/lib/adminContext";
 
 function addDaysNoon(d: Date, n: number): Date {
   const x = new Date(d);
@@ -22,19 +20,23 @@ function daysInclusive(start: Date, end: Date): Date[] {
 }
 
 export async function approveVacation(requestId: string) {
-  const { adminUserId, companyIds } = await getAdminContextOrRedirect();
+  const { adminUserId, companyIds } = await getPrivilegedContextOrRedirect();
 
   await prisma.$transaction(async (tx) => {
     const req = await tx.vacationRequest.findUnique({
       where: { id: requestId },
-      include: { employee: { select: { id: true, companyId: true } } },
+      include: { employee: { select: { companyId: true } } },
     });
+
     if (!req) throw new Error("Demande introuvable.");
     if (!companyIds.includes(req.employee.companyId)) throw new Error("Mauvaise compagnie.");
-    if (req.status !== VacationStatus.PENDING) throw new Error("Seules les demandes en attente peuvent être approuvées.");
+    if (req.status !== VacationStatus.PENDING)
+      throw new Error("Seules les demandes en attente peuvent être approuvées.");
 
-    const rangeStart = new Date(req.startDate); rangeStart.setHours(0, 0, 0, 0);
-    const rangeEnd = new Date(req.endDate); rangeEnd.setHours(23, 59, 59, 999);
+    const rangeStart = new Date(req.startDate);
+    rangeStart.setHours(0, 0, 0, 0);
+    const rangeEnd = new Date(req.endDate);
+    rangeEnd.setHours(23, 59, 59, 999);
 
     const conflict = await tx.shift.findFirst({
       where: {
@@ -45,6 +47,7 @@ export async function approveVacation(requestId: string) {
       },
       select: { id: true },
     });
+
     if (conflict) throw new Error("Conflit: quarts déjà planifiés dans cette période.");
 
     await tx.shift.deleteMany({ where: { vacationRequestId: req.id } });
@@ -63,7 +66,11 @@ export async function approveVacation(requestId: string) {
 
     await tx.vacationRequest.update({
       where: { id: req.id },
-      data: { status: VacationStatus.APPROVED, decidedAt: new Date(), decidedByUserId: adminUserId },
+      data: {
+        status: VacationStatus.APPROVED,
+        decidedAt: new Date(),
+        decidedByUserId: adminUserId ?? null,
+      },
     });
   });
 
@@ -73,20 +80,26 @@ export async function approveVacation(requestId: string) {
 }
 
 export async function rejectVacation(requestId: string) {
-  const { adminUserId, companyIds } = await getAdminContextOrRedirect();
+  const { adminUserId, companyIds } = await getPrivilegedContextOrRedirect();
 
   await prisma.$transaction(async (tx) => {
     const req = await tx.vacationRequest.findUnique({
       where: { id: requestId },
       include: { employee: { select: { companyId: true } } },
     });
+
     if (!req) throw new Error("Demande introuvable.");
     if (!companyIds.includes(req.employee.companyId)) throw new Error("Mauvaise compagnie.");
-    if (req.status !== VacationStatus.PENDING) throw new Error("Seules les demandes en attente peuvent être refusées.");
+    if (req.status !== VacationStatus.PENDING)
+      throw new Error("Seules les demandes en attente peuvent être refusées.");
 
     await tx.vacationRequest.update({
       where: { id: req.id },
-      data: { status: VacationStatus.REJECTED, decidedAt: new Date(), decidedByUserId: adminUserId },
+      data: {
+        status: VacationStatus.REJECTED,
+        decidedAt: new Date(),
+        decidedByUserId: adminUserId ?? null,
+      },
     });
 
     await tx.shift.deleteMany({ where: { vacationRequestId: req.id } });
@@ -98,20 +111,26 @@ export async function rejectVacation(requestId: string) {
 }
 
 export async function cancelApprovedVacation(requestId: string) {
-  const { adminUserId, companyIds } = await getAdminContextOrRedirect();
+  const { adminUserId, companyIds } = await getPrivilegedContextOrRedirect();
 
   await prisma.$transaction(async (tx) => {
     const req = await tx.vacationRequest.findUnique({
       where: { id: requestId },
       include: { employee: { select: { companyId: true } } },
     });
+
     if (!req) throw new Error("Demande introuvable.");
     if (!companyIds.includes(req.employee.companyId)) throw new Error("Mauvaise compagnie.");
-    if (req.status !== VacationStatus.APPROVED) throw new Error("Seules les demandes approuvées peuvent être annulées.");
+    if (req.status !== VacationStatus.APPROVED)
+      throw new Error("Seules les demandes approuvées peuvent être annulées.");
 
     await tx.vacationRequest.update({
       where: { id: req.id },
-      data: { status: VacationStatus.CANCELLED, decidedAt: new Date(), decidedByUserId: adminUserId },
+      data: {
+        status: VacationStatus.CANCELLED,
+        decidedAt: new Date(),
+        decidedByUserId: adminUserId ?? null,
+      },
     });
 
     await tx.shift.deleteMany({ where: { vacationRequestId: req.id } });
