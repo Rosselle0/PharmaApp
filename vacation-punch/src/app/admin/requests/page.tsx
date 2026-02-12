@@ -2,16 +2,17 @@ import "./requests.css";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { VacationStatus } from "@prisma/client";
-import { getAdminContextOrRedirect } from "./_helper";
+import { getPrivilegedContextOrRedirect } from "@/lib/adminContext";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 function fmt(d: Date) {
   return d.toLocaleDateString("fr-CA");
 }
 
 export default async function AdminRequestsPage() {
-  const { companyIds } = await getAdminContextOrRedirect();
-  
+  const { companyIds } = await getPrivilegedContextOrRedirect();
 
   const pendingVac = await prisma.vacationRequest.findMany({
     where: {
@@ -19,7 +20,9 @@ export default async function AdminRequestsPage() {
       employee: { companyId: { in: companyIds } },
     },
     orderBy: { createdAt: "asc" },
-    include: { employee: { select: { firstName: true, lastName: true, department: true } } },
+    include: {
+      employee: { select: { firstName: true, lastName: true, department: true } },
+    },
   });
 
   const recentVac = await prisma.vacationRequest.findMany({
@@ -29,7 +32,9 @@ export default async function AdminRequestsPage() {
     },
     orderBy: { updatedAt: "desc" },
     take: 25,
-    include: { employee: { select: { firstName: true, lastName: true, department: true } } },
+    include: {
+      employee: { select: { firstName: true, lastName: true, department: true } },
+    },
   });
 
   return (
@@ -42,8 +47,12 @@ export default async function AdminRequestsPage() {
           </div>
 
           <div className="row">
-            <Link className="btn" href="/admin/dashboard">Retour</Link>
-            <Link className="btn" href="/schedule">Horaire</Link>
+            <Link className="btn" href="/admin/dashboard">
+              Retour
+            </Link>
+            <Link className="btn" href="/schedule">
+              Horaire
+            </Link>
           </div>
         </div>
 
@@ -68,15 +77,33 @@ export default async function AdminRequestsPage() {
                       {r.employee.firstName} {r.employee.lastName}
                       <div className="muted">{r.employee.department}</div>
                     </td>
-                    <td>{fmt(r.startDate)} → {fmt(r.endDate)}</td>
+                    <td>
+                      {fmt(r.startDate)} → {fmt(r.endDate)}
+                    </td>
                     <td className="muted">{r.reason ?? "—"}</td>
                     <td style={{ textAlign: "right" }}>
                       <div className="row">
-                        <form action={async () => { "use server"; const { approveVacation } = await import("./action"); await approveVacation(r.id); }}>
-                          <button className="btn" type="submit">Approuver</button>
+                        <form
+                          action={async () => {
+                            "use server";
+                            const { approveVacation } = await import("./action");
+                            await approveVacation(r.id);
+                          }}
+                        >
+                          <button className="btn" type="submit">
+                            Approuver
+                          </button>
                         </form>
-                        <form action={async () => { "use server"; const { rejectVacation } = await import("./action"); await rejectVacation(r.id); }}>
-                          <button className="btn danger" type="submit">Refuser</button>
+                        <form
+                          action={async () => {
+                            "use server";
+                            const { rejectVacation } = await import("./action");
+                            await rejectVacation(r.id);
+                          }}
+                        >
+                          <button className="btn danger" type="submit">
+                            Refuser
+                          </button>
                         </form>
                       </div>
                     </td>
@@ -108,12 +135,24 @@ export default async function AdminRequestsPage() {
                       {r.employee.firstName} {r.employee.lastName}
                       <div className="muted">{r.employee.department}</div>
                     </td>
-                    <td>{fmt(r.startDate)} → {fmt(r.endDate)}</td>
-                    <td><span className="tag">{r.status}</span></td>
+                    <td>
+                      {fmt(r.startDate)} → {fmt(r.endDate)}
+                    </td>
+                    <td>
+                      <span className="tag">{r.status}</span>
+                    </td>
                     <td style={{ textAlign: "right" }}>
                       {r.status === "APPROVED" ? (
-                        <form action={async () => { "use server"; const { cancelApprovedVacation } = await import("./action"); await cancelApprovedVacation(r.id); }}>
-                          <button className="btn danger" type="submit">Annuler l’approbation</button>
+                        <form
+                          action={async () => {
+                            "use server";
+                            const { cancelApprovedVacation } = await import("./action");
+                            await cancelApprovedVacation(r.id);
+                          }}
+                        >
+                          <button className="btn danger" type="submit">
+                            Annuler l’approbation
+                          </button>
                         </form>
                       ) : (
                         <span className="muted">—</span>

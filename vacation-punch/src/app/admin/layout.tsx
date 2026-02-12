@@ -1,10 +1,8 @@
-
-import CreateEmployeeClient from "./ui";
 import { requirePrivilegedOrRedirect } from "@/lib/privilgedAuth";
 
 export const dynamic = "force-dynamic";
 
-export default async function Page() {
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   await requirePrivilegedOrRedirect();
-  return <CreateEmployeeClient />;
+  return <>{children}</>;
 }

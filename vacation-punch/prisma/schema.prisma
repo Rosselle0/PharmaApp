@@ -10,7 +10,7 @@ datasource db {
 
 model Company {
   id              String           @id @default(uuid())
-  name            String
+  name            String           @unique
   createdAt       DateTime         @default(now())
   employees       Employee[]
   taskAssignments TaskAssignment[]
@@ -58,6 +58,7 @@ model Employee {
   TaskAssignment  TaskAssignment[]
   recurringRules  RecurringShiftRule[]
   VacationRequest VacationRequest[]
+  KioskSession    KioskSession[]
 
   @@index([companyId])
   @@index([companyId, department])
@@ -281,4 +282,15 @@ model Shift {
   @@index([employeeId, startTime])
   @@index([startTime, endTime])
   @@index([ruleId])
+}
+model KioskSession {
+  id         String   @id @default(uuid())
+  employeeId String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@index([expiresAt])
 }

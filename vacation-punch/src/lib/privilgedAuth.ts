@@ -1,83 +1,146 @@
-import "server-only";
-
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
-import { supabaseServer } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
-import { Role } from "@prisma/client";
+import { supabaseServer } from "@/lib/supabase/server";
+import { Role as PrismaRole } from "@prisma/client";
+import { cookies } from "next/headers";
 
-export type PrivilegedContext = {
-  via: "supabase" | "kiosk";
-  role: "ADMIN" | "MANAGER";
-  adminUserId: string | null;
-  companyIds: string[];
-};
+export type PrivRole = "ADMIN" | "MANAGER";
 
-async function getDefaultCompanyId(): Promise<string> {
-  const name = process.env.DEFAULT_COMPANY_NAME ?? "RxPlanning";
+// DEV ONLY: force anyone who logs in via Supabase to be privileged.
+const FORCE_SUPABASE_ROLE: PrivRole =
+  (process.env.SUPABASE_AUTO_ROLE as PrivRole) ?? "MANAGER";
+
+async function getOrCreateDefaultCompanyId() {
+  const companyName = process.env.DEFAULT_COMPANY_NAME ?? "RxPlanning";
   const company =
-    (await prisma.company.findFirst({ where: { name } })) ??
-    (await prisma.company.create({ data: { name } }));
+    (await prisma.company.findFirst({ where: { name: companyName } })) ??
+    (await prisma.company.create({ data: { name: companyName } }));
   return company.id;
 }
 
-async function readKioskPrivilege(): Promise<"ADMIN" | "MANAGER" | null> {
-  const store = await cookies(); // ✅ your Next version needs await
+async function getPrivFromKioskSession(defaultCompanyId: string): Promise<{
+  ok: true;
+  role: PrivRole;
+  userId: string;      // NOTE: for kiosk we return employeeId here
+  companyId: string;
+  name: string | null;
+} | null> {
+  const store = await cookies();
+  const sessionId = store.get("kiosk_session")?.value;
+  if (!sessionId) return null;
 
-  const expStr = store.get("kiosk_unlock_exp")?.value;
-  if (!expStr) return null;
+  const session = await prisma.kioskSession.findUnique({
+    where: { id: sessionId },
+    select: {
+      expiresAt: true,
+      employee: {
+        select: { id: true, role: true, firstName: true, lastName: true, companyId: true, isActive: true },
+      },
+    },
+  });
 
-  const exp = Number(expStr);
-  if (!Number.isFinite(exp) || Date.now() >= exp) return null;
+  if (!session) return null;
+  if (Date.now() >= session.expiresAt.getTime()) return null;
+  if (!session.employee.isActive) return null;
 
-  const roleRaw = (store.get("kiosk_role")?.value ?? "").toUpperCase();
-  if (roleRaw === "ADMIN") return "ADMIN";
-  if (roleRaw === "MANAGER") return "MANAGER";
-  return null;
+  const r = session.employee.role;
+  if (r !== PrismaRole.ADMIN && r !== PrismaRole.MANAGER) return null;
+
+  const fullName = `${session.employee.firstName ?? ""} ${session.employee.lastName ?? ""}`.trim() || null;
+
+  return {
+    ok: true,
+    role: r as PrivRole,
+    userId: session.employee.id,
+    companyId: session.employee.companyId ?? defaultCompanyId,
+    name: fullName,
+  };
 }
 
-// ✅ Use this for pages that accept BOTH: supabase admin + kiosk manager
-export async function requirePrivilegedOrRedirect(): Promise<PrivilegedContext> {
-  // 1) Supabase (admin/dev)
-  try {
-    const supabase = await supabaseServer();
-    const { data } = await supabase.auth.getUser();
+export async function requirePrivilegedOrRedirect(): Promise<{
+  ok: true;
+  role: PrivRole;
+  userId: string;
+  companyId: string;
+  name: string | null;
+}> {
+  const defaultCompanyId = await getOrCreateDefaultCompanyId();
 
-    if (data?.user) {
-      const me = await prisma.user.findUnique({
-        where: { authUserId: data.user.id },
-        select: { id: true, role: true, companyId: true },
+  // 1) Try Supabase (web/admin)
+  const supabase = await supabaseServer();
+  const { data, error } = await supabase.auth.getUser();
+
+  if (!error && data?.user) {
+    const authUser = data.user;
+    const email = authUser.email;
+    if (!email) redirect("/kiosk?reason=no_email");
+
+    const name =
+      (authUser.user_metadata as any)?.name ??
+      (authUser.user_metadata as any)?.full_name ??
+      null;
+
+    let me = await prisma.user.findUnique({
+      where: { authUserId: authUser.id },
+      select: { id: true, role: true, companyId: true, name: true, email: true },
+    });
+
+    if (!me) {
+      const byEmail = await prisma.user.findUnique({
+        where: { email },
+        select: { id: true },
       });
 
-      if (me?.role === Role.ADMIN || me?.role === Role.MANAGER) {
-        const defaultCompanyId = await getDefaultCompanyId();
-        const companyIds = Array.from(
-          new Set([me.companyId, defaultCompanyId].filter(Boolean) as string[])
-        );
-
-        return {
-          via: "supabase",
-          role: me.role === Role.ADMIN ? "ADMIN" : "MANAGER",
-          adminUserId: me.id,
-          companyIds,
-        };
+      if (byEmail) {
+        me = await prisma.user.update({
+          where: { id: byEmail.id },
+          data: { authUserId: authUser.id },
+          select: { id: true, role: true, companyId: true, name: true, email: true },
+        });
       }
     }
-  } catch {
-    // fall through
-  }
 
-  // 2) Kiosk cookies (manager/boss PIN)
-  const kioskRole = await readKioskPrivilege();
-  if (kioskRole) {
-    const defaultCompanyId = await getDefaultCompanyId();
+    if (!me) {
+      me = await prisma.user.create({
+        data: {
+          authUserId: authUser.id,
+          email,
+          name,
+          role: FORCE_SUPABASE_ROLE,
+          department: "FLOOR",
+          companyId: defaultCompanyId,
+        },
+        select: { id: true, role: true, companyId: true, name: true, email: true },
+      });
+    } else {
+      me = await prisma.user.update({
+        where: { id: me.id },
+        data: {
+          role: FORCE_SUPABASE_ROLE,
+          companyId: me.companyId ?? defaultCompanyId,
+          name: me.name ?? name,
+        },
+        select: { id: true, role: true, companyId: true, name: true, email: true },
+      });
+    }
+
+    if (me.role !== PrismaRole.ADMIN && me.role !== PrismaRole.MANAGER) {
+      redirect("/kiosk?reason=role_denied");
+    }
+
     return {
-      via: "kiosk",
-      role: kioskRole,
-      adminUserId: null,
-      companyIds: [defaultCompanyId],
+      ok: true,
+      role: me.role as PrivRole,
+      userId: me.id,
+      companyId: me.companyId,
+      name: me.name ?? null,
     };
   }
 
-  redirect("/kiosk");
+  // 2) Fallback: kiosk session (manager/admin from Employee table)
+  const kiosk = await getPrivFromKioskSession(defaultCompanyId);
+  if (kiosk) return kiosk;
+
+  // 3) Neither auth method worked
+  redirect("/kiosk?reason=no_auth");
 }
