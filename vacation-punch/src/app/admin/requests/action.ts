@@ -18,9 +18,21 @@ function daysInclusive(start: Date, end: Date): Date[] {
   for (let cur = new Date(start); cur <= end; cur = addDaysNoon(cur, 1)) out.push(new Date(cur));
   return out;
 }
+async function getDbUserIdFromAuthUserId(authUserId: string | null | undefined): Promise<string | null> {
+  if (!authUserId) return null;
+  const u = await prisma.user.findUnique({
+    where: { authUserId },
+    select: { id: true },
+  });
+  return u?.id ?? null;
+}
 
 export async function approveVacation(requestId: string) {
   const { adminUserId, companyIds } = await getPrivilegedContextOrRedirect();
+
+  // Convert auth id -> DB user.id (prevents FK crash)
+  const decidedByUserId =
+    await getDbUserIdFromAuthUserId(adminUserId);
 
   await prisma.$transaction(async (tx) => {
     const req = await tx.vacationRequest.findUnique({
@@ -35,6 +47,7 @@ export async function approveVacation(requestId: string) {
 
     const rangeStart = new Date(req.startDate);
     rangeStart.setHours(0, 0, 0, 0);
+
     const rangeEnd = new Date(req.endDate);
     rangeEnd.setHours(23, 59, 59, 999);
 
@@ -53,15 +66,39 @@ export async function approveVacation(requestId: string) {
     await tx.shift.deleteMany({ where: { vacationRequestId: req.id } });
 
     const days = daysInclusive(req.startDate, req.endDate);
+
     await tx.shift.createMany({
-      data: days.map((d) => ({
-        employeeId: req.employeeId,
-        startTime: d,
-        endTime: d,
-        status: ShiftStatus.PLANNED,
-        note: "VAC",
-        vacationRequestId: req.id,
-      })),
+      data: days.map((d) => {
+        const start = new Date(d);
+        start.setHours(0, 0, 0, 0);
+
+        const end = new Date(d);
+        end.setHours(23, 59, 59, 999);
+
+        // If single-day partial time exists, use it
+        const isSingleDay =
+          req.startDate.toDateString() === req.endDate.toDateString() &&
+          !!req.startTime &&
+          !!req.endTime;
+
+        if (isSingleDay && days.length === 1) {
+          const [sh, sm] = req.startTime!.split(":").map(Number);
+          const [eh, em] = req.endTime!.split(":").map(Number);
+          if (Number.isFinite(sh) && Number.isFinite(sm) && Number.isFinite(eh) && Number.isFinite(em)) {
+            start.setHours(sh, sm, 0, 0);
+            end.setHours(eh, em, 0, 0);
+          }
+        }
+
+        return {
+          employeeId: req.employeeId,
+          startTime: start,
+          endTime: end,
+          status: ShiftStatus.PLANNED,
+          note: "VAC",
+          vacationRequestId: req.id,
+        };
+      }),
     });
 
     await tx.vacationRequest.update({
@@ -69,7 +106,7 @@ export async function approveVacation(requestId: string) {
       data: {
         status: VacationStatus.APPROVED,
         decidedAt: new Date(),
-        decidedByUserId: adminUserId ?? null,
+        decidedByUserId, // ✅ DB user.id or null
       },
     });
   });
@@ -79,8 +116,10 @@ export async function approveVacation(requestId: string) {
   redirect("/admin/requests");
 }
 
+
 export async function rejectVacation(requestId: string) {
   const { adminUserId, companyIds } = await getPrivilegedContextOrRedirect();
+  const decidedByUserId = await getDbUserIdFromAuthUserId(adminUserId);
 
   await prisma.$transaction(async (tx) => {
     const req = await tx.vacationRequest.findUnique({
@@ -98,7 +137,7 @@ export async function rejectVacation(requestId: string) {
       data: {
         status: VacationStatus.REJECTED,
         decidedAt: new Date(),
-        decidedByUserId: adminUserId ?? null,
+        decidedByUserId, // ✅ DB user.id or null
       },
     });
 
@@ -110,8 +149,10 @@ export async function rejectVacation(requestId: string) {
   redirect("/admin/requests");
 }
 
+
 export async function cancelApprovedVacation(requestId: string) {
   const { adminUserId, companyIds } = await getPrivilegedContextOrRedirect();
+  const decidedByUserId = await getDbUserIdFromAuthUserId(adminUserId);
 
   await prisma.$transaction(async (tx) => {
     const req = await tx.vacationRequest.findUnique({
@@ -129,7 +170,7 @@ export async function cancelApprovedVacation(requestId: string) {
       data: {
         status: VacationStatus.CANCELLED,
         decidedAt: new Date(),
-        decidedByUserId: adminUserId ?? null,
+        decidedByUserId, // ✅ DB user.id or null
       },
     });
 
@@ -140,3 +181,4 @@ export async function cancelApprovedVacation(requestId: string) {
   revalidatePath("/schedule");
   redirect("/admin/requests");
 }
+

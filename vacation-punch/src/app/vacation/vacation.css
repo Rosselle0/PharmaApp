@@ -1,25 +1,263 @@
-.page { padding: 24px; }
-.shell { max-width: 1100px; margin: 0 auto; display: grid; gap: 16px; }
-.head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
-.h1 { font-size: 28px; margin: 0; }
-.p { margin: 6px 0 0; color: #666; }
-.card { background: white; border: 1px solid #e6e6e6; border-radius: 12px; padding: 16px; }
-.h2 { margin: 0 0 12px; font-size: 18px; }
-.muted { color: #777; }
+:root {
+  --ap-ink: #0a1020;
+  --ap-muted: rgba(10, 16, 32, 0.62);
 
-.form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: end; }
+  --ap-bg-0: #f6fbff;
+  --ap-bg-1: #eef6ff;
+
+  --ap-card: rgba(255, 255, 255, 0.86);
+  --ap-border: rgba(10, 16, 32, 0.10);
+
+  --ap-shadow-sm: 0 6px 18px rgba(10, 16, 32, 0.06);
+
+  --ap-radius: 16px;
+  --ap-radius-sm: 12px;
+
+  --ap-primary: #1a56db;
+  --ap-primary-bg: rgba(26, 86, 219, 0.10);
+
+  --ap-danger: #b42318;
+  --ap-danger-bg: rgba(180, 35, 24, 0.10);
+
+  --ap-focus: rgba(26, 86, 219, 0.22);
+}
+
+.page {
+  padding: 28px;
+  background: radial-gradient(1200px 600px at 20% 0%, var(--ap-bg-1), var(--ap-bg-0));
+  min-height: 100vh;
+  color: var(--ap-ink);
+}
+
+.shell {
+  max-width: 1120px;
+  margin: 0 auto;
+  display: grid;
+  gap: 16px;
+}
+
+.head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 2px;
+}
+
+.h1 { font-size: 28px; letter-spacing: -0.02em; margin: 0; }
+.p  { margin: 8px 0 0; color: var(--ap-muted); line-height: 1.35; }
+
+.card {
+  background: var(--ap-card);
+  border: 1px solid var(--ap-border);
+  border-radius: var(--ap-radius);
+  padding: 16px;
+  box-shadow: var(--ap-shadow-sm);
+  backdrop-filter: blur(10px);
+}
+
+.h2 { margin: 0 0 12px; font-size: 16px; letter-spacing: -0.01em; }
+.muted { color: var(--ap-muted); }
+
+.btn {
+  padding: 10px 12px;
+  border: 1px solid rgba(10, 16, 32, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.65);
+  color: var(--ap-ink);
+  cursor: pointer;
+  min-width: 118px;
+  text-align: center;
+  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+  box-shadow: 0 1px 0 rgba(10, 16, 32, 0.04);
+}
+
+.btn:hover {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(10, 16, 32, 0.22);
+  box-shadow: 0 10px 20px rgba(10, 16, 32, 0.08);
+  transform: translateY(-1px);
+}
+
+.btn.primary {
+  border-color: rgba(26, 86, 219, 0.35);
+  background: var(--ap-primary-bg);
+  color: var(--ap-primary);
+  font-weight: 650;
+}
+
+.btn.danger {
+  border-color: rgba(180, 35, 24, 0.30);
+  background: var(--ap-danger-bg);
+  color: var(--ap-danger);
+  font-weight: 650;
+}
+
+/* Forms */
+.form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+}
 .form.one { grid-template-columns: 1fr auto; }
-.label { display: grid; gap: 6px; font-size: 14px; }
-.input { padding: 10px 12px; border: 1px solid #ddd; border-radius: 10px; }
-.btn { padding: 10px 12px; border: 1px solid #ddd; border-radius: 10px; background: #fafafa; cursor: pointer; }
-.btn:hover { background: #f3f3f3; }
-.btn.danger { border-color: #f2b8b8; background: #fff5f5; }
 
-.table { width: 100%; border-collapse: collapse; }
-.table th, .table td { padding: 10px 8px; border-top: 1px solid #eee; text-align: left; vertical-align: top; }
+.label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: rgba(10, 16, 32, 0.78);
+}
 
-.badge { display: inline-block; padding: 4px 8px; border-radius: 999px; font-size: 12px; border: 1px solid #ddd; }
-.badge.pending { background: #fffceb; border-color: #f2e3a4; }
-.badge.approved { background: #eefbf1; border-color: #b9e6c3; }
-.badge.rejected { background: #fff2f2; border-color: #f2b8b8; }
-.badge.cancelled { background: #f2f2f2; border-color: #d9d9d9; }
+.input {
+  padding: 11px 12px;
+  border: 1px solid rgba(10, 16, 32, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.75);
+  outline: none;
+  transition: box-shadow 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+
+.input:focus {
+  border-color: rgba(26, 86, 219, 0.35);
+  box-shadow: 0 0 0 4px var(--ap-focus);
+  background: rgba(255, 255, 255, 0.95);
+}
+
+/* Table */
+.tableWrap {
+  border: 1px solid var(--ap-border);
+  border-radius: var(--ap-radius-sm);
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.table thead th {
+  background: rgba(246, 251, 255, 0.95);
+  color: rgba(10, 16, 32, 0.75);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 12px 12px;
+  border-bottom: 1px solid rgba(10, 16, 32, 0.10);
+}
+
+.table td {
+  padding: 12px 12px;
+  border-top: 1px solid rgba(10, 16, 32, 0.08);
+  vertical-align: top;
+}
+
+.table tbody tr:hover td {
+  background: rgba(26, 86, 219, 0.05);
+}
+
+/* Status badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  border: 1px solid rgba(10, 16, 32, 0.14);
+  background: rgba(255, 255, 255, 0.65);
+  color: rgba(10, 16, 32, 0.75);
+}
+.badge.pending { border-color: rgba(245, 158, 11, 0.25); background: rgba(245, 158, 11, 0.12); color: #b45309; }
+.badge.approved { border-color: rgba(26, 86, 219, 0.28); background: rgba(26, 86, 219, 0.10); color: #1a56db; }
+.badge.rejected { border-color: rgba(180, 35, 24, 0.22); background: rgba(180, 35, 24, 0.10); color: #b42318; }
+.badge.cancelled { border-color: rgba(10, 16, 32, 0.16); background: rgba(10, 16, 32, 0.06); color: rgba(10, 16, 32, 0.70); }
+
+.empty {
+  padding: 14px;
+  border: 1px dashed rgba(10, 16, 32, 0.18);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--ap-muted);
+}
+
+/* Partial day block */
+.formRow {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+}
+
+.hint {
+  font-size: 13px;
+  color: rgba(10, 16, 32, 0.7);
+}
+
+.timeGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.timeGrid.disabled {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+@media (max-width: 860px) {
+  .page { padding: 18px; }
+  .head { align-items: flex-start; flex-direction: column; }
+  .btn { min-width: 140px; }
+  .form { grid-template-columns: 1fr; }
+  .form.one { grid-template-columns: 1fr; }
+  .tableWrap { overflow-x: auto; }
+  .table { min-width: 760px; }
+  .timeGrid { grid-template-columns: 1fr; }
+}
+/* ===== Fix date/time readability ===== */
+.input {
+  color: var(--ap-ink);                 /* actual typed value */
+  caret-color: var(--ap-ink);
+}
+
+/* placeholder text (e.g., "Voyage, rendez-vous..." AND date "mm") */
+.input::placeholder {
+  color: rgba(10, 16, 32, 0.55);
+  opacity: 1; /* Firefox */
+}
+
+/* Make native date/time parts darker in Chromium/WebKit */
+.input[type="date"],
+.input[type="time"] {
+  color: var(--ap-ink);
+  -webkit-text-fill-color: var(--ap-ink); /* fixes washed out text */
+}
+
+/* Specifically target the internal editable parts for date/time */
+.input[type="date"]::-webkit-datetime-edit,
+.input[type="date"]::-webkit-datetime-edit-text,
+.input[type="date"]::-webkit-datetime-edit-month-field,
+.input[type="date"]::-webkit-datetime-edit-day-field,
+.input[type="date"]::-webkit-datetime-edit-year-field,
+.input[type="time"]::-webkit-datetime-edit,
+.input[type="time"]::-webkit-datetime-edit-text,
+.input[type="time"]::-webkit-datetime-edit-hour-field,
+.input[type="time"]::-webkit-datetime-edit-minute-field,
+.input[type="time"]::-webkit-datetime-edit-ampm-field {
+  color: var(--ap-ink);
+  -webkit-text-fill-color: var(--ap-ink);
+}
+
+/* Calendar/clock icon: optional but helps visibility */
+.input[type="date"]::-webkit-calendar-picker-indicator,
+.input[type="time"]::-webkit-calendar-picker-indicator {
+  opacity: 0.85;
+}
+
+/* Autofill sometimes makes text weird */
+.input:-webkit-autofill {
+  -webkit-text-fill-color: var(--ap-ink);
+  transition: background-color 9999s ease-out 0s;
+}

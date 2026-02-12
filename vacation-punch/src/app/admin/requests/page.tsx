@@ -38,7 +38,7 @@ export default async function AdminRequestsPage() {
   });
 
   return (
-    <main className="page">
+    <main className="page requestsScope">
       <div className="shell">
         <div className="head">
           <div>
@@ -46,13 +46,11 @@ export default async function AdminRequestsPage() {
             <p className="p">Centre d’approbation (vacances pour l’instant).</p>
           </div>
 
-          <div className="row">
+          <div className="actions">
             <Link className="btn" href="/admin/dashboard">
               Retour
             </Link>
-            <Link className="btn" href="/schedule">
-              Horaire
-            </Link>
+
           </div>
         </div>
 
@@ -61,6 +59,7 @@ export default async function AdminRequestsPage() {
           {pendingVac.length === 0 ? (
             <div className="muted">Aucune demande en attente.</div>
           ) : (
+
             <table className="table">
               <thead>
                 <tr>
@@ -74,15 +73,16 @@ export default async function AdminRequestsPage() {
                 {pendingVac.map((r) => (
                   <tr key={r.id}>
                     <td>
-                      {r.employee.firstName} {r.employee.lastName}
-                      <div className="muted">{r.employee.department}</div>
+                      <div className="cellTitle">{r.employee.firstName} {r.employee.lastName}</div>
+                      <div className="cellSub">{r.employee.department}</div>
                     </td>
+
                     <td>
                       {fmt(r.startDate)} → {fmt(r.endDate)}
                     </td>
                     <td className="muted">{r.reason ?? "—"}</td>
                     <td style={{ textAlign: "right" }}>
-                      <div className="row">
+                      <div className="actions">
                         <form
                           action={async () => {
                             "use server";
@@ -119,49 +119,52 @@ export default async function AdminRequestsPage() {
           {recentVac.length === 0 ? (
             <div className="muted">Aucune décision récente.</div>
           ) : (
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Employé</th>
-                  <th>Période</th>
-                  <th>Statut</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentVac.map((r) => (
-                  <tr key={r.id}>
-                    <td>
-                      {r.employee.firstName} {r.employee.lastName}
-                      <div className="muted">{r.employee.department}</div>
-                    </td>
-                    <td>
-                      {fmt(r.startDate)} → {fmt(r.endDate)}
-                    </td>
-                    <td>
-                      <span className="tag">{r.status}</span>
-                    </td>
-                    <td style={{ textAlign: "right" }}>
-                      {r.status === "APPROVED" ? (
-                        <form
-                          action={async () => {
-                            "use server";
-                            const { cancelApprovedVacation } = await import("./action");
-                            await cancelApprovedVacation(r.id);
-                          }}
-                        >
-                          <button className="btn danger" type="submit">
-                            Annuler l’approbation
-                          </button>
-                        </form>
-                      ) : (
-                        <span className="muted">—</span>
-                      )}
-                    </td>
+            <div className="tableWrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Employé</th>
+                    <th>Période</th>
+                    <th>Statut</th>
+                    <th></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {recentVac.map((r) => (
+                    <tr key={r.id}>
+                      <td>
+                        {r.employee.firstName} {r.employee.lastName}
+                        <div className="muted">{r.employee.department}</div>
+                      </td>
+                      <td>
+                        {fmt(r.startDate)} → {fmt(r.endDate)}
+                      </td>
+                      <td>
+                        <span className={`tag ${r.status.toLowerCase()}`}>{r.status}</span>
+
+                      </td>
+                      <td style={{ textAlign: "right" }}>
+                        {r.status === "APPROVED" ? (
+                          <form
+                            action={async () => {
+                              "use server";
+                              const { cancelApprovedVacation } = await import("./action");
+                              await cancelApprovedVacation(r.id);
+                            }}
+                          >
+                            <button className="btn danger" type="submit">
+                              Annuler l’approbation
+                            </button>
+                          </form>
+                        ) : (
+                          <span className="muted">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </section>
       </div>

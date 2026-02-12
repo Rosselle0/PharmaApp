@@ -1,19 +1,25 @@
 /* src/app/schedule/schedule.css */
+.scheduleScope:root {}
 
-.page {
+/* NOTE:
+   We keep :root vars global because they don't break requests visuals by themselves.
+   The REAL collision is .page/.btn/.table etc.
+*/
+
+.scheduleScope.page {
   min-height: 100vh;
   width: 100%;
   background: #0b0b10;
   color: #f3f3f7;
 }
 
-.shell {
+.scheduleScope .shell {
   max-width: 1800px;
   margin: 0 auto;
   padding: 26px 24px 60px;
 }
 
-.head {
+.scheduleScope .head {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -21,28 +27,28 @@
   margin-bottom: 16px;
 }
 
-.h1 {
+.scheduleScope .h1 {
   margin: 0;
   font-size: 18px;
   font-weight: 900;
   letter-spacing: 0.2px;
 }
 
-.p {
+.scheduleScope .p {
   margin: 6px 0 0;
   opacity: 0.75;
   font-size: 13px;
   line-height: 1.35;
 }
 
-.row {
+.scheduleScope .row {
   display: flex;
   gap: 10px;
   align-items: center;
   flex-wrap: wrap;
 }
 
-.btn {
+.scheduleScope .btn {
   border: 1px solid rgba(255, 255, 255, 0.14);
   background: rgba(255, 255, 255, 0.06);
   color: #fff;
@@ -54,13 +60,13 @@
   transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
 }
 
-.btn:hover {
+.scheduleScope .btn:hover {
   background: rgba(255, 255, 255, 0.10);
   border-color: rgba(255, 255, 255, 0.20);
   transform: translateY(-1px);
 }
 
-.section {
+.scheduleScope .section {
   margin-top: 16px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: radial-gradient(
@@ -73,7 +79,7 @@
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
 }
 
-.sectionTop {
+.scheduleScope .sectionTop {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -81,37 +87,37 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.10);
 }
 
-.sectionTitle {
+.scheduleScope .sectionTitle {
   margin: 0;
   font-size: 14px;
   font-weight: 900;
   letter-spacing: 0.3px;
 }
 
-.meta {
+.scheduleScope .meta {
   opacity: 0.7;
   font-size: 12px;
 }
 
-.tableWrap {
+.scheduleScope .tableWrap {
   overflow: visible; /* ✅ no horizontal scroll */
 }
 
-.table {
+.scheduleScope .table {
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed; /* ✅ equal columns */
 }
 
-.th,
-.td {
+.scheduleScope .th,
+.scheduleScope .td {
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   padding: 12px 12px;
   font-size: 12px;
   vertical-align: top;
 }
 
-.th {
+.scheduleScope .th {
   text-align: left;
   position: sticky;
   top: 0;
@@ -120,51 +126,51 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.10);
 }
 
-.nameCell {
+.scheduleScope .nameCell {
   font-weight: 900;
   width: 260px;
   white-space: nowrap;
 }
 
-.stickyLeft {
+.scheduleScope .stickyLeft {
   position: sticky;
   left: 0;
   background: rgba(10, 10, 18, 0.98);
   z-index: 2;
 }
 
-.cell {
+.scheduleScope .cell {
   opacity: 0.95;
 }
 
-.th:not(.nameCell),
-.td.cell {
+.scheduleScope .th:not(.nameCell),
+.scheduleScope .td.cell {
   width: calc((100% - 260px - 90px) / 7);
 }
 
-.th:last-child,
-.td:last-child {
+.scheduleScope .th:last-child,
+.scheduleScope .td:last-child {
   width: 90px;
   text-align: right;
   white-space: nowrap;
 }
 
-.muted {
+.scheduleScope .muted {
   opacity: 0.65;
 }
 
-.empty {
+.scheduleScope .empty {
   padding: 14px;
   opacity: 0.75;
 }
 
 /* Row hover: subtle */
-tbody tr:hover td {
+.scheduleScope tbody tr:hover td {
   background: rgba(255, 255, 255, 0.03);
 }
 
 /* ====== SHIFT PILL (SMOOTH WITH NOTE CHIP) ====== */
-.shiftPill {
+.scheduleScope .shiftPill {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -173,7 +179,7 @@ tbody tr:hover td {
   padding: 5px 10px;
   border-radius: 999px;
 
-  font-size: 12px;      
+  font-size: 12px;
   font-weight: 700;
 
   border: 1px solid rgba(255,255,255,0.14);
@@ -181,7 +187,7 @@ tbody tr:hover td {
   white-space: nowrap;
 }
 
-.optChip{
+.scheduleScope .optChip{
   position: absolute;
   right: 6px;
   top: 50%;
@@ -206,13 +212,14 @@ tbody tr:hover td {
 }
 
 /* OPTIONAL: if notes can be long, clamp it so it stays clean */
-.optChip{
+.scheduleScope .optChip{
   max-width: 60px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.shiftBadge {
+
+.scheduleScope .shiftBadge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -227,14 +234,15 @@ tbody tr:hover td {
   background: rgba(120,190,255,0.15);
   color: #e9f3ff;
 }
+
 /* keep time tight */
-.pillTime {
+.scheduleScope .pillTime {
   font-variant-numeric: tabular-nums;
 }
-.pillDash {
+.scheduleScope .pillDash {
   opacity: 0.55;
 }
-.pillOpt {
+.scheduleScope .pillOpt {
   margin-left: 6px;
 
   padding: 1px 6px;
@@ -252,8 +260,9 @@ tbody tr:hover td {
 
   text-transform: uppercase;
 }
+
 /* ✅ push note to the right cleanly */
-.shiftPill .noteBadge{
+.scheduleScope .shiftPill .noteBadge{
   margin-left: auto;          /* key */
   display: inline-flex;
   align-items: center;
@@ -268,13 +277,12 @@ tbody tr:hover td {
   line-height: 1;
 }
 
-.shiftPill .noteBadgeDot{
+.scheduleScope .shiftPill .noteBadgeDot{
   opacity: .75;
 }
 
-
 /* ====== OPTIONAL NOTE BADGE (C / L / DIS / INV etc.) ====== */
-.noteBadge {
+.scheduleScope .noteBadge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -287,25 +295,26 @@ tbody tr:hover td {
   opacity: 0.95;
 }
 
-.noteBadgeDot {
+.scheduleScope .noteBadgeDot {
   opacity: 0.8;
 }
 
 /* Empty dash */
-.td.cell .muted {
+.scheduleScope .td.cell .muted {
   opacity: 0.35;
 }
-.pillVac {
+
+.scheduleScope .pillVac {
   font-weight: 800;
   letter-spacing: 0.5px;
 }
 
 /* Small screens: allow scroll (ONLY when absolutely needed) */
 @media (max-width: 1050px) {
-  .tableWrap {
+  .scheduleScope .tableWrap {
     overflow: auto;
   }
-  .table {
+  .scheduleScope .table {
     min-width: 980px;
   }
 }

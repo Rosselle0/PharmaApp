@@ -1,18 +1,238 @@
+/* ===== Access Pharma vibe: clean, clinical, premium ===== */
+.requestsScope:root {}
 
-.page { padding: 24px; }
-.shell { max-width: 1100px; margin: 0 auto; display: grid; gap: 16px; }
-.head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
-.h1 { font-size: 28px; margin: 0; }
-.p { margin: 6px 0 0; color: #666; }
-.card { background: white; border: 1px solid #e6e6e6; border-radius: 12px; padding: 16px; }
-.h2 { margin: 0 0 12px; font-size: 18px; }
-.muted { color: #777; }
+/* NOTE:
+   We keep :root vars global because they don't break schedule visuals by themselves.
+   The REAL collision is .page/.btn/.table etc.
+*/
+:root {
+  --ap-ink: #0a1020;
+  --ap-muted: rgba(10, 16, 32, 0.62);
 
-.row { display: flex; gap: 8px; justify-content: flex-end; }
-.btn { padding: 10px 12px; border: 1px solid #ddd; border-radius: 10px; background: #fafafa; cursor: pointer; }
-.btn:hover { background: #f3f3f3; }
-.btn.danger { border-color: #f2b8b8; background: #fff5f5; }
+  --ap-bg-0: #f6fbff;
+  --ap-bg-1: #eef6ff;
 
-.table { width: 100%; border-collapse: collapse; }
-.table th, .table td { padding: 10px 8px; border-top: 1px solid #eee; text-align: left; vertical-align: top; }
-.tag { display: inline-block; padding: 4px 8px; border: 1px solid #ddd; border-radius: 999px; font-size: 12px; }
+  --ap-card: rgba(255, 255, 255, 0.86);
+  --ap-border: rgba(10, 16, 32, 0.10);
+
+  --ap-shadow: 0 10px 30px rgba(10, 16, 32, 0.08);
+  --ap-shadow-sm: 0 6px 18px rgba(10, 16, 32, 0.06);
+
+  --ap-radius: 16px;
+  --ap-radius-sm: 12px;
+
+  --ap-primary: #1a56db;
+  --ap-primary-bg: rgba(26, 86, 219, 0.10);
+
+  --ap-danger: #b42318;
+  --ap-danger-bg: rgba(180, 35, 24, 0.10);
+
+  --ap-row-hover: rgba(26, 86, 219, 0.05);
+}
+
+.requestsScope.page {
+  padding: 28px;
+  background: radial-gradient(1200px 600px at 20% 0%, var(--ap-bg-1), var(--ap-bg-0));
+  min-height: 100vh;
+  color: var(--ap-ink);
+}
+
+.requestsScope .shell {
+  max-width: 1120px;
+  margin: 0 auto;
+  display: grid;
+  gap: 16px;
+}
+
+.requestsScope .head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 2px;
+}
+
+.requestsScope .h1 {
+  font-size: 28px;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.requestsScope .p {
+  margin: 8px 0 0;
+  color: var(--ap-muted);
+  line-height: 1.35;
+}
+
+.requestsScope .card {
+  background: var(--ap-card);
+  border: 1px solid var(--ap-border);
+  border-radius: var(--ap-radius);
+  padding: 16px;
+  box-shadow: var(--ap-shadow-sm);
+  backdrop-filter: blur(10px);
+}
+
+.requestsScope .h2 {
+  margin: 0 0 12px;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+}
+
+.requestsScope .muted {
+  color: var(--ap-muted);
+}
+
+.requestsScope .row {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+/* Buttons */
+.requestsScope .btn {
+  padding: 10px 12px;
+  border: 1px solid rgba(10, 16, 32, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.65);
+  color: var(--ap-ink);
+  cursor: pointer;
+  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+  box-shadow: 0 1px 0 rgba(10, 16, 32, 0.04);
+  min-width: 118px; /* makes your side buttons equal length */
+  text-align: center;
+  user-select: none;
+}
+
+.requestsScope .btn:hover {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(10, 16, 32, 0.22);
+  box-shadow: 0 10px 20px rgba(10, 16, 32, 0.08);
+  transform: translateY(-1px);
+}
+
+.requestsScope .btn:active {
+  transform: translateY(0px);
+  box-shadow: 0 6px 14px rgba(10, 16, 32, 0.07);
+}
+
+.requestsScope .btn.primary {
+  border-color: rgba(26, 86, 219, 0.35);
+  background: var(--ap-primary-bg);
+  color: var(--ap-primary);
+  font-weight: 600;
+}
+
+.requestsScope .btn.danger {
+  border-color: rgba(180, 35, 24, 0.30);
+  background: var(--ap-danger-bg);
+  color: var(--ap-danger);
+  font-weight: 600;
+}
+
+/* Table */
+.requestsScope .tableWrap {
+  border: 1px solid var(--ap-border);
+  border-radius: var(--ap-radius-sm);
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.requestsScope .table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.requestsScope .table thead th {
+  position: sticky;
+  top: 0;
+  background: rgba(246, 251, 255, 0.95);
+  backdrop-filter: blur(8px);
+  color: rgba(10, 16, 32, 0.75);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 12px 12px;
+  border-bottom: 1px solid rgba(10, 16, 32, 0.10);
+}
+
+.requestsScope .table td {
+  padding: 12px 12px;
+  border-top: 1px solid rgba(10, 16, 32, 0.08);
+  vertical-align: top;
+}
+
+.requestsScope .table tbody tr:hover td {
+  background: var(--ap-row-hover);
+}
+
+.requestsScope .cellTitle {
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.requestsScope .cellSub {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--ap-muted);
+}
+
+.requestsScope .actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Tags */
+.requestsScope .tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid rgba(10, 16, 32, 0.14);
+  border-radius: 999px;
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.65);
+  color: rgba(10, 16, 32, 0.75);
+}
+
+.requestsScope .tag.approved {
+  border-color: rgba(26, 86, 219, 0.28);
+  background: rgba(26, 86, 219, 0.10);
+  color: #1a56db;
+}
+
+.requestsScope .tag.rejected,
+.requestsScope .tag.cancelled {
+  border-color: rgba(180, 35, 24, 0.22);
+  background: rgba(180, 35, 24, 0.10);
+  color: #b42318;
+}
+
+.requestsScope .tag.pending {
+  border-color: rgba(245, 158, 11, 0.25);
+  background: rgba(245, 158, 11, 0.12);
+  color: #b45309;
+}
+
+/* Empty state */
+.requestsScope .empty {
+  padding: 14px;
+  border: 1px dashed rgba(10, 16, 32, 0.18);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--ap-muted);
+}
+
+/* Responsive */
+@media (max-width: 860px) {
+  .requestsScope.page { padding: 18px; }
+  .requestsScope .head { align-items: flex-start; flex-direction: column; }
+  .requestsScope .row { justify-content: flex-start; }
+  .requestsScope .btn { min-width: 140px; }
+  .requestsScope .tableWrap { overflow-x: auto; }
+  .requestsScope .table { min-width: 820px; }
+}

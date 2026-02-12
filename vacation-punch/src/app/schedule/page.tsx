@@ -4,6 +4,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 
 function startOfWeek(d: Date) {
   const x = new Date(d);
@@ -119,7 +122,7 @@ export default async function SchedulePage({
   const retourHref = code ? `/kiosk?code=${encodeURIComponent(code)}` : "/kiosk";
 
   return (
-    <main className="page">
+    <main className="page scheduleScope">
       <div className="shell">
         <div className="head">
           <div>
@@ -177,6 +180,7 @@ export default async function SchedulePage({
                       const list = byUserDay.get(key) ?? [];
 
                       for (const sh of list) {
+                        if (sh.note === "VAC") continue;
                         totalMinutes += Math.max(
                           0,
                           Math.floor((+new Date(sh.endTime) - +new Date(sh.startTime)) / 60000)

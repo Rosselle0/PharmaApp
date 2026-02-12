@@ -72,6 +72,9 @@ model VacationRequest {
 
   startDate DateTime
   endDate   DateTime
+  startTime String?
+  endTime   String?
+
   status    VacationStatus @default(PENDING)
   reason    String?
 
