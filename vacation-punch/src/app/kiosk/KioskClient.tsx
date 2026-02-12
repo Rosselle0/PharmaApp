@@ -106,6 +106,9 @@ export default function KioskClient({
     localStorage.setItem("kiosk_role", r);
   }
 
+  function hardNavigate(href: string) {
+    window.location.assign(href);
+  }
 
 
   function clearEmployeeSession() {
@@ -226,20 +229,30 @@ export default function KioskClient({
       return;
     }
 
+    const needsHardReload =
+      item.href === "/schedule" ||
+      item.href.startsWith("/admin") || // requests/dashboard etc.
+      item.href === "/kiosk";
+
     // privileged: never append ?code=
     if (item.requiresEmployeeCode && isPrivilegedLogged) {
-      router.push(item.href);
+      if (needsHardReload) hardNavigate(item.href);
+      else router.push(item.href);
       return;
     }
 
     // employee: append ?code=
     if (item.requiresEmployeeCode) {
-      router.push(`${item.href}?code=${encodeURIComponent(employeeCodeClean)}`);
+      const target = `${item.href}?code=${encodeURIComponent(employeeCodeClean)}`;
+      if (needsHardReload) hardNavigate(target);
+      else router.push(target);
       return;
     }
 
-    router.push(item.href);
+    if (needsHardReload) hardNavigate(item.href);
+    else router.push(item.href);
   }
+
 
   async function employeeConfirm(forcedCode?: string) {
     const clean = (forcedCode ?? employeeCode).replace(/\D/g, "").slice(0, PIN_LEN);
@@ -457,13 +470,14 @@ export default function KioskClient({
               <button
                 className="kiosk-navBtn kiosk-navLogs"
                 type="button"
-                onClick={() => router.push("/admin/dashboard")}
+                onClick={() => window.location.assign("/admin/dashboard")}
                 disabled={!canAccessLogs}
                 title={!canAccessLogs ? "Connexion admin ou manager requise" : undefined}
               >
                 <span>Logs</span>
                 {!canAccessLogs && <span className="lockBadge">🔒</span>}
               </button>
+
             </div>
 
           </nav>
