@@ -252,7 +252,7 @@ export default function ScheduleEditorClient(props: {
     const nextWeek = ymdLocal(new Date(weekStart.getTime() + 7 * 86400000));
 
     return (
-        <main className="page">
+        <main className="page scheduleScope">
             <div className="shell">
                 <div className="head">
                     <div>
