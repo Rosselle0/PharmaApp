@@ -122,7 +122,40 @@ export default async function SchedulePage({
   const retourHref = code ? `/kiosk?code=${encodeURIComponent(code)}` : "/kiosk";
 
   return (
-    <main className="page scheduleScope">
+  <div className="kiosk-layout">
+    {/* ================= LEFT SIDEBAR ================= */}
+    <aside className="kiosk-sidebar">
+      <div className="kiosk-navTop">
+        <Link href="/schedule" className="kiosk-btn active">
+          <span></span> Horaire 📅
+        </Link>
+
+        <Link href="/change" className="kiosk-btn">
+          <span></span> Changement 🔁
+        </Link>
+
+        <Link href="/task-list" className="kiosk-btn">
+          <span></span> Liste des tâches 📋
+        </Link>
+
+        <Link href="/vacation" className="kiosk-btn">
+            <span></span> Vacance / Congé 🌴
+        </Link>
+      </div>
+
+      <div className="kiosk-navBottom">
+        <Link href="/settings" className="kiosk-btn">
+          <span>⚙️</span> Paramètres
+        </Link>
+
+        <Link href="/logs" className="kiosk-btn">
+          <span>🔒</span> Logs
+        </Link>
+      </div>
+    </aside>
+
+    {/* ================= MAIN CONTENT ================= */}
+    <main className="scheduleScope page" style={{ flex: 1 }}>
       <div className="shell">
         <div className="head">
           <div>
@@ -136,20 +169,23 @@ export default async function SchedulePage({
             <Link className="btn" href={`/schedule?week=${encodeURIComponent(prevWeek)}${codeQS}`}>
               ← Semaine précédente
             </Link>
+
             <Link className="btn" href={`/schedule?week=${encodeURIComponent(nextWeek)}${codeQS}`}>
               Semaine suivante →
             </Link>
+
             <Link className="btn" href={retourHref}>
               Retour
             </Link>
-
           </div>
         </div>
 
         <section className="section">
           <div className="sectionTop">
             <h2 className="sectionTitle">Horaire</h2>
-            <div className="meta">Semaine du {weekStart.toLocaleDateString("fr-CA")}</div>
+            <div className="meta">
+              Semaine du {weekStart.toLocaleDateString("fr-CA")}
+            </div>
           </div>
 
           {employees.length === 0 ? (
@@ -164,7 +200,9 @@ export default async function SchedulePage({
                       <th key={ymdLocal(d)} className="th">
                         {DAY_LABELS[i]}
                         <br />
-                        <span className="muted">{d.toLocaleDateString("fr-CA")}</span>
+                        <span className="muted">
+                          {d.toLocaleDateString("fr-CA")}
+                        </span>
                       </th>
                     ))}
                     <th className="th">Total</th>
@@ -183,31 +221,36 @@ export default async function SchedulePage({
                         if (sh.note === "VAC") continue;
                         totalMinutes += Math.max(
                           0,
-                          Math.floor((+new Date(sh.endTime) - +new Date(sh.startTime)) / 60000)
+                          Math.floor(
+                            (+new Date(sh.endTime) -
+                              +new Date(sh.startTime)) /
+                              60000
+                          )
                         );
                       }
 
                       return (
-                        <td key={key} className="td cell">
+                        <td key={key} className="td">
                           {list.length === 0 ? (
                             <span className="muted">—</span>
                           ) : (
                             list.map((sh, idx) => (
-                              <div key={idx} className="shiftPill" title={sh.note ?? ""}>
+                              <div key={idx} className="shiftPill">
                                 {sh.note === "VAC" ? (
-                                  <span className="pillVac">VAC</span>
+                                  <span>VAC</span>
                                 ) : (
                                   <>
-                                    <span className="pillTime">{hmLocal(new Date(sh.startTime))}</span>
+                                    <span className="pillTime">
+                                      {hmLocal(new Date(sh.startTime))}
+                                    </span>
                                     <span className="pillDash">–</span>
-                                    <span className="pillTime">{hmLocal(new Date(sh.endTime))}</span>
-
-                                    {sh.note ? <span className="pillOpt">{sh.note}</span> : null}
+                                    <span className="pillTime">
+                                      {hmLocal(new Date(sh.endTime))}
+                                    </span>
                                   </>
                                 )}
                               </div>
                             ))
-
                           )}
                         </td>
                       );
@@ -217,16 +260,15 @@ export default async function SchedulePage({
 
                     return (
                       <tr key={u.id}>
-                        <td className="td nameCell stickyLeft">
+                        <td className="td nameCell">
                           {u.firstName} {u.lastName}
                           <div className="muted">
                             {u.department === "CASH"
                               ? "Caisse"
                               : u.department === "LAB"
-                                ? "Lab"
-                                : "Plancher"}
+                              ? "Lab"
+                              : "Plancher"}
                           </div>
-
                         </td>
                         {cells}
                         <td className="td">
@@ -242,5 +284,6 @@ export default async function SchedulePage({
         </section>
       </div>
     </main>
-  );
+  </div>
+);
 }

@@ -90,7 +90,6 @@
     }
 }
 
-/* ============ Shell / Frame ============ */
 .kiosk-shell {
     width: 100vw;
     height: 100vh;
@@ -110,88 +109,89 @@
     grid-template-columns: 210px 1fr 340px;
     gap: 14px;
     padding: 14px;
-
-    /* soft outer rounding like a pro kiosk shell */
     border-radius: 0;
 }
 
-/* ============ Left Nav ============ */
+
+/* =========================================================
+   LEFT SIDEBAR
+   ========================================================= */
+
 .kiosk-left {
+    background: var(--ap-surface);       /* main nav surface */
     border-radius: var(--r-lg);
-    background: linear-gradient(180deg, rgba(255, 255, 255, .70), rgba(255, 255, 255, .45));
-    border: 1px solid var(--ap-line);
-    box-shadow: var(--ap-shadow-2);
-    overflow: hidden;
+    padding: 24px 18px;
     display: flex;
     flex-direction: column;
+    justify-content: flex-start;
+    gap: 12px;
+    box-shadow: var(--ap-shadow-2);
+    width: 210px;                          /* fixed width for consistency */
+    min-width: 210px;
 }
 
-.kiosk-leftTop {
-    height: 84px;
-    background:
-        radial-gradient(900px 220px at 30% 0%, rgba(26, 115, 232, .22), transparent 55%),
-        linear-gradient(180deg, rgba(255, 255, 255, .92), rgba(255, 255, 255, .62));
-    border-bottom: 1px solid var(--ap-line);
-    position: relative;
+.kiosk-nav {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 12px;                              /* uniform spacing */
 }
 
-.kiosk-leftTop::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(90deg, rgba(17, 181, 201, .18), transparent 45%, rgba(26, 115, 232, .14));
-    opacity: .65;
-    pointer-events: none;
+.kiosk-navTop {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
 }
 
-.kiosk-nav{
-  display:flex;
-  flex-direction:column;
-  height:100%;
+.kiosk-navBottom {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--ap-line);
+    background: linear-gradient(180deg, rgba(255,255,255,.35), rgba(255,255,255,0));
 }
-.kiosk-left{
-  display:flex;
-  flex-direction:column;
-}
-
 
 .kiosk-navBtn {
-    height: 60px;
-    background: transparent;
-    border: 0;
-    border-bottom: 1px solid var(--ap-line);
-    font-size: 18px;
-    font-weight: 850;
-    color: var(--ap-ink);
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 12px;
+    width: 100%;
+    height: 64px;
+    padding: 0 18px;
+    font-weight: 700;
+    font-size: 16px;
+    border-radius: var(--r-lg);
+    border: none;
     cursor: pointer;
-    padding: 0 14px;
-    text-align: left;
-    position: relative;
-    transition: background .18s ease, transform .18s ease;
+    background: var(--ap-surface-2);
+    color: var(--ap-ink);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+    transition: all 0.25s ease;
 }
 
-.kiosk-navBtn:hover {
-    background: rgba(26, 115, 232, .08);
-    transform: translateX(1px);
+.kiosk-navBtn:hover:not(:disabled) {
+    background: var(--ap-surface);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.08);
 }
 
-.kiosk-navSpacer {
-    height: 16px;
-    background: linear-gradient(180deg, rgba(255, 255, 255, .4), rgba(255, 255, 255, 0));
-    border-bottom: 1px solid var(--ap-line);
+.kiosk-navBtn.active {
+    background: linear-gradient(135deg, var(--ap-blue), #2563eb);
+    color: white;
+    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.35);
 }
 
-.kiosk-navBtn.locked {
-    opacity: 0.55;
-    cursor: not-allowed;
-}
+.kiosk-navBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.kiosk-navBtn span { font-size: 18px; }
+
 
 .lockBadge {
-    position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 16px;
+  font-size: 14px;
+  opacity: .75;
 }
 
 /* ============ Center ============ */
@@ -208,18 +208,12 @@
     animation: floatIn .35s ease both;
 }
 
-.kiosk-title {
-    margin: 0;
-    font-size: 34px;
-    font-weight: 950;
-    letter-spacing: .2px;
-}
+.kiosk-title { margin: 0; font-size: 34px; font-weight: 950; letter-spacing: .2px; }
 
 .kiosk-titleLogged {
     background: linear-gradient(90deg, var(--ap-ink), rgba(10, 16, 32, .70));
     -webkit-background-clip: text;
     background-clip: text;
-    color: transparent;
 }
 
 /* ===== PIN UI (ONLY code entering area) ===== */
@@ -414,7 +408,6 @@
 .adminPanelHead {
     display: grid;
     place-items: center;
-    /* 👈 centers horizontally + vertically */
     padding: 14px;
     border-radius: 18px;
     background: rgba(255, 255, 255, .70);
@@ -915,7 +908,7 @@
 }
 
 .kiosk-navBottom {
-  margin-top: auto;                /* pushes Logs to bottom */
+  margin-top: auto;
   padding: 10px;
   border-top: 1px solid var(--ap-line);
   background: linear-gradient(
@@ -927,83 +920,53 @@
 
 /* EXPANDED LOGS BUTTON */
 .kiosk-navLogs {
-  width: 100%;                     /* 👈 THIS is the key */
-  height: 56px;
-  border-radius: 14px;
-  background: linear-gradient(
-    90deg,
-    rgba(26,115,232,.12),
-    rgba(17,181,201,.12)
-  );
-  border: 1px solid rgba(26,115,232,.28);
-  font-weight: 950;
-  font-size: 18px;
-  text-align: left;
-  padding-left: 16px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  transition: transform .15s ease, background .15s ease;
+    width: 100%;
+    height: 56px;
+    border-radius: var(--r-lg);
+    background: linear-gradient(90deg, rgba(26,115,232,.12), rgba(17,181,201,.12));
+    border: 1px solid rgba(26,115,232,.28);
+    font-weight: 950;
+    font-size: 18px;
+    text-align: left;
+    padding-left: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: transform .15s ease, background .15s ease;
 }
 
-.kiosk-navLogs:hover {
-  transform: translateY(-1px);
-  background: linear-gradient(
-    90deg,
-    rgba(26,115,232,.18),
-    rgba(17,181,201,.18)
-  );
-}
+.kiosk-navLogs:hover { transform: translateY(-1px); background: linear-gradient(90deg, rgba(26,115,232,.18), rgba(17,181,201,.18)); }
 
-.kiosk-navLogs:disabled {
-  opacity: .55;
-  cursor: not-allowed;
-}
+.kiosk-navLogs:disabled { opacity: .55; cursor: not-allowed; }
 
 /* =========================================================
    DARK MODE — Access Pharma (NO layout changes)
    ========================================================= */
 
 [data-theme="dark"] {
-    /* Ink / text */
     --ap-ink: #e6ebf3;
     --ap-muted: rgba(230, 235, 243, 0.65);
-
-    /* Background layers */
-    --ap-bg-0: #0b1220;   /* page base */
-    --ap-bg-1: #0f172a;   /* depth gradient */
-
-    /* Surfaces / glass */
+    --ap-bg-0: #0b1220;
+    --ap-bg-1: #0f172a;
     --ap-surface: rgba(18, 26, 44, 0.72);
     --ap-surface-2: rgba(22, 32, 54, 0.88);
-
-    /* Lines & borders */
     --ap-line: rgba(160, 180, 220, 0.12);
     --ap-line-strong: rgba(160, 180, 220, 0.22);
-
-    /* Brand colors (slightly lifted for dark) */
     --ap-blue: #4c8dff;
     --ap-cyan: #36d1e3;
     --ap-teal: #32e0b0;
-
-    /* Status */
     --ap-danger: #ff6b77;
-
-    /* Shadows (deeper, more cinematic) */
-    --ap-shadow: 0 28px 90px rgba(0, 0, 0, 0.65);
-    --ap-shadow-2: 0 16px 44px rgba(0, 0, 0, 0.55);
+    --ap-shadow: 0 28px 90px rgba(0,0,0,0.65);
+    --ap-shadow-2: 0 16px 44px rgba(0,0,0,0.55);
 }
-
-/* =========================================================
-   Dark shell gradient (keeps exact visual structure)
-   ========================================================= */
 
 [data-theme="dark"] .kiosk-shell {
     background:
         radial-gradient(1200px 700px at 18% 12%, rgba(54, 209, 227, 0.18), transparent 55%),
         radial-gradient(900px 600px at 85% 18%, rgba(76, 141, 255, 0.22), transparent 60%),
-        linear-gradient(180deg, var(--ap-bg-0), var(--ap-bg-1));
+        linear-gradient(1)
 }
+
 
 /* =========================================================
    NEUTRAL DARK MODE — remove blue tint
@@ -1086,16 +1049,6 @@
   width: 100%;
 }
 
-.kiosk-navBtn {
-  width: 100% !important;         /* force full width */
-  display: flex;                   /* consistent layout */
-  align-items: center;
-  justify-content: space-between;  /* text left, emoji/icon right */
-  height: 64px;                    /* pick ONE height */
-  padding: 0 14px;
-  white-space: nowrap;             /* prevent wrapping */
-  border-radius: 0;                /* optional: keep clean blocks */
-}
 
 /* If you want the icon to always line up nicely */
 .kiosk-navBtn > *:last-child {
