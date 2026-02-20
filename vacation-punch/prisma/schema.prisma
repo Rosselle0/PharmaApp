@@ -59,6 +59,7 @@ model Employee {
   recurringRules  RecurringShiftRule[]
   VacationRequest VacationRequest[]
   KioskSession    KioskSession[]
+  AvailabilityRule AvailabilityRule[]
 
   @@index([companyId])
   @@index([companyId, department])
@@ -296,4 +297,20 @@ model KioskSession {
 
   @@index([employeeId])
   @@index([expiresAt])
+}
+model AvailabilityRule {
+  id        String   @id @default(uuid())
+  employeeId String
+  dayOfWeek Int      // 0=Sun ... 6=Sat
+  startHHMM String   // "09:00"
+  endHHMM   String   // "17:00"
+  note      String?
+  available Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, dayOfWeek])
+  @@index([employeeId])
 }

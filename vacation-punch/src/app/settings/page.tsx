@@ -172,14 +172,21 @@ export default function SettingsPage() {
     setAvailError(err);
     if (err) return;
 
+    const code = readEmployeeCodeFromUrlOrStorage();
+    if (!code) {
+      setAvailError("Code employé introuvable.");
+      return;
+    }
+
     const res = await fetch("/api/availability", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ week }),
+      body: JSON.stringify({ code, week }),
     });
 
+    const data = await res.json().catch(() => null);
+
     if (!res.ok) {
-      const data = await res.json().catch(() => null);
       setAvailError(data?.error ?? "Erreur lors de l’enregistrement.");
       return;
     }
@@ -187,12 +194,14 @@ export default function SettingsPage() {
     setIsAvailOpen(false);
   }
 
-
-  // Load draft if exists (optional)
   useEffect(() => {
     (async () => {
-      const res = await fetch("/api/availability");
-      if (!res.ok) return;
+      const code = readEmployeeCodeFromUrlOrStorage();
+      if (!code) return;
+
+      const res = await fetch(`/api/availability?code=${encodeURIComponent(code)}`, {
+        cache: "no-store",
+      });
       const data = await res.json().catch(() => null);
       if (data?.ok && Array.isArray(data.week) && data.week.length === 7) {
         setWeek(data.week);
@@ -276,7 +285,7 @@ export default function SettingsPage() {
       </footer>
 
       {/* =========================
-          AVAILABILITY MODAL (local only)
+          AVAILABILITY MODAL 
          ========================= */}
       {isAvailOpen && (
         <div className="modal-overlay" role="dialog" aria-modal="true">
@@ -352,9 +361,6 @@ export default function SettingsPage() {
                     </div>
                   );
                 })}
-              </div>
-              <div className="modal-footnote">
-                *Pour l’instant, c’est juste sauvegardé localement (pas encore envoyé au manager).
               </div>
             </div>
 
