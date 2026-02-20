@@ -9,13 +9,14 @@ datasource db {
 }
 
 model Company {
-  id              String           @id @default(uuid())
-  name            String           @unique
-  createdAt       DateTime         @default(now())
-  employees       Employee[]
-  taskAssignments TaskAssignment[]
-  taskTemplates   TaskTemplate[]
-  users           User[]
+  id                  String               @id @default(uuid())
+  name                String               @unique
+  createdAt           DateTime             @default(now())
+  employees           Employee[]
+  taskAssignments     TaskAssignment[]
+  taskTemplates       TaskTemplate[]
+  users               User[]
+  shiftChangeRequests ShiftChangeRequest[]
 }
 
 model User {
@@ -53,13 +54,15 @@ model Employee {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  company         Company              @relation(fields: [companyId], references: [id])
-  shifts          Shift[]
-  TaskAssignment  TaskAssignment[]
-  recurringRules  RecurringShiftRule[]
-  VacationRequest VacationRequest[]
-  KioskSession    KioskSession[]
-  AvailabilityRule AvailabilityRule[]
+  company                     Company              @relation(fields: [companyId], references: [id])
+  shifts                      Shift[]
+  TaskAssignment              TaskAssignment[]
+  recurringRules              RecurringShiftRule[]
+  VacationRequest             VacationRequest[]
+  KioskSession                KioskSession[]
+  AvailabilityRule            AvailabilityRule[]
+  shiftChangeRequestsSent     ShiftChangeRequest[] @relation("ShiftChangeRequester")
+  shiftChangeRequestsReceived ShiftChangeRequest[] @relation("ShiftChangeCandidate")
 
   @@index([companyId])
   @@index([companyId, department])
@@ -76,8 +79,8 @@ model VacationRequest {
   startTime String?
   endTime   String?
 
-  status    VacationStatus @default(PENDING)
-  reason    String?
+  status VacationStatus @default(PENDING)
+  reason String?
 
   decidedAt       DateTime?
   decidedByUserId String?
@@ -280,13 +283,15 @@ model Shift {
   ruleId String?
   rule   RecurringShiftRule? @relation(fields: [ruleId], references: [id])
 
-  vacationRequestId String?
-  vacationRequest   VacationRequest? @relation(fields: [vacationRequestId], references: [id], onDelete: SetNull)
+  vacationRequestId   String?
+  vacationRequest     VacationRequest?     @relation(fields: [vacationRequestId], references: [id], onDelete: SetNull)
+  shiftChangeRequests ShiftChangeRequest[]
 
   @@index([employeeId, startTime])
   @@index([startTime, endTime])
   @@index([ruleId])
 }
+
 model KioskSession {
   id         String   @id @default(uuid())
   employeeId String
@@ -298,19 +303,53 @@ model KioskSession {
   @@index([employeeId])
   @@index([expiresAt])
 }
+
 model AvailabilityRule {
-  id        String   @id @default(uuid())
+  id         String   @id @default(uuid())
   employeeId String
-  dayOfWeek Int      // 0=Sun ... 6=Sat
-  startHHMM String   // "09:00"
-  endHHMM   String   // "17:00"
-  note      String?
-  available Boolean  @default(false)
-  updatedAt DateTime @updatedAt
-  createdAt DateTime @default(now())
+  dayOfWeek  Int // 0=Sun ... 6=Sat
+  startHHMM  String // "09:00"
+  endHHMM    String // "17:00"
+  note       String?
+  available  Boolean  @default(false)
+  updatedAt  DateTime @updatedAt
+  createdAt  DateTime @default(now())
 
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@unique([employeeId, dayOfWeek])
   @@index([employeeId])
+}
+
+enum ShiftChangeStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
+model ShiftChangeRequest {
+  id String @id @default(uuid())
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  shiftId String
+  shift   Shift  @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+
+  requesterEmployeeId String
+  requesterEmployee   Employee @relation("ShiftChangeRequester", fields: [requesterEmployeeId], references: [id])
+
+  candidateEmployeeId String
+  candidateEmployee   Employee @relation("ShiftChangeCandidate", fields: [candidateEmployeeId], references: [id])
+
+  status    ShiftChangeStatus @default(PENDING)
+  message   String?
+  createdAt DateTime          @default(now())
+  decidedAt DateTime?
+
+  @@unique([shiftId, candidateEmployeeId]) // prevent spam duplicates for same shift/person
+  @@index([companyId, createdAt])
+  @@index([candidateEmployeeId, status])
+  @@index([requesterEmployeeId, status])
 }
