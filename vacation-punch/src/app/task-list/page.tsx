@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState, Suspense } from "react";
 import "./task-list.css";
-import KioskSidebar from "@/components/KioskSidebar"; // adjust path if needed
+import KioskSidebar from "@/components/KioskSidebar";
 
 // ---------- Types ----------
 type Task = { id: string; text: string; done: boolean; required: boolean };
@@ -19,7 +18,7 @@ type Assignment = {
 
 const PIN_LEN = 8;
 
-// ---------- Helper functions ----------
+// ---------- Helpers ----------
 function readEmployeeCodeFromUrlOrStorage(): string | null {
   const params = new URLSearchParams(window.location.search);
   const urlCode = (params.get("code") ?? "").replace(/\D/g, "").slice(0, PIN_LEN);
@@ -79,10 +78,8 @@ function normalizeAssignments(payload: any): Assignment[] {
     .filter(Boolean) as Assignment[];
 }
 
-// ---------- Component ----------
+// ---------- Page Component ----------
 export default function TaskListPage() {
-  const router = useRouter();
-
   const [code, setCode] = useState<string | null>(null);
   const [dateYMD, setDateYMD] = useState<string>(() => {
     const d = new Date();
@@ -93,7 +90,7 @@ export default function TaskListPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [employeeName, setEmployeeName] = useState<string | null>(null);
 
-  // ---------- Load code & employee ----------
+  // Load code & employee name
   useEffect(() => {
     const c = readEmployeeCodeFromUrlOrStorage();
     setCode(c);
@@ -107,7 +104,7 @@ export default function TaskListPage() {
     }
   }, []);
 
-  // ---------- Load assignments ----------
+  // Load assignments
   useEffect(() => {
     if (!code) return;
     let cancelled = false;
@@ -117,18 +114,12 @@ export default function TaskListPage() {
       setMsg(null);
 
       try {
-        // ✅ non-null assertion for code
-        const res = await fetch(
-          `/api/tasks/my?code=${encodeURIComponent(code!)}&date=${encodeURIComponent(dateYMD)}`,
-          { cache: "no-store" }
-        );
-
+        const res = await fetch(`/api/tasks/my?code=${encodeURIComponent(code!)}&date=${encodeURIComponent(dateYMD)}`, { cache: "no-store" });
         const text = await res.text();
         let data: any = null;
-        try { data = text ? JSON.parse(text) : null; } catch {}
+        try { data = text ? JSON.parse(text) : null } catch {}
 
         if (!res.ok) throw new Error(data?.error || "Erreur de chargement.");
-
         const normalized = normalizeAssignments(data);
         if (!cancelled) setAssignments(normalized);
       } catch (e: any) {
@@ -151,47 +142,35 @@ export default function TaskListPage() {
   async function toggleTask(assignmentId: string, taskId: string, nextDone: boolean) {
     if (!code) return;
 
-    // Optimistic update
     setAssignments(prev =>
-      prev.map(a =>
-        a.id !== assignmentId
-          ? a
-          : { ...a, tasks: a.tasks.map(t => t.id === taskId ? { ...t, done: nextDone } : t) }
-      )
+      prev.map(a => a.id !== assignmentId ? a : { ...a, tasks: a.tasks.map(t => t.id === taskId ? { ...t, done: nextDone } : t) })
     );
 
     try {
-      const res = await fetch(
-        `/api/tasks/my/${encodeURIComponent(assignmentId)}/tasks/${encodeURIComponent(taskId)}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code, done: nextDone }),
-        }
-      );
-
+      const res = await fetch(`/api/tasks/my/${encodeURIComponent(assignmentId)}/tasks/${encodeURIComponent(taskId)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, done: nextDone }),
+      });
       const text = await res.text();
       let data: any = null;
-      try { data = text ? JSON.parse(text) : null; } catch {}
+      try { data = text ? JSON.parse(text) : null } catch {}
       if (!res.ok) throw new Error(data?.error || "Update failed");
     } catch (e: any) {
-      // revert on failure
       setAssignments(prev =>
-        prev.map(a =>
-          a.id !== assignmentId
-            ? a
-            : { ...a, tasks: a.tasks.map(t => t.id === taskId ? { ...t, done: !nextDone } : t) }
-        )
+        prev.map(a => a.id !== assignmentId ? a : { ...a, tasks: a.tasks.map(t => t.id === taskId ? { ...t, done: !nextDone } : t) })
       );
       setMsg(e?.message ?? "Erreur.");
       setTimeout(() => setMsg(null), 1600);
     }
   }
 
-  // ---------- Layout ----------
   return (
     <div className="kiosk-layout">
-      <KioskSidebar />
+      {/* Suspense wraps the sidebar */}
+      <Suspense fallback={<div>Loading menu…</div>}>
+        <KioskSidebar />
+      </Suspense>
 
       <main className="tlPage scheduleScope page" style={{ flex: 1 }}>
         <div className="tlContent">
@@ -205,7 +184,6 @@ export default function TaskListPage() {
                 }
               </p>
             </div>
-
             <div className="row">
               <input className="btn" type="date" value={dateYMD} onChange={e => setDateYMD(e.target.value)} />
             </div>
@@ -214,13 +192,9 @@ export default function TaskListPage() {
           {msg && <div className="empty">{msg}</div>}
 
           {loading ? (
-            <div className="section">
-              <div className="sectionTop">Chargement…</div>
-            </div>
+            <div className="section"><div className="sectionTop">Chargement…</div></div>
           ) : assignments.length === 0 ? (
-            <div className="section">
-              <div className="empty">Aucune tâche assignée pour cette date.</div>
-            </div>
+            <div className="section"><div className="empty">Aucune tâche assignée pour cette date.</div></div>
           ) : (
             assignments.map(a => (
               <section key={a.id} className="section">
@@ -234,11 +208,7 @@ export default function TaskListPage() {
 
                 <div className="tableWrap">
                   {a.tasks.map(t => (
-                    <button
-                      key={t.id}
-                      className={`kiosk-btn ${t.done ? "active" : ""}`}
-                      onClick={() => toggleTask(a.id, t.id, !t.done)}
-                    >
+                    <button key={t.id} className={`kiosk-btn ${t.done ? "active" : ""}`} onClick={() => toggleTask(a.id, t.id, !t.done)}>
                       <span>{t.done ? "✓" : ""}</span> {t.text} {t.required ? "(REQ)" : "(OPT)"}
                     </button>
                   ))}
