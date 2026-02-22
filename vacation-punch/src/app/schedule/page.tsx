@@ -4,6 +4,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
+import KioskSidebar from "@/components/KioskSidebar";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -123,36 +124,8 @@ export default async function SchedulePage({
 
   return (
   <div className="kiosk-layout">
-    {/* ================= LEFT SIDEBAR ================= */}
-    <aside className="kiosk-sidebar">
-      <div className="kiosk-navTop">
-        <Link href="/schedule" className="kiosk-btn active">
-          <span></span> Horaire 📅
-        </Link>
-
-        <Link href="/change" className="kiosk-btn">
-          <span></span> Changement 🔁
-        </Link>
-
-        <Link href="/task-list" className="kiosk-btn">
-          <span></span> Liste des tâches 📋
-        </Link>
-
-        <Link href="/vacation" className="kiosk-btn">
-            <span></span> Vacance / Congé 🌴
-        </Link>
-      </div>
-
-      <div className="kiosk-navBottom">
-        <Link href="/settings" className="kiosk-btn">
-          <span>⚙️</span> Paramètres
-        </Link>
-
-        <Link href="/logs" className="kiosk-btn">
-          <span>🔒</span> Logs
-        </Link>
-      </div>
-    </aside>
+      {/* ================= SIDEBAR ================= */}
+      <KioskSidebar />
 
     {/* ================= MAIN CONTENT ================= */}
     <main className="scheduleScope page" style={{ flex: 1 }}>
@@ -172,10 +145,6 @@ export default async function SchedulePage({
 
             <Link className="btn" href={`/schedule?week=${encodeURIComponent(nextWeek)}${codeQS}`}>
               Semaine suivante →
-            </Link>
-
-            <Link className="btn" href={retourHref}>
-              Retour
             </Link>
           </div>
         </div>

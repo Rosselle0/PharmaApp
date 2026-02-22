@@ -1,4 +1,7 @@
-:root {
+/* =========================================================
+   BASE VARIABLES (Scoped)
+   ========================================================= */
+.vacationScope {
   --ap-ink: #0a1020;
   --ap-muted: rgba(10, 16, 32, 0.62);
 
@@ -20,244 +23,278 @@
   --ap-danger-bg: rgba(180, 35, 24, 0.10);
 
   --ap-focus: rgba(26, 86, 219, 0.22);
+
+  --sidebar-bg: #ffffff;
+  --sidebar-border: #e5e7eb;
+
+  --sidebar-btn-bg: #f1f5f9;
+  --sidebar-btn-text: #1f2937;
+  --sidebar-btn-hover: #e2e8f0;
+
+  --sidebar-active-bg: linear-gradient(135deg, #3b82f6, #2563eb);
+  --sidebar-active-text: #ffffff;
 }
 
-.page {
+/* =========================================================
+   DARK MODE (GLOBAL TO MATCH SETTINGS PAGE)
+   ========================================================= */
+[data-theme="dark"] .vacationScope {
+  --ap-ink: #e6ebf3;
+  --ap-muted: rgba(230, 235, 243, 0.62);
+
+  /* Backgrounds (dark blue) */
+  --ap-bg-0: #0a1020;
+  --ap-bg-1: #141c2e;
+
+  /* Cards and borders (near black for contrast) */
+  --ap-card: rgba(16, 18, 22, 0.92);
+  --ap-border: rgba(255, 255, 255, 0.15);
+
+  /* Primary / Danger */
+  --ap-primary: #93c5fd;
+  --ap-primary-bg: rgba(37, 99, 235, 0.15);
+
+  --ap-danger: #fca5a5;
+  --ap-danger-bg: rgba(248, 113, 113, 0.15);
+
+  --ap-focus: rgba(37, 99, 235, 0.25);
+
+  /* Sidebar (match dark blue background) */
+  --sidebar-bg: #0a1020;                     /* same as --ap-bg-0 */
+  --sidebar-border: rgba(255, 255, 255, 0.06);
+
+  --sidebar-btn-bg: rgba(255, 255, 255, 0.05);
+  --sidebar-btn-text: #e6ebf3;
+  --sidebar-btn-hover: rgba(255, 255, 255, 0.1);
+
+  --sidebar-active-bg: linear-gradient(135deg, #2563eb, #1d4ed8); /* keep blue gradient for active */
+  --sidebar-active-text: #ffffff;
+}
+
+[data-theme="dark"] .vacationScope input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.2); /* makes icon white */
+}
+
+[data-theme="dark"] .vacationScope input[type="date"]::-moz-calendar-picker-indicator {
+  filter: invert(1) brightness(1.2);
+}
+
+/* =========================================================
+   BASE LAYOUT
+   ========================================================= */
+.vacationScope * { box-sizing: border-box; margin: 0; padding: 0; }
+
+.vacationScope body,
+.vacationScope html,
+.vacationScope #__next {
+  height: 100%;
+  width: 100%;
+  font-family: "Inter", sans-serif;
+}
+
+.vacationScope .kiosk-layout {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+}
+
+.vacationScope .kiosk-content {
+  flex: 1;
   padding: 28px;
-  background: radial-gradient(1200px 600px at 20% 0%, var(--ap-bg-1), var(--ap-bg-0));
+  background: radial-gradient(
+    1200px 600px at 20% 0%,
+    var(--ap-bg-1),
+    var(--ap-bg-0)
+  );
   min-height: 100vh;
   color: var(--ap-ink);
 }
 
-.shell {
+.vacationScope .shell {
   max-width: 1120px;
   margin: 0 auto;
   display: grid;
   gap: 16px;
 }
 
-.head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 6px 2px;
+.vacationScope .h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--ap-ink);
+  margin-bottom: 12px;
 }
 
-.h1 { font-size: 28px; letter-spacing: -0.02em; margin: 0; }
-.p  { margin: 8px 0 0; color: var(--ap-muted); line-height: 1.35; }
+/* ================= PAGE BACKGROUND ================= */
+.vacationScope.page,
+.vacationScope .kiosk-content {
+  /* Light mode background: match scheduleScope.page */
+  background: linear-gradient(135deg, #dbe6ee, #cfdbe5);
+  color: #1f2937;
+}
 
-.card {
+/* Dark mode background: match schedule dark mode */
+[data-theme="dark"] .vacationScope.page,
+[data-theme="dark"] .vacationScope .kiosk-content {
+  background:
+    radial-gradient(1200px 700px at 18% 12%, rgba(54, 209, 227, 0.12), transparent 55%),
+    radial-gradient(900px 600px at 85% 18%, rgba(76, 141, 255, 0.16), transparent 60%),
+    linear-gradient(180deg, #0b1220, #0f172a);
+  color: #e6ebf3;
+}
+
+/* =========================================================
+   SIDEBAR
+   ========================================================= */
+.vacationScope .kiosk-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: 260px;
+  padding: 24px 18px;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--sidebar-border);
+  z-index: 100;
+}
+
+.vacationScope .kiosk-navTop,
+.vacationScope .kiosk-navBottom {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.vacationScope .kiosk-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: var(--sidebar-btn-bg);
+  color: var(--sidebar-btn-text);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 15px;
+  transition: all 0.2s ease;
+}
+
+.vacationScope .kiosk-btn:hover {
+  background: var(--sidebar-btn-hover);
+  transform: translateY(-1px);
+}
+
+.vacationScope .kiosk-btn.active {
+  background: var(--sidebar-active-bg);
+  color: var(--sidebar-active-text);
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.35);
+}
+
+/* =========================================================
+   BUTTONS & CARDS
+   ========================================================= */
+.vacationScope .btn {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--ap-card);
+  border: 1px solid var(--ap-border);
+  color: var(--ap-ink);
+  cursor: pointer;
+  min-width: 118px;
+  text-align: center;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.vacationScope .btn.primary {
+  background: var(--ap-primary-bg);
+  color: var(--ap-primary);
+}
+
+.vacationScope .btn.danger {
+  background: var(--ap-danger-bg);
+  color: var(--ap-danger);
+}
+
+.vacationScope .card {
   background: var(--ap-card);
   border: 1px solid var(--ap-border);
   border-radius: var(--ap-radius);
   padding: 16px;
   box-shadow: var(--ap-shadow-sm);
-  backdrop-filter: blur(10px);
 }
 
-.h2 { margin: 0 0 12px; font-size: 16px; letter-spacing: -0.01em; }
-.muted { color: var(--ap-muted); }
+/* =========================================================
+   FORM
+   ========================================================= */
+.vacationScope .form { display: grid; gap: 12px; }
 
-.btn {
-  padding: 10px 12px;
-  border: 1px solid rgba(10, 16, 32, 0.14);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.65);
-  color: var(--ap-ink);
-  cursor: pointer;
-  min-width: 118px;
-  text-align: center;
-  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
-  box-shadow: 0 1px 0 rgba(10, 16, 32, 0.04);
-}
-
-.btn:hover {
-  background: rgba(255, 255, 255, 0.9);
-  border-color: rgba(10, 16, 32, 0.22);
-  box-shadow: 0 10px 20px rgba(10, 16, 32, 0.08);
-  transform: translateY(-1px);
-}
-
-.btn.primary {
-  border-color: rgba(26, 86, 219, 0.35);
-  background: var(--ap-primary-bg);
-  color: var(--ap-primary);
-  font-weight: 650;
-}
-
-.btn.danger {
-  border-color: rgba(180, 35, 24, 0.30);
-  background: var(--ap-danger-bg);
-  color: var(--ap-danger);
-  font-weight: 650;
-}
-
-/* Forms */
-.form {
+.vacationScope .formRowx {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr 1fr;
   gap: 12px;
-  align-items: end;
-}
-.form.one { grid-template-columns: 1fr auto; }
-
-.label {
-  display: grid;
-  gap: 6px;
-  font-size: 13px;
-  color: rgba(10, 16, 32, 0.78);
 }
 
-.input {
+@media (max-width: 600px) {
+  .vacationScope .formRowx { grid-template-columns: 1fr; }
+}
+
+.vacationScope .label { display: grid; gap: 6px; font-size: 13px; }
+
+.vacationScope .input {
   padding: 11px 12px;
-  border: 1px solid rgba(10, 16, 32, 0.14);
+  border: 1px solid var(--ap-border);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.75);
+  background: var(--ap-card);
+  color: var(--ap-ink);
   outline: none;
-  transition: box-shadow 120ms ease, border-color 120ms ease, background 120ms ease;
+  transition: all 0.2s ease;
 }
 
-.input:focus {
-  border-color: rgba(26, 86, 219, 0.35);
+.vacationScope .input:focus {
+  border-color: var(--ap-focus);
   box-shadow: 0 0 0 4px var(--ap-focus);
-  background: rgba(255, 255, 255, 0.95);
 }
 
-/* Table */
-.tableWrap {
+/* =========================================================
+   TABLE
+   ========================================================= */
+.vacationScope .tableWrap {
   border: 1px solid var(--ap-border);
   border-radius: var(--ap-radius-sm);
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.7);
+  background: var(--ap-card);
 }
 
-.table {
+.vacationScope .table {
   width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
+  border-collapse: collapse;
+  table-layout: fixed;
 }
 
-.table thead th {
-  background: rgba(246, 251, 255, 0.95);
-  color: rgba(10, 16, 32, 0.75);
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  padding: 12px 12px;
-  border-bottom: 1px solid rgba(10, 16, 32, 0.10);
+.vacationScope .table th,
+.vacationScope .table td {
+  padding: 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--ap-border);
+  color: var(--ap-ink);
 }
 
-.table td {
-  padding: 12px 12px;
-  border-top: 1px solid rgba(10, 16, 32, 0.08);
-  vertical-align: top;
-}
-
-.table tbody tr:hover td {
-  background: rgba(26, 86, 219, 0.05);
-}
-
-/* Status badges */
-.badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
+/* =========================================================
+   BADGES
+   ========================================================= */
+.vacationScope .badge {
+  padding: 8px 14px;
   border-radius: 999px;
   font-size: 12px;
-  border: 1px solid rgba(10, 16, 32, 0.14);
-  background: rgba(255, 255, 255, 0.65);
-  color: rgba(10, 16, 32, 0.75);
-}
-.badge.pending { border-color: rgba(245, 158, 11, 0.25); background: rgba(245, 158, 11, 0.12); color: #b45309; }
-.badge.approved { border-color: rgba(26, 86, 219, 0.28); background: rgba(26, 86, 219, 0.10); color: #1a56db; }
-.badge.rejected { border-color: rgba(180, 35, 24, 0.22); background: rgba(180, 35, 24, 0.10); color: #b42318; }
-.badge.cancelled { border-color: rgba(10, 16, 32, 0.16); background: rgba(10, 16, 32, 0.06); color: rgba(10, 16, 32, 0.70); }
-
-.empty {
-  padding: 14px;
-  border: 1px dashed rgba(10, 16, 32, 0.18);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.55);
-  color: var(--ap-muted);
+  border: 1px solid var(--ap-border);
+  background: var(--ap-card);
+  color: var(--ap-ink);
 }
 
-/* Partial day block */
-.formRow {
-  grid-column: 1 / -1;
-  display: grid;
-  gap: 8px;
-}
-
-.hint {
-  font-size: 13px;
-  color: rgba(10, 16, 32, 0.7);
-}
-
-.timeGrid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.timeGrid.disabled {
-  opacity: 0.55;
-  pointer-events: none;
-}
-
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
 @media (max-width: 860px) {
-  .page { padding: 18px; }
-  .head { align-items: flex-start; flex-direction: column; }
-  .btn { min-width: 140px; }
-  .form { grid-template-columns: 1fr; }
-  .form.one { grid-template-columns: 1fr; }
-  .tableWrap { overflow-x: auto; }
-  .table { min-width: 760px; }
-  .timeGrid { grid-template-columns: 1fr; }
-}
-/* ===== Fix date/time readability ===== */
-.input {
-  color: var(--ap-ink);                 /* actual typed value */
-  caret-color: var(--ap-ink);
-}
-
-/* placeholder text (e.g., "Voyage, rendez-vous..." AND date "mm") */
-.input::placeholder {
-  color: rgba(10, 16, 32, 0.55);
-  opacity: 1; /* Firefox */
-}
-
-/* Make native date/time parts darker in Chromium/WebKit */
-.input[type="date"],
-.input[type="time"] {
-  color: var(--ap-ink);
-  -webkit-text-fill-color: var(--ap-ink); /* fixes washed out text */
-}
-
-/* Specifically target the internal editable parts for date/time */
-.input[type="date"]::-webkit-datetime-edit,
-.input[type="date"]::-webkit-datetime-edit-text,
-.input[type="date"]::-webkit-datetime-edit-month-field,
-.input[type="date"]::-webkit-datetime-edit-day-field,
-.input[type="date"]::-webkit-datetime-edit-year-field,
-.input[type="time"]::-webkit-datetime-edit,
-.input[type="time"]::-webkit-datetime-edit-text,
-.input[type="time"]::-webkit-datetime-edit-hour-field,
-.input[type="time"]::-webkit-datetime-edit-minute-field,
-.input[type="time"]::-webkit-datetime-edit-ampm-field {
-  color: var(--ap-ink);
-  -webkit-text-fill-color: var(--ap-ink);
-}
-
-/* Calendar/clock icon: optional but helps visibility */
-.input[type="date"]::-webkit-calendar-picker-indicator,
-.input[type="time"]::-webkit-calendar-picker-indicator {
-  opacity: 0.85;
-}
-
-/* Autofill sometimes makes text weird */
-.input:-webkit-autofill {
-  -webkit-text-fill-color: var(--ap-ink);
-  transition: background-color 9999s ease-out 0s;
+  .vacationScope .kiosk-content { padding: 18px; }
+  .vacationScope .tableWrap { overflow-x: auto; }
 }

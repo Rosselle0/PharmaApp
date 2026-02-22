@@ -21,6 +21,7 @@ export default function VacationFormClient({ employeeCode, employeeName }: Props
       <form className="form" action={createVacationRequest}>
         <input type="hidden" name="employeeCode" value={employeeCode} />
 
+        <div className="formRowx">
         <label className="label">
           Début
           <input
@@ -52,6 +53,7 @@ export default function VacationFormClient({ employeeCode, employeeName }: Props
             onChange={(e) => setEnd(e.target.value)}
           />
         </label>
+        </div>
 
         <label className="label">
           Raison (optionnel)

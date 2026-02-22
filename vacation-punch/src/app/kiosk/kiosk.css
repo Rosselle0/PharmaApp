@@ -261,7 +261,9 @@
   color: rgba(10, 16, 32, .55);
   transform: translateY(-1px);
 }
-
+[data-theme="dark"] .pinStar {
+    color: #ffffff !important;
+}
 .pinHint {
   height: 18px;
   font-size: 13px;
@@ -460,6 +462,10 @@
     color: rgba(10, 16, 32, .80);
 }
 
+[data-theme="dark"] .kiosk-actifsTitle {
+    color: #ffffff !important;
+}
+
 .kiosk-table {
     border-radius: 14px;
     overflow: hidden;
@@ -498,6 +504,10 @@
     text-align: center;
     border-bottom: 1px solid var(--ap-line);
     color: rgba(10, 16, 32, .66);
+}
+
+[data-theme="dark"] .kiosk-emptyNote {
+    color: #ffffff !important;
 }
 
 .kiosk-statusCell {
@@ -1061,3 +1071,4 @@
 .kiosk-navBtn:active {
   transform: none; /* remove translateX that makes it feel uneven */
 }
+

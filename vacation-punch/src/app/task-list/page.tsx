@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import "./task-list.css";
+import KioskSidebar from "@/components/KioskSidebar"; // adjust path if needed
 
+// ---------- Types ----------
 type Task = { id: string; text: string; done: boolean; required: boolean };
-
 type Assignment = {
   id: string;
   dateYMD?: string;
@@ -13,11 +14,12 @@ type Assignment = {
   endHHMM?: string | null;
   title: string;
   notes?: string | null;
-  tasks: Task[]; // normalized
+  tasks: Task[];
 };
 
 const PIN_LEN = 8;
 
+// ---------- Helper functions ----------
 function readEmployeeCodeFromUrlOrStorage(): string | null {
   const params = new URLSearchParams(window.location.search);
   const urlCode = (params.get("code") ?? "").replace(/\D/g, "").slice(0, PIN_LEN);
@@ -46,18 +48,9 @@ function normTask(raw: any): Task | null {
   };
 }
 
-// Accept BOTH shapes:
-// - API returns assignments[].tasks  (old UI shape)
-// - API returns assignments[].items  (Prisma TaskAssignmentItem[])
-
 function normalizeAssignments(payload: any): Assignment[] {
   const rawAssignments =
-    payload?.assignments ??
-    payload?.data?.assignments ??
-    payload?.rows ??
-    payload?.data ??
-    payload ??
-    [];
+    payload?.assignments ?? payload?.data?.assignments ?? payload?.rows ?? payload?.data ?? payload ?? [];
 
   return safeArray<any>(rawAssignments)
     .map((a) => {
@@ -66,15 +59,12 @@ function normalizeAssignments(payload: any): Assignment[] {
 
       const title = String(a?.title ?? a?.name ?? "Tâches");
       const dateYMD = a?.dateYMD ?? a?.date ?? a?.ymd ?? null;
-
       const startHHMM = a?.startHHMM ?? a?.start ?? null;
       const endHHMM = a?.endHHMM ?? a?.end ?? null;
-
       const notes = a?.notes ?? a?.note ?? a?.message ?? null;
 
-      // key line: accept either "tasks" or "items"
       const rawTasks = a?.tasks ?? a?.items ?? a?.taskItems ?? a?.assignmentItems ?? [];
-      const tasks = safeArray<any>(rawTasks).map(normTask).filter(Boolean) as Task[];
+      const tasks: Task[] = safeArray<any>(rawTasks).map(normTask).filter(Boolean) as Task[];
 
       return {
         id: String(id),
@@ -89,24 +79,21 @@ function normalizeAssignments(payload: any): Assignment[] {
     .filter(Boolean) as Assignment[];
 }
 
+// ---------- Component ----------
 export default function TaskListPage() {
   const router = useRouter();
 
   const [code, setCode] = useState<string | null>(null);
   const [dateYMD, setDateYMD] = useState<string>(() => {
     const d = new Date();
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${y}-${m}-${day}`;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   });
-
   const [loading, setLoading] = useState(true);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
-
   const [employeeName, setEmployeeName] = useState<string | null>(null);
 
+  // ---------- Load code & employee ----------
   useEffect(() => {
     const c = readEmployeeCodeFromUrlOrStorage();
     setCode(c);
@@ -117,13 +104,12 @@ export default function TaskListPage() {
     if (!c) {
       setLoading(false);
       setMsg("Veuillez entrer votre code via le kiosk.");
-      return;
     }
   }, []);
 
+  // ---------- Load assignments ----------
   useEffect(() => {
     if (!code) return;
-
     let cancelled = false;
 
     async function load() {
@@ -131,6 +117,7 @@ export default function TaskListPage() {
       setMsg(null);
 
       try {
+        // ✅ non-null assertion for code
         const res = await fetch(
           `/api/tasks/my?code=${encodeURIComponent(code!)}&date=${encodeURIComponent(dateYMD)}`,
           { cache: "no-store" }
@@ -138,41 +125,25 @@ export default function TaskListPage() {
 
         const text = await res.text();
         let data: any = null;
-        try {
-          data = text ? JSON.parse(text) : null;
-        } catch {
-          // HTML or broken response
-          throw new Error(`Erreur de chargement. Réponse non-JSON: ${text.slice(0, 120)}`);
-        }
+        try { data = text ? JSON.parse(text) : null; } catch {}
 
         if (!res.ok) throw new Error(data?.error || "Erreur de chargement.");
 
         const normalized = normalizeAssignments(data);
         if (!cancelled) setAssignments(normalized);
       } catch (e: any) {
-        if (!cancelled) {
-          setAssignments([]);
-          setMsg(e?.message ?? "Erreur.");
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+        if (!cancelled) { setAssignments([]); setMsg(e?.message ?? "Erreur."); }
+      } finally { if (!cancelled) setLoading(false); }
     }
 
     load();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [code, dateYMD]);
 
   const totalDone = useMemo(() => {
-    let done = 0,
-      total = 0;
+    let done = 0, total = 0;
     for (const a of assignments) {
-      for (const t of safeArray<Task>(a.tasks)) {
-        total++;
-        if (t.done) done++;
-      }
+      for (const t of safeArray<Task>(a.tasks)) { total++; if (t.done) done++; }
     }
     return { done, total };
   }, [assignments]);
@@ -180,15 +151,12 @@ export default function TaskListPage() {
   async function toggleTask(assignmentId: string, taskId: string, nextDone: boolean) {
     if (!code) return;
 
-    // optimistic update
-    setAssignments((prev) =>
-      prev.map((a) =>
+    // Optimistic update
+    setAssignments(prev =>
+      prev.map(a =>
         a.id !== assignmentId
           ? a
-          : {
-            ...a,
-            tasks: safeArray<Task>(a.tasks).map((t) => (t.id === taskId ? { ...t, done: nextDone } : t)),
-          }
+          : { ...a, tasks: a.tasks.map(t => t.id === taskId ? { ...t, done: nextDone } : t) }
       )
     );
 
@@ -204,23 +172,15 @@ export default function TaskListPage() {
 
       const text = await res.text();
       let data: any = null;
-      try {
-        data = text ? JSON.parse(text) : null;
-      } catch {
-        throw new Error(`Update failed (non-JSON): ${text.slice(0, 120)}`);
-      }
-
+      try { data = text ? JSON.parse(text) : null; } catch {}
       if (!res.ok) throw new Error(data?.error || "Update failed");
     } catch (e: any) {
       // revert on failure
-      setAssignments((prev) =>
-        prev.map((a) =>
+      setAssignments(prev =>
+        prev.map(a =>
           a.id !== assignmentId
             ? a
-            : {
-              ...a,
-              tasks: safeArray<Task>(a.tasks).map((t) => (t.id === taskId ? { ...t, done: !nextDone } : t)),
-            }
+            : { ...a, tasks: a.tasks.map(t => t.id === taskId ? { ...t, done: !nextDone } : t) }
         )
       );
       setMsg(e?.message ?? "Erreur.");
@@ -228,87 +188,68 @@ export default function TaskListPage() {
     }
   }
 
+  // ---------- Layout ----------
   return (
-    <main className="tlPage">
-      <div className="tlShell">
-        <div className="tlTop">
-          <div>
-            <h1 className="tlH1">Task list</h1>
-            <p className="tlP">
-              {employeeName ? (
-                <>
-                  Merci <b>{employeeName}</b> — Progression: <b>{totalDone.done}/{totalDone.total}</b>
-                </>
-              ) : (
-                <>Non connecté</>
-              )}
-            </p>
+    <div className="kiosk-layout">
+      <KioskSidebar />
+
+      <main className="tlPage scheduleScope page" style={{ flex: 1 }}>
+        <div className="tlContent">
+          <div className="head">
+            <div>
+              <h1 className="h1">Liste des tâches</h1>
+              <p className="p">
+                {employeeName
+                  ? <>Merci <b>{employeeName}</b> — Progression: <b>{totalDone.done}/{totalDone.total}</b></>
+                  : <>Non connecté</>
+                }
+              </p>
+            </div>
+
+            <div className="row">
+              <input className="btn" type="date" value={dateYMD} onChange={e => setDateYMD(e.target.value)} />
+            </div>
           </div>
 
-          <div className="tlActions">
-            <button
-              className="tlBtn"
-              type="button"
-              onClick={() => router.push(code ? `/kiosk?code=${encodeURIComponent(code)}` : "/kiosk")}
-            >
-              ← Retour
-            </button>
-            <input className="tlDate" type="date" value={dateYMD} onChange={(e) => setDateYMD(e.target.value)} />
-          </div>
-        </div>
+          {msg && <div className="empty">{msg}</div>}
 
-        {msg && <div className="tlMsg">{msg}</div>}
-
-        {loading ? (
-          <div className="tlCard">
-            <div className="tlCardBody">Chargement…</div>
-          </div>
-        ) : assignments.length === 0 ? (
-          <div className="tlCard">
-            <div className="tlCardBody tlEmpty">Aucune tâche assignée pour cette date.</div>
-          </div>
-        ) : (
-          <div className="tlGrid">
-            {assignments.map((a) => (
-              <section key={a.id} className="tlCard">
-                <div className="tlCardHead">
-                  <div>
-                    <div className="tlTitle">{a.title}</div>
-                    <div className="tlMeta">
-                      {a.dateYMD ?? dateYMD}
-                      {a.startHHMM && a.endHHMM ? ` • ${a.startHHMM}–${a.endHHMM}` : ""}
-                    </div>
+          {loading ? (
+            <div className="section">
+              <div className="sectionTop">Chargement…</div>
+            </div>
+          ) : assignments.length === 0 ? (
+            <div className="section">
+              <div className="empty">Aucune tâche assignée pour cette date.</div>
+            </div>
+          ) : (
+            assignments.map(a => (
+              <section key={a.id} className="section">
+                <div className="sectionTop">
+                  <h2 className="sectionTitle">{a.title}</h2>
+                  <div className="meta">
+                    {a.dateYMD ?? dateYMD}
+                    {a.startHHMM && a.endHHMM ? ` • ${a.startHHMM}–${a.endHHMM}` : ""}
                   </div>
                 </div>
 
-                <div className="tlCardBody">
-                  <div className="tlTasks">
-                    {safeArray<Task>(a.tasks).map((t) => (
-                      <button
-                        key={t.id}
-                        type="button"
-                        className={`tlTask ${t.done ? "done" : ""}`}
-                        onClick={() => toggleTask(a.id, t.id, !t.done)}
-                      >
-                        <span className="tlCheck">{t.done ? "✓" : ""}</span>
-                        <span className="tlText">{t.text}</span>
-                        {t.required ? <span className="tlReq">REQ</span> : <span className="tlOpt">OPT</span>}
-                      </button>
-                    ))}
-                  </div>
+                <div className="tableWrap">
+                  {a.tasks.map(t => (
+                    <button
+                      key={t.id}
+                      className={`kiosk-btn ${t.done ? "active" : ""}`}
+                      onClick={() => toggleTask(a.id, t.id, !t.done)}
+                    >
+                      <span>{t.done ? "✓" : ""}</span> {t.text} {t.required ? "(REQ)" : "(OPT)"}
+                    </button>
+                  ))}
                 </div>
-                {a.notes?.trim() ? (
-                  <div className="tlNotes">
-                    <div className="tlNotesTitle">Notes</div>
-                    <div className="tlNotesText">{a.notes}</div>
-                  </div>
-                ) : null}
 
+                {a.notes?.trim() && <div className="empty"><b>Notes:</b> {a.notes}</div>}
               </section>
-            ))}
-          </div>
-        )}
-      </div>
-    </main>
+            ))
+          )}
+        </div>
+      </main>
+    </div>
   );
 }

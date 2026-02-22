@@ -1,183 +1,285 @@
-.tlPage{
-  min-height: 100vh;
-  background: #0b0b10;
-  color: #f3f3f7;
+/* =========================================================
+   TASK LIST PAGE + SIDEBAR
+   ========================================================= */
+
+/* ===== THEME VARIABLES (LIGHT MODE DEFAULT) ===== */
+:root {
+  --sidebar-bg: #ffffff;
+  --sidebar-border: #e5e7eb;
+
+  --sidebar-btn-bg: #f1f5f9;
+  --sidebar-btn-text: #1f2937;
+  --sidebar-btn-hover: #e2e8f0;
+
+  --sidebar-active-bg: linear-gradient(135deg, #3b82f6, #2563eb);
+  --sidebar-active-text: #ffffff;
+
+  --page-bg: #f4f5f7;
+  --page-text: #0f172a;        /* darker text for better readability */
+  --card-bg: rgba(255,255,255,0.95); /* slightly more opaque */
+  --card-border: #cbd5e1;
+  --card-shadow: 0 6px 15px rgba(0,0,0,0.05);  /* soft shadow */
+
+  --btn-bg: #f9fafb;
+  --btn-border: #94a3b8;       /* darker border */
+  --btn-text: #1e293b;         /* darker text */
+  --btn-hover: #e2e8f0;
+
+  --meta-text: #334155;        /* darker meta text */
+  --empty-text: #334155;       /* darker message text */
 }
 
-.tlShell{
-  max-width: 1100px;
-  margin: 0 auto;
+/* ===== DARK MODE OVERRIDE ===== */
+[data-theme="dark"] {
+  --sidebar-bg: #0b1220;
+  --sidebar-border: rgba(255,255,255,0.06);
+
+  --sidebar-btn-bg: rgba(255,255,255,0.05);
+  --sidebar-btn-text: #e6ebf3;
+  --sidebar-btn-hover: rgba(255,255,255,0.1);
+
+  --sidebar-active-bg: linear-gradient(135deg, #2563eb, #1d4ed8);
+  --sidebar-active-text: #ffffff;
+
+  --page-bg: 
+    radial-gradient(1200px 700px at 18% 12%, rgba(54, 209, 227, 0.12), transparent 55%),
+    radial-gradient(900px 600px at 85% 18%, rgba(76, 141, 255, 0.16), transparent 60%),
+    linear-gradient(180deg, #0b1220, #0f172a);
+  --page-text: #e6ebf3;
+
+  --card-bg: rgba(16, 18, 22, 0.95);
+  --card-border: rgba(255,255,255,0.15); /* subtle, visible in dark */
+  --card-shadow: 0 8px 20px rgba(0,0,0,0.3);
+
+  --btn-bg: rgba(26,28,32,0.95);
+  --btn-border: rgba(255,255,255,0.15);  /* better contrast */
+  --btn-text: #f5f5f5;
+  --btn-hover: rgba(40,44,50,0.97);
+
+  --meta-text: rgba(230,235,243,0.85);
+  --empty-text: rgba(255,255,255,0.6);
+}
+
+/* ===== LAYOUT ===== */
+.kiosk-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* Sidebar */
+.kiosk-sidebar {
+  width: 260px;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--sidebar-border);
+  padding: 24px 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: background 0.3s ease, border 0.3s ease;
+}
+
+.kiosk-navTop,
+.kiosk-navBottom {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.kiosk-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: var(--sidebar-btn-bg);
+  color: var(--sidebar-btn-text);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid var(--btn-border);
+}
+
+.kiosk-btn:hover {
+  background: var(--sidebar-btn-hover);
+  transform: translateY(-1px);
+}
+
+.kiosk-btn.active {
+  background: var(--sidebar-active-bg);
+  color: var(--sidebar-active-text);
+  box-shadow: 0 6px 15px rgba(37, 99, 235, 0.25);
+}
+
+.kiosk-btn span {
+  font-size: 18px;
+}
+
+/* Task List Page */
+.tlPage {
+  flex: 1;
+  min-height: 100vh;
+  background: var(--page-bg);
+  color: var(--page-text);
+  display: flex;
+  justify-content: center;
   padding: 26px 24px 60px;
 }
 
-.tlTop{
-  display:flex;
-  justify-content: space-between;
-  align-items:flex-start;
-  gap: 16px;
-  margin-bottom: 14px;
-}
-
-.tlH1{ margin: 0; font-size: 18px; font-weight: 900; letter-spacing: .2px; }
-.tlP{ margin: 6px 0 0; opacity: .75; font-size: 13px; line-height: 1.35; }
-
-.tlActions{
-  display:flex;
-  gap: 10px;
-  align-items:center;
-  flex-wrap: wrap;
-}
-
-.tlBtn{
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(255,255,255,0.06);
-  color: #fff;
-  padding: 10px 12px;
-  border-radius: 12px;
-  cursor: pointer;
-  font-weight: 900;
-}
-.tlBtn:hover{
-  background: rgba(255,255,255,0.10);
-  border-color: rgba(255,255,255,0.20);
-}
-
-.tlDate{
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(255,255,255,0.06);
-  color: rgba(255,255,255,0.92);
-  padding: 10px 12px;
-  border-radius: 12px;
-}
-
-.tlMsg{
-  margin-bottom: 12px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.06);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.tlGrid{
-  display:grid;
-  gap: 12px;
-}
-
-.tlCard{
-  border: 1px solid rgba(255,255,255,0.12);
-  background: radial-gradient(120% 120% at 50% 0%, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
-  border-radius: 18px;
-  overflow: hidden;
-  box-shadow: 0 30px 80px rgba(0,0,0,0.45);
-}
-
-.tlCardHead{
-  padding: 14px 16px;
-  border-bottom: 1px solid rgba(255,255,255,0.10);
-}
-
-.tlTitle{ font-size: 14px; font-weight: 900; letter-spacing: .3px; }
-.tlMeta{ opacity: .65; font-size: 12px; margin-top: 2px; }
-
-.tlCardBody{ padding: 14px 16px 16px; }
-.tlEmpty{ opacity: .7; font-size: 12px; }
-
-.tlTasks{
-  display:grid;
-  gap: 8px;
-}
-
-.tlTask{
+/* Light wrapper for content width */
+.tlContent {
   width: 100%;
-  display:grid;
-  grid-template-columns: 34px 1fr auto;
-  gap: 10px;
-  align-items:center;
-
-  padding: 12px 12px;
-  border-radius: 14px;
-
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(0,0,0,0.20);
-  color: rgba(255,255,255,0.92);
-  cursor: pointer;
-  text-align: left;
+  max-width: 1600px;
+  min-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.tlTask:hover{
-  background: rgba(255,255,255,0.06);
-  border-color: rgba(255,255,255,0.14);
+/* Header */
+.head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 20px;
 }
 
-.tlTask.done{
-  border-color: rgba(21,195,154,0.40);
-  background: rgba(21,195,154,0.10);
-}
-
-.tlCheck{
-  width: 26px;
-  height: 26px;
-  border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.14);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-weight: 900;
-}
-
-.tlTask.done .tlCheck{
-  border-color: rgba(21,195,154,0.50);
-}
-
-.tlText{
-  font-size: 13px;
+.h1 {
+  margin: 0;
+  font-size: 28px;
   font-weight: 800;
-  line-height: 1.25;
+  color: var(--page-text);
 }
 
-.tlReq, .tlOpt{
-  font-size: 11px;
-  font-weight: 900;
-  padding: 4px 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(120,190,255,0.30);
-  background: rgba(120,190,255,0.10);
-  letter-spacing: .3px;
-}
-
-.tlReq{
-  border-color: rgba(255,170,60,0.35);
-  background: rgba(255,170,60,0.10);
-}
-
-@media (max-width: 720px){
-  .tlTask{ grid-template-columns: 34px 1fr; }
-  .tlReq, .tlOpt{ justify-self: start; }
-}
-/* Notes block inside assignment card */
-.tlNotes {
-  margin-top: 14px;
-  padding: 14px 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.02);
-  border-radius: 0 0 16px 16px;
-}
-
-.tlNotesTitle {
-  font-size: 12px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  opacity: 0.75;
-  margin-bottom: 8px;
-}
-
-.tlNotesText {
+.p {
+  margin: 6px 0 0;
+  color: var(--meta-text);
   font-size: 14px;
-  line-height: 1.4;
-  white-space: pre-wrap;    /* keeps line breaks */
-  word-break: break-word;   /* prevents overflow */
-  opacity: 0.95;
 }
 
+/* Row (buttons + date picker) */
+.row {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.btn {
+  border: 1px solid var(--btn-border);
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  padding: 10px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 150ms ease;
+}
+
+.btn:hover {
+  background: var(--btn-hover);
+  transform: translateY(-1px);
+}
+
+/* Assignment Card */
+.section {
+  margin-top: 16px;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: var(--card-shadow);
+  transition: background 0.3s, color 0.3s, border 0.3s;
+}
+
+.sectionTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--page-text);
+}
+
+.meta {
+  font-size: 13px;
+  color: var(--meta-text);
+}
+
+/* Tasks inside card */
+.tableWrap {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 18px;
+  gap: 10px;
+}
+
+.kiosk-btn {
+  width: 100%;
+  text-align: left;
+  background: var(--sidebar-btn-bg);
+  color: var(--sidebar-btn-text);
+  font-weight: 600;
+}
+
+.kiosk-btn:hover {
+  background: var(--sidebar-btn-hover);
+}
+
+/* Empty / messages */
+.empty {
+  padding: 14px 16px;
+  color: var(--empty-text);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* Responsive */
+@media (max-width: 1050px) {
+  .tableWrap {
+    overflow: auto;
+  }
+}
+
+/* Style the date input button/text */
+.btn[type="date"] {
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  border: 1px solid var(--btn-border);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+/* Hover effect */
+.btn[type="date"]:hover {
+  background: var(--btn-hover);
+}
+
+/* Calendar icon in Webkit browsers (Chrome, Edge, Safari) */
+.btn[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0); /* default dark mode = icon normal */
+  cursor: pointer;
+  transition: filter 0.3s ease;
+}
+
+/* Dark mode override */
+[data-theme="dark"] .btn[type="date"] {
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  border: 1px solid var(--btn-border);
+}
+
+/* Invert the calendar icon in dark mode */
+[data-theme="dark"] .btn[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1); /* makes the icon white */
+}
