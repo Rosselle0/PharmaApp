@@ -14,7 +14,7 @@ type NavItem = {
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Horaire📅", href: "/schedule", requiresEmployeeCode: true },
-  { label: "Changement🔁", href: "/change", requiresEmployeeCode: true },
+  { label: "Changement🔁", href: "/changement", requiresEmployeeCode: true },
   { label: "Liste des tâches📋", href: "/task-list", requiresEmployeeCode: true },
   { label: "Vacance/Congé🌴", href: "/vacation", requiresEmployeeCode: true },
 
