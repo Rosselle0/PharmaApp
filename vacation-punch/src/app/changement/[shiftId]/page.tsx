@@ -1,6 +1,7 @@
 import "./../changement.css";
 import Link from "next/link";
 import { headers } from "next/headers";
+import CandidatesClient from "./CandidatesClient";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -48,6 +49,18 @@ async function getCandidates(shiftId: string, code?: string): Promise<ApiOk | Ap
   }
 }
 
+async function getSentForShift(shiftId: string, code?: string) {
+  const base = await getBaseUrl();
+  const url = new URL(`${base}/api/shift-change/requests`);
+  url.searchParams.set("scope", "sent");
+  url.searchParams.set("shiftId", shiftId);
+  if (code) url.searchParams.set("code", code);
+
+  const res = await fetch(url.toString(), { cache: "no-store" });
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data?.ok) return [];
+  return Array.isArray(data.sent) ? data.sent : [];
+}
 function fmt(dt: string) {
   return new Date(dt).toLocaleString("fr-CA", {
     weekday: "short",
@@ -74,6 +87,7 @@ export default async function ChangementShiftPage({
   const code = String(sp.code ?? "").trim();
 
   const data = await getCandidates(shiftId, code || undefined);
+  const sent = await getSentForShift(shiftId, code || undefined);
 
   const backHref = code ? `/changement?code=${encodeURIComponent(code)}` : "/changement";
   const dashHref = code ? `/kiosk?code=${encodeURIComponent(code)}` : "/kiosk";
@@ -139,23 +153,12 @@ export default async function ChangementShiftPage({
               </div>
             </div>
           ) : (
-            <div className="grid">
-              {data.eligible.map((c) => (
-                <div key={c.id} className="cardMini">
-                  <div className="cardMiniLeft">
-                    <div className="name">{c.name}</div>
-                    <div className="meta">
-                      {c.department} • {c.role}
-                      {c.availNote ? ` • ${c.availNote}` : ""}
-                    </div>
-                  </div>
-
-                  <button className="btn primary" type="button" disabled title="À brancher plus tard">
-                    Envoyer demande
-                  </button>
-                </div>
-              ))}
-            </div>
+            <CandidatesClient
+              shiftId={shiftId}
+              code={code || undefined}
+              eligible={data.eligible}
+              sent={sent}
+            />
           )}
         </section>
       </div>

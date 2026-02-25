@@ -125,3 +125,166 @@
   cursor: not-allowed;
   opacity: 0.7;
 }
+/* ---- polish tokens ---- */
+:root {
+  --bg: #f6fbff;
+  --ink: #0a1020;
+  --muted: rgba(10, 16, 32, 0.72);
+  --line: rgba(10, 16, 32, 0.10);
+  --line2: rgba(10, 16, 32, 0.14);
+
+  --card: rgba(255, 255, 255, 0.82);
+  --card2: rgba(255, 255, 255, 0.70);
+
+  --primary: #1760ff;
+  --primarySoft: rgba(23, 96, 255, 0.12);
+
+  --ok: #0bb37a;
+  --okSoft: rgba(11, 179, 122, 0.12);
+
+  --danger: #d63b5c;
+  --dangerSoft: rgba(214, 59, 92, 0.10);
+}
+
+/* ---- page background gets depth ---- */
+.page {
+  background:
+    radial-gradient(1200px 600px at 20% 0%, rgba(23, 96, 255, 0.10), transparent 60%),
+    radial-gradient(900px 500px at 85% 10%, rgba(11, 179, 122, 0.10), transparent 55%),
+    var(--bg);
+  color: var(--ink);
+}
+
+/* ---- nicer typography rhythm ---- */
+.h1 {
+  font-size: 30px;
+  letter-spacing: -0.03em;
+}
+
+.p {
+  color: var(--muted);
+}
+
+/* ---- cards feel premium ---- */
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow:
+    0 14px 34px rgba(10, 16, 32, 0.08),
+    0 1px 0 rgba(255, 255, 255, 0.6) inset;
+  backdrop-filter: blur(8px);
+}
+
+/* ---- rows / minis: better separation + hover ---- */
+.row,
+.cardMini {
+  border: 1px solid var(--line);
+  background: var(--card2);
+  border-radius: 16px;
+  transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+}
+
+.row:hover,
+.cardMini:hover {
+  border-color: var(--line2);
+  box-shadow: 0 10px 22px rgba(10, 16, 32, 0.06);
+  transform: translateY(-1px);
+}
+
+.name {
+  letter-spacing: -0.01em;
+}
+
+.meta,
+.muted {
+  color: var(--muted);
+}
+
+/* ---- count pill nicer ---- */
+.count {
+  background: rgba(10, 16, 32, 0.06);
+  border: 1px solid var(--line);
+}
+
+/* ---- buttons: crisp + focus ring + real primary ---- */
+.btn {
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.9);
+  transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease, border-color 120ms ease;
+}
+
+.btn:hover {
+  filter: brightness(0.99);
+  border-color: var(--line2);
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn.primary {
+  background: linear-gradient(180deg, rgba(23, 96, 255, 0.18), rgba(23, 96, 255, 0.10));
+  border-color: rgba(23, 96, 255, 0.35);
+}
+
+.btn.primary:hover {
+  border-color: rgba(23, 96, 255, 0.50);
+}
+
+.btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(23, 96, 255, 0.18);
+}
+
+/* ---- inputs clean ---- */
+input[type="text"],
+input:not([type]),
+textarea {
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+
+input[type="text"]:focus,
+input:not([type]):focus,
+textarea:focus {
+  outline: none;
+  border-color: rgba(23, 96, 255, 0.45);
+  box-shadow: 0 0 0 4px rgba(23, 96, 255, 0.14);
+}
+
+/* ---- checkbox better ---- */
+input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+}
+
+/* ---- toast fixed: readable ---- */
+.toastOk {
+  border-radius: 14px;
+  border: 1px solid rgba(11, 179, 122, 0.35);
+  background: var(--okSoft);
+  color: #064b35;
+  box-shadow: 0 12px 26px rgba(10, 16, 32, 0.06);
+}
+
+/* ---- optional: small badge for "Déjà demandé" etc ---- */
+.badge {
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(10, 16, 32, 0.04);
+  color: rgba(10, 16, 32, 0.78);
+  font-weight: 800;
+}
+
+.badge.warn {
+  border-color: rgba(214, 59, 92, 0.28);
+  background: var(--dangerSoft);
+  color: #7c0f24;
+}

@@ -1,6 +1,7 @@
 import "./changement.css";
 import Link from "next/link";
 import { headers } from "next/headers";
+import InboundRequestsClient from "./InBoundRequestClient";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,7 +24,16 @@ async function getBaseUrl() {
   if (!host) throw new Error("Missing host header");
   return `${proto}://${host}`;
 }
+async function getInbound(code?: string) {
+  const base = await getBaseUrl();
+  const url = new URL(`${base}/api/shift-change/requests`);
+  if (code) url.searchParams.set("code", code);
 
+  const res = await fetch(url.toString(), { cache: "no-store" });
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data?.ok) return { ok: false as const, inbound: [], error: data?.error ?? `Erreur (${res.status})` };
+  return { ok: true as const, inbound: Array.isArray(data.inbound) ? data.inbound : [], error: "" };
+}
 function safeArray<T>(v: any): T[] {
   return Array.isArray(v) ? v : [];
 }
@@ -144,7 +154,7 @@ export default async function ChangementIndexPage({
 
   // ✅ remove VAC only (case-insensitive)
   const realShifts = shifts.filter((s) => !s.note?.toUpperCase().includes("VAC"));
-
+  const inboundData = await getInbound(code || undefined);
   // group by day
   const grouped = new Map<string, ShiftRow[]>();
   for (const s of realShifts) {
@@ -169,7 +179,18 @@ export default async function ChangementIndexPage({
             Retour
           </Link>
         </header>
+        <section className="card" style={{ marginBottom: 16 }}>
+          <div className="listHead">
+            <h2 className="h2">Demandes reçues</h2>
+            <div className="count">{inboundData.ok ? inboundData.inbound.length : 0}</div>
+          </div>
 
+          {!inboundData.ok ? (
+            <div className="error">{inboundData.error}</div>
+          ) : (
+            <InboundRequestsClient initial={inboundData.inbound} code={code || undefined} />
+          )}
+        </section>
         {days.length === 0 ? (
           <section className="card">
             <div className="empty">Aucun quart à venir.</div>

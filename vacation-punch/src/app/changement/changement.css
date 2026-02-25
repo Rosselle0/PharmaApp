@@ -199,3 +199,11 @@
     justify-content: flex-start;
   }
 }
+.toastOk{
+  margin: 12px 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(0,255,180,.35);
+  background: rgba(0,255,180,.10);
+  color: #eafff7;
+}
