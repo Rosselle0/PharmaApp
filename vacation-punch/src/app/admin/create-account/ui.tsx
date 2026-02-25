@@ -28,7 +28,7 @@ export default function CreateAccountPage() {
     return (
       firstName.trim().length > 0 &&
       lastName.trim().length > 0 &&
-      employeeCode.trim().length >= 8 &&
+      employeeCode.trim().length >= 4 &&
       !loading
     );
   }, [firstName, lastName, employeeCode, loading]);
@@ -108,7 +108,7 @@ export default function CreateAccountPage() {
                 value={employeeCode}
                 onChange={(e) => setEmployeeCode(onlyDigits(e.target.value))}
                 inputMode="numeric"
-                placeholder="Ex: 79313179"
+                placeholder="Ex: 7931"
               />
               <div className="hint">Chiffres seulement. Utilisé votre code caisse</div>
             </div>

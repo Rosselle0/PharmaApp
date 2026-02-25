@@ -17,6 +17,7 @@ model Company {
   taskTemplates       TaskTemplate[]
   users               User[]
   shiftChangeRequests ShiftChangeRequest[]
+  kioskTerminals      KioskTerminal[]
 }
 
 model User {
@@ -29,7 +30,6 @@ model User {
   name             String?
   department       Department        @default(FLOOR)
   employeeNumber   Int?
-  punchEvents      PunchEvent[]
   timeOffs         TimeOff[]
   company          Company           @relation(fields: [companyId], references: [id])
   vacationRequests VacationRequest[]
@@ -56,6 +56,7 @@ model Employee {
 
   company                     Company              @relation(fields: [companyId], references: [id])
   shifts                      Shift[]
+  punchEvents                 PunchEvent[]
   TaskAssignment              TaskAssignment[]
   recurringRules              RecurringShiftRule[]
   VacationRequest             VacationRequest[]
@@ -112,17 +113,18 @@ model TimeOff {
 }
 
 model PunchEvent {
-  id        String      @id @default(uuid())
-  userId    String
-  shiftId   String?
-  type      PunchType
-  at        DateTime
-  source    PunchSource @default(MOBILE)
-  createdAt DateTime    @default(now())
-  shift     Shift?      @relation(fields: [shiftId], references: [id])
-  user      User        @relation(fields: [userId], references: [id])
+  id         String      @id @default(uuid())
+  employeeId String
+  type       PunchType
+  at         DateTime
+  source     PunchSource @default(MOBILE)
+  createdAt  DateTime    @default(now())
 
-  @@index([userId, at])
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  shiftId  String?
+  shift    Shift?   @relation(fields: [shiftId], references: [id])
+
+  @@index([employeeId, at])
   @@index([shiftId])
 }
 
@@ -227,10 +229,12 @@ enum ShiftStatus {
 }
 
 enum PunchType {
-  IN
-  OUT
+  CLOCK_IN
+  CLOCK_OUT
   BREAK_START
   BREAK_END
+  LUNCH_START
+  LUNCH_END
 }
 
 enum PunchSource {
@@ -275,14 +279,13 @@ model Shift {
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
-  employeeId  String
-  punchEvents PunchEvent[]
-  employee    Employee     @relation(fields: [employeeId], references: [id])
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id])
 
-  source ShiftSource         @default(MANUAL)
-  ruleId String?
-  rule   RecurringShiftRule? @relation(fields: [ruleId], references: [id])
-
+  source              ShiftSource          @default(MANUAL)
+  ruleId              String?
+  rule                RecurringShiftRule?  @relation(fields: [ruleId], references: [id])
+  punchEvents         PunchEvent[]
   vacationRequestId   String?
   vacationRequest     VacationRequest?     @relation(fields: [vacationRequestId], references: [id], onDelete: SetNull)
   shiftChangeRequests ShiftChangeRequest[]
@@ -352,4 +355,32 @@ model ShiftChangeRequest {
   @@index([companyId, createdAt])
   @@index([candidateEmployeeId, status])
   @@index([requesterEmployeeId, status])
+}
+
+model KioskTerminal {
+  id         String   @id @default(uuid())
+  companyId  String
+  name       String
+  secretHash String
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  sessions KioskTerminalSession[]
+
+  @@index([companyId])
+}
+
+model KioskTerminalSession {
+  id         String   @id @default(uuid())
+  terminalId String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  terminal KioskTerminal @relation(fields: [terminalId], references: [id], onDelete: Cascade)
+
+  @@index([terminalId])
+  @@index([expiresAt])
 }

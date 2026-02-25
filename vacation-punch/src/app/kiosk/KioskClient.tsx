@@ -25,9 +25,20 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Creation h", href: "/schedule/edit", adminOnly: true },
 ];
 
-type ActiveRow = { name: string; status: "GREEN" | "RED" | "GRAY"; time: string };
+type ApiActif = {
+  employeeId: string;
+  name: string;
+  state: "WORKING" | "BREAK" | "LUNCH" | "LEFT";
+  minutes: number;
+};
 
-const PIN_LEN = 8;
+type ActiveRow = {
+  name: string;
+  status: "GREEN" | "YELLOW" | "RED" | "GRAY";
+  time: string;
+};
+
+const PIN_LEN = 4;
 
 export default function KioskClient({
   isAdminLogged,
@@ -91,7 +102,105 @@ export default function KioskClient({
 
 
   // Actifs empty at start (keep as-is for now)
-  const actifs: ActiveRow[] = [];
+  const [actifs, setActifs] = useState<ActiveRow[]>([]);
+  const [actifsErr, setActifsErr] = useState<string | null>(null);
+
+  function mapStateToUi(state: string): ActiveRow["status"] {
+    const s = String(state || "").toUpperCase();
+
+    if (s === "WORKING" || s === "IN") return "GREEN";
+    if (s === "BREAK" || s === "ON_BREAK") return "YELLOW";
+    if (s === "LUNCH" || s === "ON_LUNCH") return "YELLOW";
+    if (s === "LEFT" || s === "OUT") return "RED";
+
+    return "GRAY";
+  }
+
+  function fmtMinutes(min: number) {
+    if (!Number.isFinite(min) || min < 0) return "0 min";
+    if (min < 60) return `${min} min`;
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    return `${h}h ${m}m`;
+  }
+
+  async function loadActifs() {
+    try {
+      setActifsErr(null);
+
+      // If you want to support employee mode with ?code=, grab it here.
+      const params = new URLSearchParams(window.location.search);
+      const urlCode = (params.get("code") ?? "").trim();
+
+      const url = urlCode
+        ? `/api/kiosk/actifs?code=${encodeURIComponent(urlCode)}`
+        : `/api/kiosk/actifs`;
+
+      const res = await fetch(url, { cache: "no-store" });
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || !data?.ok) {
+        setActifs([]);
+        setActifsErr(data?.error ?? `Erreur (${res.status})`);
+        return;
+      }
+
+      const apiRows: ApiActif[] = Array.isArray(data.actifs) ? data.actifs : [];
+
+      const uiRows: ActiveRow[] = apiRows.map((r) => ({
+        name: r.name,
+        status: mapStateToUi(r.state),
+        time: fmtMinutes(Number(r.minutes ?? 0)),
+      }));
+
+      setActifs(uiRows);
+    } catch (e: any) {
+      setActifs([]);
+      setActifsErr("Erreur réseau (actifs).");
+    }
+  }
+
+  async function punch(type: "CLOCK_IN" | "CLOCK_OUT" | "BREAK_START" | "BREAK_END" | "LUNCH_START" | "LUNCH_END") {
+    try {
+      const code = employeeCodeConfirmed || employeeCodeClean;
+
+      if (!code || code.length !== PIN_LEN) {
+        showToast("Code requis pour punch.");
+        return;
+      }
+
+      // IMPORTANT: adjust if your route isn't /api/punch
+      const url = new URL("/api/punch", window.location.origin);
+      url.searchParams.set("code", code);
+
+      // DEV BYPASS (home testing)
+      url.searchParams.set("dev", "1");
+
+      const res = await fetch(url.toString(), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ type }),
+      });
+
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) {
+        showToast(data?.error ?? `Erreur (${res.status})`);
+        return;
+      }
+
+      showToast(`✅ ${type}`);
+      loadActifs(); // refresh immediately
+    } catch {
+      showToast("Erreur réseau punch.");
+    }
+  }
+
+  // Poll every 5s
+  useEffect(() => {
+    loadActifs();
+    const t = window.setInterval(loadActifs, 5000);
+    return () => window.clearInterval(t);
+  }, []);
 
   function maskedPinBoxes(value: string) {
     const digits = value.slice(0, PIN_LEN);
@@ -280,6 +389,7 @@ export default function KioskClient({
 
       setBlockedCode(clean);
       setPinError(true);
+      loadActifs();
       window.setTimeout(() => setPinError(false), 900);
       return;
     }
@@ -329,6 +439,7 @@ export default function KioskClient({
 
     clearEmployeeSession();
     setKioskRole(null);
+    loadActifs();
 
     await fetch("/api/kiosk/logout", { method: "POST" }).catch(() => { });
   }
@@ -602,7 +713,36 @@ export default function KioskClient({
               </div>
             </>
           )}
+          {/* PUNCH PANEL (only when employee logged) */}
+          {employeeLogged && !isPrivilegedLogged && (
+            <div className="punchPanel">
+              <div className="punchTitle">Punch</div>
 
+              <div className="punchBtns">
+                <button className="punchBtn" type="button" onClick={() => punch("CLOCK_IN")}>
+                  IN
+                </button>
+
+                <button className="punchBtn" type="button" onClick={() => punch("BREAK_START")}>
+                  Break
+                </button>
+                <button className="punchBtn" type="button" onClick={() => punch("BREAK_END")}>
+                  Back
+                </button>
+
+                <button className="punchBtn" type="button" onClick={() => punch("LUNCH_START")}>
+                  Lunch
+                </button>
+                <button className="punchBtn" type="button" onClick={() => punch("LUNCH_END")}>
+                  Back
+                </button>
+
+                <button className="punchBtn danger" type="button" onClick={() => punch("CLOCK_OUT")}>
+                  OUT
+                </button>
+              </div>
+            </div>
+          )}
           {/* EMPLOYEE LOGOUT ACTIONS */}
           {employeeLogged && !isPrivilegedLogged && (
             <div className="kiosk-actions">
@@ -635,6 +775,11 @@ export default function KioskClient({
 
           <div className="kiosk-actifsCard">
             <div className="kiosk-actifsTitle">Actifs</div>
+            {actifsErr && (
+              <div style={{ marginTop: 8, color: "#f04438", fontWeight: 800 }}>
+                {actifsErr}
+              </div>
+            )}
 
             <div className="kiosk-table">
               <div className="kiosk-row kiosk-head">
@@ -675,6 +820,8 @@ export default function KioskClient({
               )}
             </div>
           </div>
+
+
         </aside>
       </div>
 
