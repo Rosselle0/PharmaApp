@@ -1,4 +1,3 @@
-import "./../changement.css";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireEmployeeFromKioskOrCode } from "@/lib/shiftChange/auth";
