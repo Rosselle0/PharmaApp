@@ -91,7 +91,7 @@
 }
 
 .kiosk-shell {
-    width: 100vw;
+    width: 100%;          /* Use 100% instead of 100vw */
     height: 100vh;
     margin: 0;
     font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
@@ -100,16 +100,16 @@
         radial-gradient(1200px 700px at 18% 12%, rgba(17, 181, 201, .18), transparent 55%),
         radial-gradient(900px 600px at 85% 18%, rgba(26, 115, 232, .18), transparent 60%),
         linear-gradient(180deg, var(--ap-bg-0), var(--ap-bg-1));
+    overflow-x: hidden;   /* prevent accidental horizontal scroll */
 }
 
 .kiosk-frame {
     width: 100%;
     height: 100%;
     display: grid;
-    grid-template-columns: 210px 1fr 340px;
+    grid-template-columns: 210px minmax(0, 1fr) 340px; /* prevents center from overflowing */
     gap: 14px;
-    padding: 14px;
-    border-radius: 0;
+    padding: 0; /* remove padding here */
 }
 
 
@@ -118,16 +118,14 @@
    ========================================================= */
 
 .kiosk-left {
-    background: var(--ap-surface);       /* main nav surface */
+    background: var(--card-light);      /* subtle card feel */
     border-radius: var(--r-lg);
     padding: 24px 18px;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
     gap: 12px;
-    box-shadow: var(--ap-shadow-2);
-    width: 210px;                          /* fixed width for consistency */
-    min-width: 210px;
+    box-shadow: var(--shadow);         /* soft shadow like settings page */
 }
 
 .kiosk-nav {
@@ -153,7 +151,7 @@
     background: linear-gradient(180deg, rgba(255,255,255,.35), rgba(255,255,255,0));
 }
 
-.kiosk-navBtn {
+.kiosk-btn {
     display: flex;
     align-items: center;
     justify-content: flex-start;
@@ -163,13 +161,27 @@
     padding: 0 18px;
     font-weight: 700;
     font-size: 16px;
-    border-radius: var(--r-lg);
+    border-radius: 8px;
     border: none;
     cursor: pointer;
-    background: var(--ap-surface-2);
+    background: rgba(26, 115, 232, 0.08);
     color: var(--ap-ink);
     box-shadow: 0 4px 14px rgba(0,0,0,0.06);
     transition: all 0.25s ease;
+}
+
+.kiosk-btn.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+  cursor: not-allowed;
+  background-color: #dbe9ff; 
+  color: #7a8aa2;         
+}
+
+.kiosk-btn.disabled span.lockBadge {
+  display: inline; 
+  margin-left: 4px;
+  font-size: 0.8em;
 }
 
 .kiosk-navBtn:hover:not(:disabled) {
@@ -200,12 +212,17 @@
     background: linear-gradient(180deg, rgba(255, 255, 255, .76), rgba(255, 255, 255, .46));
     border: 1px solid var(--ap-line);
     box-shadow: var(--ap-shadow);
-    padding: 28px 22px;
     display: grid;
     justify-items: center;
     align-content: start;
     gap: 18px;
     animation: floatIn .35s ease both;
+    padding: 28px 22px;
+    min-width: 0;
+    max-width: 1300px;
+    width: 100%;
+    
+    margin-left: 50px;
 }
 
 .kiosk-title { margin: 0; font-size: 34px; font-weight: 950; letter-spacing: .2px; }
@@ -1101,8 +1118,8 @@
   padding: 12px 10px;
   font-weight: 900;
   border: 1px solid rgba(255,255,255,.12);
-  background: rgba(255,255,255,.06);
-  color: rgba(255,255,255,.92);
+  background: rgba(26, 115, 232, 0.08);
+  color: var(--ap-ink); 
   cursor: pointer;
 }
 

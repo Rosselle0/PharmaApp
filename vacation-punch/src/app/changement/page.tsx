@@ -1,10 +1,9 @@
 import "./changement.css";
 import Link from "next/link";
+import KioskSidebar from "@/components/KioskSidebar"; // client component
+import InboundRequestsClient from "./InBoundRequestClient"; // client component
+import { Suspense } from "react";
 import { headers } from "next/headers";
-import InboundRequestsClient from "./InBoundRequestClient";
-
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 type ShiftRow = {
   id: string;
@@ -24,41 +23,19 @@ async function getBaseUrl() {
   if (!host) throw new Error("Missing host header");
   return `${proto}://${host}`;
 }
-async function getInbound(code?: string) {
-  const base = await getBaseUrl();
-  const url = new URL(`${base}/api/shift-change/requests`);
-  if (code) url.searchParams.set("code", code);
 
-  const res = await fetch(url.toString(), { cache: "no-store" });
-  const data = await res.json().catch(() => null);
-  if (!res.ok || !data?.ok) return { ok: false as const, inbound: [], error: data?.error ?? `Erreur (${res.status})` };
-  return { ok: true as const, inbound: Array.isArray(data.inbound) ? data.inbound : [], error: "" };
-}
 function safeArray<T>(v: any): T[] {
   return Array.isArray(v) ? v : [];
 }
 
-/** Accepts lots of shapes and returns ShiftRow[] no matter what */
 function normalizeShifts(payload: any): ShiftRow[] {
-  // common shapes:
-  // { ok:true, shifts:[...] }
-  // { ok:true, data:{ shifts:[...] } }
-  // { ok:true, rows:[...] }
-  // { shifts:[...] }
-  const raw =
-    payload?.shifts ??
-    payload?.data?.shifts ??
-    payload?.rows ??
-    payload?.data ??
-    [];
-
+  const raw = payload?.shifts ?? payload?.data?.shifts ?? payload?.rows ?? payload?.data ?? [];
   return safeArray<any>(raw)
     .map((s) => {
       const id = s?.id;
       const startTime = s?.startTime;
       const endTime = s?.endTime;
       if (!id || !startTime || !endTime) return null;
-
       return {
         id: String(id),
         startTime: String(startTime),
@@ -77,20 +54,23 @@ async function getMyShifts(code?: string): Promise<ApiOk | ApiErr> {
 
   const res = await fetch(url.toString(), { cache: "no-store" });
   const text = await res.text();
-
   let data: any = null;
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    return { ok: false, error: `Réponse non-JSON: ${text.slice(0, 120)}` };
-  }
+  try { data = text ? JSON.parse(text) : null; } catch { return { ok: false, error: `Réponse non-JSON: ${text.slice(0, 120)}` }; }
 
-  if (!res.ok || !data?.ok) {
-    return { ok: false, error: data?.error ?? `Erreur (${res.status})` };
-  }
-
+  if (!res.ok || !data?.ok) return { ok: false, error: data?.error ?? `Erreur (${res.status})` };
   const shifts = normalizeShifts(data);
   return { ok: true, shifts };
+}
+
+async function getInbound(code?: string) {
+  const base = await getBaseUrl();
+  const url = new URL(`${base}/api/shift-change/requests`);
+  if (code) url.searchParams.set("code", code);
+
+  const res = await fetch(url.toString(), { cache: "no-store" });
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data?.ok) return { ok: false as const, inbound: [], error: data?.error ?? `Erreur (${res.status})` };
+  return { ok: true as const, inbound: Array.isArray(data.inbound) ? data.inbound : [], error: "" };
 }
 
 function fmtDay(dt: string) {
@@ -111,51 +91,20 @@ function fmtTime(dt: string) {
 }
 
 function ymd(dt: string) {
-  // stable day key; good enough for now
   return new Date(dt).toISOString().slice(0, 10);
 }
 
 export default async function ChangementIndexPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ code?: string }> | { code?: string };
+  searchParams?: { code?: string };
 }) {
-  const sp = (searchParams instanceof Promise ? await searchParams : searchParams) ?? {};
-  const code = String(sp.code ?? "").trim();
-
+  const code = String(searchParams?.code ?? "").trim();
   const data = await getMyShifts(code || undefined);
-
+  const inboundData = await getInbound(code || undefined);
   const returnHref = code ? `/kiosk?code=${encodeURIComponent(code)}` : "/kiosk";
 
-  if (!data.ok) {
-    return (
-      <main className="page">
-        <div className="shell">
-          <header className="head">
-            <div>
-              <h1 className="h1">Changement de quart</h1>
-              <p className="p">Choisis un jour où tu travailles.</p>
-            </div>
-            <Link className="btn" href={returnHref}>
-              Retour
-            </Link>
-          </header>
-
-          <section className="card">
-            <div className="error">{data.error}</div>
-          </section>
-        </div>
-      </main>
-    );
-  }
-
-  // ✅ now always an array
-  const shifts = data.shifts;
-
-  // ✅ remove VAC only (case-insensitive)
-  const realShifts = shifts.filter((s) => !s.note?.toUpperCase().includes("VAC"));
-  const inboundData = await getInbound(code || undefined);
-  // group by day
+  const realShifts = data.ok ? data.shifts.filter((s) => !s.note?.toUpperCase().includes("VAC")) : [];
   const grouped = new Map<string, ShiftRow[]>();
   for (const s of realShifts) {
     const key = ymd(s.startTime);
@@ -163,74 +112,80 @@ export default async function ChangementIndexPage({
     arr.push(s);
     grouped.set(key, arr);
   }
-
   const days = Array.from(grouped.entries()).sort((a, b) => a[0].localeCompare(b[0]));
 
+  // ===== FIX: define these BEFORE using KioskSidebar =====
+  const employeeCode = code || null;
+  const employeeLogged = !!code;
+  const isPrivilegedLogged = false; // adjust logic if needed
+
   return (
-    <main className="page">
-      <div className="shell">
-        <header className="head">
-          <div>
-            <h1 className="h1">Changement de quart</h1>
-            <p className="p">Choisis un jour où tu travailles.</p>
-          </div>
+    <div className="kiosk-layout" style={{ display: "flex", minHeight: "100vh" }}>
+      <Suspense fallback={<div>Loading menu…</div>}>
+        <KioskSidebar
+          isPrivilegedLogged={isPrivilegedLogged}
+          employeeLogged={employeeLogged}
+          employeeCode={employeeCode}
+        />
+      </Suspense>
 
-          <Link className="btn" href={returnHref}>
-            Retour
-          </Link>
-        </header>
-        <section className="card" style={{ marginBottom: 16 }}>
-          <div className="listHead">
-            <h2 className="h2">Demandes reçues</h2>
-            <div className="count">{inboundData.ok ? inboundData.inbound.length : 0}</div>
-          </div>
-
-          {!inboundData.ok ? (
-            <div className="error">{inboundData.error}</div>
-          ) : (
-            <InboundRequestsClient initial={inboundData.inbound} code={code || undefined} />
-          )}
-        </section>
-        {days.length === 0 ? (
-          <section className="card">
-            <div className="empty">Aucun quart à venir.</div>
-          </section>
-        ) : (
-          <section className="card">
-            <div className="list">
-              {days.map(([dayKey, dayShifts]) => {
-                const sorted = [...dayShifts].sort((a, b) => a.startTime.localeCompare(b.startTime));
-                const first = sorted[0];
-
-                const href = code
-                  ? `/changement/${encodeURIComponent(first.id)}?code=${encodeURIComponent(code)}`
-                  : `/changement/${encodeURIComponent(first.id)}`;
-
-                return (
-                  <div key={dayKey} className="row">
-                    <div className="rowMain">
-                      <div className="rowTitle">{fmtDay(first.startTime)}</div>
-
-                      <div className="muted">
-                        {sorted.map((s) => (
-                          <div key={s.id}>
-                            {fmtTime(s.startTime)} — {fmtTime(s.endTime)}
-                            {s.note && !s.note.toUpperCase().includes("VAC") ? ` • ${s.note}` : ""}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <Link className="btn primary" href={href}>
-                      Voir candidats
-                    </Link>
-                  </div>
-                );
-              })}
+      <main className="tlPage" style={{ flex: 1, padding: "26px 24px 60px" }}>
+        <div className="tlContent">
+          <header className="head">
+            <div>
+              <h1 className="h1">Changement de quart</h1>
+              <p className="p">Choisis un jour où tu travailles.</p>
             </div>
+          </header>
+
+          {!data.ok && <section className="card"><div className="error">{data.error}</div></section>}
+
+          <section className="card" style={{ marginBottom: 16 }}>
+            <div className="listHead">
+              <h2 className="h2">Demandes reçues</h2>
+              <div className="count">{inboundData.ok ? inboundData.inbound.length : 0}</div>
+            </div>
+            {!inboundData.ok ? (
+              <div className="error">{inboundData.error}</div>
+            ) : (
+              <InboundRequestsClient initial={inboundData.inbound} code={code || undefined} />
+            )}
           </section>
-        )}
-      </div>
-    </main>
+
+          {days.length === 0 ? (
+            <section className="card"><div className="empty">Aucun quart à venir.</div></section>
+          ) : (
+            <section className="card">
+              <div className="list">
+                {days.map(([dayKey, dayShifts]) => {
+                  const sorted = [...dayShifts].sort((a, b) => a.startTime.localeCompare(b.startTime));
+                  const first = sorted[0];
+                  const href = code
+                    ? `/changement/${encodeURIComponent(first.id)}?code=${encodeURIComponent(code)}`
+                    : `/changement/${encodeURIComponent(first.id)}`;
+
+                  return (
+                    <div key={dayKey} className="row">
+                      <div className="rowMain">
+                        <div className="rowTitle">{fmtDay(first.startTime)}</div>
+                        <div className="muted">
+                          {sorted.map((s) => (
+                            <div key={s.id}>
+                              {fmtTime(s.startTime)} — {fmtTime(s.endTime)}
+                              {s.note && !s.note.toUpperCase().includes("VAC") ? ` • ${s.note}` : ""}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <Link className="btn primary" href={href}>Voir candidats</Link>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+        </div>
+      </main>
+    </div>
   );
 }
