@@ -4,6 +4,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
+import { requireKioskManagerOrAdmin } from "@/lib/kioskAuth";
 import KioskSidebar from "@/components/KioskSidebar";
 
 export const dynamic = "force-dynamic";
@@ -46,8 +47,8 @@ export default async function SchedulePage({
   searchParams,
 }: {
   searchParams?:
-    | Promise<{ week?: string; code?: string }>
-    | { week?: string; code?: string };
+  | Promise<{ week?: string; code?: string }>
+  | { week?: string; code?: string };
 }) {
   const sp =
     (searchParams instanceof Promise ? await searchParams : searchParams) ?? {};
@@ -65,7 +66,8 @@ export default async function SchedulePage({
   const { data } = await supabase.auth.getUser();
 
   let companyId: string;
-  let isPrivilegedLogged = false;
+  const auth = await requireKioskManagerOrAdmin();
+  const isPrivilegedLogged = auth.ok;
 
   if (data?.user) {
     const me = await prisma.user.findUnique({
@@ -74,8 +76,6 @@ export default async function SchedulePage({
     });
 
     if (!me?.companyId) redirect("/dashboard");
-
-    isPrivilegedLogged = me.role === "ADMIN" || me.role === "MANAGER";
 
     if (me.role === "ADMIN") {
       const company = await getDefaultCompany();
@@ -217,7 +217,7 @@ export default async function SchedulePage({
                             0,
                             Math.floor(
                               (+new Date(sh.endTime) - +new Date(sh.startTime)) /
-                                60000
+                              60000
                             )
                           );
                         }

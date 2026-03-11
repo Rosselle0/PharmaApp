@@ -3,15 +3,8 @@
 import { useEffect, useMemo, useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/browser";
-import KioskSidebar from "@/components/KioskSidebar"; // ✅ new sidebar
+import KioskSidebar from "@/components/KioskSidebar";
 import "./kiosk.css";
-
-type NavItem = {
-  label: string;
-  href: string;
-  requiresEmployeeCode?: boolean;
-  adminOnly?: boolean;
-};
 
 type ApiActif = {
   employeeId: string;
@@ -28,21 +21,24 @@ type ActiveRow = {
 
 const PIN_LEN = 4;
 
+type KioskClientProps = {
+  isAdminLogged: boolean;
+  isManagerLogged: boolean;
+  privilegedName?: string;
+  privilegedCode?: string;
+};
+
 export default function KioskClient({
   isAdminLogged,
-  adminName,
   isManagerLogged,
-}: {
-  isAdminLogged: boolean;
-  adminName?: string;
-  isManagerLogged: boolean;
-}) {
+  privilegedName,
+  privilegedCode,
+}: KioskClientProps) {
   const router = useRouter();
   const supabase = supabaseBrowser();
 
   const isPrivilegedLogged = isAdminLogged || isManagerLogged;
 
-  // Employee kiosk login
   const [employeeCodeConfirmed, setEmployeeCodeConfirmed] = useState<string | null>(null);
   const [employeeCode, setEmployeeCode] = useState("");
   const [employeeLogged, setEmployeeLogged] = useState(false);
@@ -51,22 +47,18 @@ export default function KioskClient({
   const [autoSubmitting, setAutoSubmitting] = useState(false);
   const [blockedCode, setBlockedCode] = useState<string | null>(null);
 
-  // PIN UI state
   const [pinError, setPinError] = useState(false);
   const [pinSuccess, setPinSuccess] = useState(false);
   const [pinFlash, setPinFlash] = useState(false);
 
-  // role stored locally for kiosk-only gating (employee/admin)
   const [kioskRole, setKioskRole] = useState<string | null>(null);
 
-  // admin modal
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
   const [adminError, setAdminError] = useState<string | null>(null);
   const [adminLoading, setAdminLoading] = useState(false);
 
-  // toast
   const [toast, setToast] = useState<string | null>(null);
   function showToast(msg: string) {
     setToast(msg);
@@ -129,13 +121,15 @@ export default function KioskClient({
         time: fmtMinutes(Number(r.minutes ?? 0)),
       }));
       setActifs(uiRows);
-    } catch (e: any) {
+    } catch {
       setActifs([]);
       setActifsErr("Erreur réseau (actifs).");
     }
   }
 
-  async function punch(type: "CLOCK_IN" | "CLOCK_OUT" | "BREAK_START" | "BREAK_END" | "LUNCH_START" | "LUNCH_END") {
+  async function punch(
+    type: "CLOCK_IN" | "CLOCK_OUT" | "BREAK_START" | "BREAK_END" | "LUNCH_START" | "LUNCH_END"
+  ) {
     try {
       const code = employeeCodeConfirmed || employeeCodeClean;
       if (!code || code.length !== PIN_LEN) {
@@ -188,43 +182,57 @@ export default function KioskClient({
     localStorage.removeItem("kiosk_role");
   }
 
-  // Restore kioskRole
   useEffect(() => {
-    const r = (localStorage.getItem("kiosk_role") ?? "").trim();
-    setKioskRole(r || null);
+    const storedRole = (localStorage.getItem("kiosk_role") ?? "").trim();
+    const storedLogged = localStorage.getItem("kiosk_employee_logged") === "1";
+    const storedCode = (localStorage.getItem("kiosk_employee_code") ?? "").trim();
+    const storedName = (localStorage.getItem("kiosk_employee_name") ?? "").trim();
+
+    setKioskRole(storedRole || null);
+
+    if (storedLogged && storedCode) {
+      setEmployeeLogged(true);
+      setEmployeeCodeConfirmed(storedCode);
+      setEmployeeCode(storedCode);
+      setEmployeeName(storedName || null);
+    }
   }, []);
 
-  // PIN keyboard logic (kept from Code2)
   useEffect(() => {
     if (isPrivilegedLogged || employeeLogged) return;
+
     const onKeyDown = (e: KeyboardEvent) => {
       const el = document.activeElement as HTMLElement | null;
       const tag = (el?.tagName ?? "").toLowerCase();
       if (tag === "input" || tag === "textarea" || el?.getAttribute("contenteditable") === "true") return;
+
       const isDigitKey = e.key >= "0" && e.key <= "9";
       const isNumpadDigit = /^Numpad[0-9]$/.test(e.code);
+
       if (isDigitKey || isNumpadDigit) {
         e.preventDefault();
         setPinError(false);
         const digit = isNumpadDigit ? e.code.replace("Numpad", "") : e.key;
         setEmployeeCode((p) => (p + digit).replace(/\D/g, "").slice(0, PIN_LEN));
       }
+
       if (e.key === "Backspace" || e.key === "Delete") {
         e.preventDefault();
         setPinError(false);
         setEmployeeCode((p) => p.slice(0, -1));
       }
+
       if (e.key === "Escape") {
         e.preventDefault();
         setEmployeeCode("");
         setPinError(false);
       }
     };
+
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [isPrivilegedLogged, employeeLogged]);
 
-  // auto-submit
   useEffect(() => {
     if (isPrivilegedLogged || employeeLogged || autoSubmitting) return;
     const clean = employeeCode.replace(/\D/g, "").slice(0, PIN_LEN);
@@ -241,34 +249,55 @@ export default function KioskClient({
       setTimeout(() => setPinError(false), 700);
       return;
     }
+
     const res = await fetch("/api/kiosk/unlock", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code: clean }),
     });
+
     if (!res.ok) {
       setPinError(true);
       return;
     }
+
     const data = await res.json().catch(() => null);
     const roleFromApi = String(data?.employee?.role ?? "EMPLOYEE").toUpperCase();
-    const last = data?.employee?.lastName ?? "";
-    const full = last.trim();
+    const first = data?.employee?.lastName ?? "";
+    const displayName = first.trim();
+
     setPinError(false);
     setPinSuccess(true);
     setPinFlash(true);
+
     setTimeout(() => setPinFlash(false), 650);
     setTimeout(() => {
       setEmployeeLogged(true);
       setEmployeeCodeConfirmed(clean);
-      setEmployeeName(full);
-      saveEmployeeSession(clean, full, roleFromApi);
+      setEmployeeName(displayName);
+      saveEmployeeSession(clean, displayName, roleFromApi);
       setKioskRole(roleFromApi);
       router.replace(`/kiosk?code=${encodeURIComponent(clean)}`);
     }, 650);
   }
 
   async function employeeLogout() {
+    try {
+      await fetch("/api/kiosk/logout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+      });
+    } catch {
+      // ignore
+    }
+
+    localStorage.removeItem("kiosk_role");
+    localStorage.removeItem("kiosk_employee_logged");
+    localStorage.removeItem("kiosk_employee_code");
+    localStorage.removeItem("kiosk_employee_name");
+
+    setKioskRole(null);
     setEmployeeLogged(false);
     setEmployeeCodeConfirmed(null);
     setEmployeeName(null);
@@ -278,28 +307,46 @@ export default function KioskClient({
     setPinFlash(false);
     setAutoSubmitting(false);
     setBlockedCode(null);
-    clearEmployeeSession();
-    loadActifs();
+
+    await loadActifs();
+    window.history.replaceState(null, "", "/kiosk");
+    router.replace("/kiosk");
+    router.refresh();
   }
 
   async function adminLogin() {
     if (!adminEmail.trim() || adminPassword.length < 6) return;
+
     setAdminError(null);
     setAdminLoading(true);
+
     try {
       const res = await supabase.auth.signInWithPassword({
         email: adminEmail.trim(),
         password: adminPassword,
       });
+
       if (res.error) throw new Error(res.error.message);
+
       const meRes = await fetch("/api/me", { cache: "no-store" });
       if (!meRes.ok) throw new Error("Failed /api/me");
+
       const meJson = await meRes.json();
       const role = String(meJson?.user?.role ?? "").toUpperCase();
-      if (role !== "ADMIN" && role !== "MANAGER") throw new Error(`Accès refusé. Role=${role || "NONE"}`);
+
+      if (role !== "ADMIN" && role !== "MANAGER") {
+        throw new Error(`Accès refusé. Role=${role || "NONE"}`);
+      }
+
       localStorage.setItem("kiosk_role", role);
       setKioskRole(role);
-      employeeLogout();
+
+      clearEmployeeSession();
+      setEmployeeLogged(false);
+      setEmployeeCodeConfirmed(null);
+      setEmployeeName(null);
+      setEmployeeCode("");
+
       router.replace("/kiosk");
       setShowAdminModal(false);
     } catch (err: any) {
@@ -310,176 +357,233 @@ export default function KioskClient({
   }
 
   async function adminLogout() {
-    await supabase.auth.signOut();
+    try {
+      await fetch("/api/kiosk/logout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+      });
+    } catch {
+      // ignore
+    }
+
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      // ignore
+    }
+
     localStorage.removeItem("kiosk_role");
+    localStorage.removeItem("kiosk_employee_logged");
+    localStorage.removeItem("kiosk_employee_code");
+    localStorage.removeItem("kiosk_employee_name");
+
     setKioskRole(null);
+    setEmployeeLogged(false);
+    setEmployeeCodeConfirmed(null);
+    setEmployeeName(null);
+    setEmployeeCode("");
+    setPinError(false);
+    setPinSuccess(false);
+    setPinFlash(false);
+    setAutoSubmitting(false);
+    setBlockedCode(null);
+
+    router.replace("/kiosk");
     router.refresh();
   }
 
   return (
-  <main className="kiosk-shell">
-    <div className="kiosk-frame">
-      {/* LEFT SIDEBAR (from Code1) */}
-      <Suspense fallback={<div>Loading menu…</div>}>
-        <KioskSidebar
-        isPrivilegedLogged={isPrivilegedLogged}
-          employeeLogged={employeeLogged}
-          employeeCode={employeeCode} />
-      </Suspense>
+    <main className="kiosk-shell">
+      <div className="kiosk-frame">
+        <Suspense fallback={<div>Loading menu…</div>}>
+          <KioskSidebar
+            isPrivilegedLogged={isPrivilegedLogged}
+            employeeLogged={employeeLogged}
+            employeeCode={employeeCode}
+          />
+        </Suspense>
 
-      {/* CENTER CONTENT (keep Code2 UI as-is) */}
-      <section className="kiosk-center">
-        {!isAnyLogged ? (
-          <h1 className="kiosk-title">Bienvenue</h1>
-        ) : (
-          <h1 className="kiosk-title kiosk-titleLogged">
-            {isPrivilegedLogged ? `Bonjour ${adminName || "Admin"}` : `Salut ${employeeName}`}
-          </h1>
-        )}
+        <section className="kiosk-center">
+          {!isAnyLogged ? (
+            <h1 className="kiosk-title">Bienvenue</h1>
+          ) : (
+            <h1 className="kiosk-title kiosk-titleLogged">
+              {isPrivilegedLogged
+                ? `Bonjour ${privilegedName || privilegedCode || "Utilisateur"}`
+                : `Salut ${employeeName || "Utilisateur"}`}
+            </h1>
+          )}
 
-        {isAnyLogged && (
-          <div className="loggedWrap">
-            <div className="loggedBrand">
-              <img src="/Logo-ACC.png" alt="Accès Pharma" className="brandLogo" draggable={false} />
-            </div>
-
-            <div className="loggedStatus">
-              <span className="loggedCheck" aria-hidden="true">✓</span>
-              <div className="loggedStatusText">
-                <div className="loggedStatusTitle">Accès autorisé</div>
-                <div className="loggedStatusSub">Session active — vous pouvez naviguer.</div>
+          {isAnyLogged && (
+            <div className="loggedWrap">
+              <div className="loggedBrand">
+                <img src="/Logo-ACC.png" alt="Accès Pharma" className="brandLogo" draggable={false} />
               </div>
-            </div>
-          </div>
-        )}
 
-        {/* PIN DISPLAY */}
-        {!isAnyLogged && (
-          <div
-            className={[
-              "pinWrap",
-              pinError ? "pinWrap--error" : "",
-              pinSuccess ? "pinWrap--success" : "",
-              pinFlash ? "pinWrap--flash" : "",
-            ].join(" ")}
-          >
-            <div className="pinTitle">Entrez votre pin</div>
-            <div className="pinBoxes" role="group" aria-label="PIN">
-              {maskedPinBoxes(employeeCode).map((ch, idx) => (
-                <div key={idx} className="pinBox">
-                  <span className="pinStar">{ch ? "•" : ""}</span>
+              <div className="loggedStatus">
+                <span className="loggedCheck" aria-hidden="true">✓</span>
+                <div className="loggedStatusText">
+                  <div className="loggedStatusTitle">Accès autorisé</div>
+                  <div className="loggedStatusSub">Session active — vous pouvez naviguer.</div>
                 </div>
-              ))}
+              </div>
             </div>
-            <div className="pinHint">
-              {pinError ? <span className="pinOops">Oops! Pin invalide</span> : <span>{"\u00A0"}</span>}
+          )}
+
+          {!isAnyLogged && (
+            <div
+              className={[
+                "pinWrap",
+                pinError ? "pinWrap--error" : "",
+                pinSuccess ? "pinWrap--success" : "",
+                pinFlash ? "pinWrap--flash" : "",
+              ].join(" ")}
+            >
+              <div className="pinTitle">Entrez votre pin</div>
+              <div className="pinBoxes" role="group" aria-label="PIN">
+                {maskedPinBoxes(employeeCode).map((ch, idx) => (
+                  <div key={idx} className="pinBox">
+                    <span className="pinStar">{ch ? "•" : ""}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="pinHint">
+                {pinError ? <span className="pinOops">Oops! Pin invalide</span> : <span>{"\u00A0"}</span>}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* KEYPAD + ACTIONS */}
-        {!isAnyLogged && (
-          <>
-            <div className="kiosk-pad">
-              {["1","2","3","4","5","6","7","8","9"].map((d) => (
+          {!isAnyLogged && (
+            <>
+              <div className="kiosk-pad">
+                {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
+                  <button
+                    key={d}
+                    className="kiosk-key"
+                    type="button"
+                    onClick={() => {
+                      setPinError(false);
+                      setEmployeeCode((p) => (p + d).replace(/\D/g, "").slice(0, PIN_LEN));
+                    }}
+                  >
+                    {d}
+                  </button>
+                ))}
+
+                <div className="kiosk-padBottom">
+                  <button
+                    className="kiosk-key"
+                    type="button"
+                    onClick={() => {
+                      setPinError(false);
+                      setEmployeeCode((p) => (p + "0").replace(/\D/g, "").slice(0, PIN_LEN));
+                    }}
+                  >
+                    0
+                  </button>
+
+                  <button
+                    className="kiosk-key kiosk-keyDanger"
+                    type="button"
+                    onClick={() => {
+                      setEmployeeCode((p) => p.slice(0, -1));
+                      setPinError(false);
+                    }}
+                  >
+                    ⌫
+                  </button>
+                </div>
+              </div>
+
+              <div className="kiosk-actions">
                 <button
-                  key={d}
-                  className="kiosk-key"
+                  className="kiosk-actionBtn"
                   type="button"
                   onClick={() => {
+                    setEmployeeCode("");
+                    setEmployeeLogged(false);
+                    setEmployeeCodeConfirmed(null);
+                    setEmployeeName(null);
                     setPinError(false);
-                    setEmployeeCode((p) => (p + d).replace(/\D/g, "").slice(0, PIN_LEN));
                   }}
                 >
-                  {d}
+                  Clear
                 </button>
-              ))}
 
-              <div className="kiosk-padBottom">
                 <button
-                  className="kiosk-key"
+                  className="kiosk-actionBtn kiosk-actionPrimary"
                   type="button"
-                  onClick={() => {
-                    setPinError(false);
-                    setEmployeeCode((p) => (p + "0").replace(/\D/g, "").slice(0, PIN_LEN));
-                  }}
+                  onClick={() => employeeConfirm()}
                 >
-                  0
+                  OK
                 </button>
+              </div>
+            </>
+          )}
 
+          {(employeeLogged || isPrivilegedLogged) && (
+            <div className="punchPanel">
+              <div className="punchTitle">Punch</div>
+
+              <div className="punchBtns">
+                <button className="punchBtn" type="button" onClick={() => punch("CLOCK_IN")}>
+                  IN
+                </button>
+                <button className="punchBtn" type="button" onClick={() => punch("BREAK_START")}>
+                  Break
+                </button>
+                <button className="punchBtn" type="button" onClick={() => punch("BREAK_END")}>
+                  Back
+                </button>
+                <button className="punchBtn" type="button" onClick={() => punch("LUNCH_START")}>
+                  Lunch
+                </button>
+                <button className="punchBtn" type="button" onClick={() => punch("LUNCH_END")}>
+                  Back
+                </button>
+                <button className="punchBtn punchBtnDanger" type="button" onClick={() => punch("CLOCK_OUT")}>
+                  OUT
+                </button>
+              </div>
+
+              <div style={{ marginTop: 14 }}>
                 <button
-                  className="kiosk-key kiosk-keyDanger"
+                  className="kiosk-actionBtn"
                   type="button"
                   onClick={() => {
-                    setEmployeeCode((p) => p.slice(0, -1));
-                    setPinError(false);
+                    if (isPrivilegedLogged) {
+                      adminLogout();
+                    } else {
+                      employeeLogout();
+                    }
                   }}
                 >
-                  ⌫
+                  Déconnecter
                 </button>
               </div>
             </div>
+          )}
+        </section>
 
-            <div className="kiosk-actions">
-              <button
-                className="kiosk-actionBtn"
-                type="button"
-                onClick={() => {
-                  setEmployeeCode("");
-                  setEmployeeLogged(false);
-                  setEmployeeCodeConfirmed(null);
-                  setEmployeeName(null);
-                  setPinError(false);
-                }}
-              >
-                Clear
-              </button>
-
-              <button className="kiosk-actionBtn kiosk-actionPrimary" type="button" onClick={() => employeeConfirm()}>
-                OK
-              </button>
-            </div>
-          </>
-        )}
-
-        {/* PUNCH PANEL */}
-        {employeeLogged && !isPrivilegedLogged && (
-          <div className="punchPanel">
-            <div className="punchTitle">Punch</div>
-            <div className="punchBtns">
-              <button className="punchBtn" type="button" onClick={() => punch("CLOCK_IN")}>IN</button>
-              <button className="punchBtn" type="button" onClick={() => punch("BREAK_START")}>Break</button>
-              <button className="punchBtn" type="button" onClick={() => punch("BREAK_END")}>Back</button>
-              <button className="punchBtn" type="button" onClick={() => punch("LUNCH_START")}>Lunch</button>
-              <button className="punchBtn" type="button" onClick={() => punch("LUNCH_END")}>Back</button>
-              <button className="punchBtn punchBtnDanger" type="button" onClick={() => punch("CLOCK_OUT")}>OUT</button>
-            </div>
-          </div>
-        )}
-      </section>
-
-      {/* RIGHT COLUMN (Admin + Actifs) */}
         <aside className="kiosk-rightCol">
           <div className="adminPanelHead">
             <button
               className="kiosk-adminBtn"
               type="button"
               onClick={() => {
-                if (isPrivilegedLogged) {
-                  adminLogout();
-                  return;
-                }
                 setAdminError(null);
                 setAdminPassword("");
                 setShowAdminModal(true);
               }}
             >
-              {isPrivilegedLogged ? "Se déconnecter" : "Admin"}
+              Admin
             </button>
           </div>
 
           <div className="kiosk-actifsCard">
             <div className="kiosk-actifsTitle">Actifs</div>
+
             {actifsErr && (
               <div style={{ marginTop: 8, color: "#f04438", fontWeight: 800 }}>
                 {actifsErr}
@@ -525,33 +629,69 @@ export default function KioskClient({
               )}
             </div>
           </div>
-
-
         </aside>
-    </div>
-
-    {/* Admin Modal */}
-    {showAdminModal && !isPrivilegedLogged && (
-      <div className="modal-overlay" onMouseDown={(e) => e.target === e.currentTarget && setShowAdminModal(false)}>
-        <div className="modal-card">
-          <div className="modal-head">
-            <h2 className="modal-title">Admin</h2>
-            <button className="ghost" type="button" onClick={() => setShowAdminModal(false)} disabled={adminLoading}>✕</button>
-          </div>
-          <p className="modal-sub">Connexion admin (email + mot de passe).</p>
-          <label>Email</label>
-          <input value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} disabled={adminLoading} />
-          <label style={{ marginTop: 10 }}>Mot de passe</label>
-          <input value={adminPassword} type="password" onChange={(e) => setAdminPassword(e.target.value)} disabled={adminLoading} onKeyDown={(e) => { if (e.key === "Enter") adminLogin(); }} />
-          {adminError && <div className="alert">{adminError}</div>}
-          <button className="primary" onClick={adminLogin} disabled={adminLoading || !adminEmail.trim() || adminPassword.length < 6}>Se connecter</button>
-          <button className="secondary" onClick={() => setShowAdminModal(false)} disabled={adminLoading}>Annuler</button>
-        </div>
       </div>
-    )}
 
-    {/* Toast */}
-    {toast && <div className="kiosk-toast">{toast}</div>}
-  </main>
-);
+      {showAdminModal && !isPrivilegedLogged && (
+        <div
+          className="modal-overlay"
+          onMouseDown={(e) => e.target === e.currentTarget && setShowAdminModal(false)}
+        >
+          <div className="modal-card">
+            <div className="modal-head">
+              <h2 className="modal-title">Admin</h2>
+              <button
+                className="ghost"
+                type="button"
+                onClick={() => setShowAdminModal(false)}
+                disabled={adminLoading}
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="modal-sub">Connexion admin (email + mot de passe).</p>
+
+            <label>Email</label>
+            <input
+              value={adminEmail}
+              onChange={(e) => setAdminEmail(e.target.value)}
+              disabled={adminLoading}
+            />
+
+            <label style={{ marginTop: 10 }}>Mot de passe</label>
+            <input
+              value={adminPassword}
+              type="password"
+              onChange={(e) => setAdminPassword(e.target.value)}
+              disabled={adminLoading}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") adminLogin();
+              }}
+            />
+
+            {adminError && <div className="alert">{adminError}</div>}
+
+            <button
+              className="primary"
+              onClick={adminLogin}
+              disabled={adminLoading || !adminEmail.trim() || adminPassword.length < 6}
+            >
+              Se connecter
+            </button>
+
+            <button
+              className="secondary"
+              onClick={() => setShowAdminModal(false)}
+              disabled={adminLoading}
+            >
+              Annuler
+            </button>
+          </div>
+        </div>
+      )}
+
+      {toast && <div className="kiosk-toast">{toast}</div>}
+    </main>
+  );
 }

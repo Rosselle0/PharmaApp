@@ -2,10 +2,14 @@ import "./../changement.css";
 import Link from "next/link";
 import { headers } from "next/headers";
 import CandidatesClient from "./CandidatesClient";
+import { requireKioskManagerOrAdmin } from "@/lib/kioskAuth";
 import KioskSidebar from "@/components/KioskSidebar";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+const auth = await requireKioskManagerOrAdmin();
+const isPrivilegedLogged = auth.ok;
 
 type Candidate = {
   id: string;
@@ -109,7 +113,6 @@ export default async function ChangementShiftPage({
 
   const employeeCode = code || null;
   const employeeLogged = !!code;
-  const isPrivilegedLogged = false;
 
   if (!data.ok) {
     return (

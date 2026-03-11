@@ -1,8 +1,10 @@
 import "./vacation.css";
 import { prisma } from "@/lib/prisma";
 import { enterEmployeeCode, cancelPendingRequest } from "./actions";
+import { requireKioskManagerOrAdmin } from "@/lib/kioskAuth";
 import VacationFormClient from "./VacationFormClient";
 import KioskSidebar from "@/components/KioskSidebar";
+
 
 function fmt(d: Date) {
   return d.toLocaleDateString("fr-CA");
@@ -12,8 +14,8 @@ export default async function VacationPage({
   searchParams,
 }: {
   searchParams?:
-    | Promise<{ code?: string; theme?: "light" | "dark" }>
-    | { code?: string; theme?: "light" | "dark" };
+  | Promise<{ code?: string; theme?: "light" | "dark" }>
+  | { code?: string; theme?: "light" | "dark" };
 }) {
   const sp =
     (searchParams instanceof Promise ? await searchParams : searchParams) ?? {};
@@ -23,29 +25,31 @@ export default async function VacationPage({
 
   const employee = code
     ? await prisma.employee.findUnique({
-        where: { employeeCode: code },
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          employeeCode: true,
-          isActive: true,
-        },
-      })
+      where: { employeeCode: code },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        employeeCode: true,
+        isActive: true,
+      },
+    })
     : null;
 
   const requests = employee
     ? await prisma.vacationRequest.findMany({
-        where: { employeeId: employee.id },
-        orderBy: { createdAt: "desc" },
-      })
+      where: { employeeId: employee.id },
+      orderBy: { createdAt: "desc" },
+    })
     : [];
 
   const employeeLogged = !!employee && employee.isActive;
-const employeeCode =
-  employee?.employeeCode ??
-  (code ? code : null);
-  const isPrivilegedLogged = false;
+
+  const employeeCode =
+    employee?.employeeCode ??
+    (code ? code : null);
+  const auth = await requireKioskManagerOrAdmin();
+  const isPrivilegedLogged = auth.ok;
 
   return (
     <div className="vacationScope" data-theme={theme}>

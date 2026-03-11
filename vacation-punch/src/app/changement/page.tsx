@@ -1,5 +1,6 @@
 import "./changement.css";
 import Link from "next/link";
+import { requireKioskManagerOrAdmin } from "@/lib/kioskAuth";
 import KioskSidebar from "@/components/KioskSidebar";
 import InboundRequestsClient from "./InBoundRequestClient";
 import { Suspense } from "react";
@@ -168,7 +169,8 @@ export default async function ChangementIndexPage({
 
   const employeeCode = code || null;
   const employeeLogged = !!code;
-  const isPrivilegedLogged = false;
+const auth = await requireKioskManagerOrAdmin();
+const isPrivilegedLogged = auth.ok;
 
   return (
     <div className="changementScope">
