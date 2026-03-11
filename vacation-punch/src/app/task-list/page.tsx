@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState, Suspense } from "react";
 import "./task-list.css";
 import KioskSidebar from "@/components/KioskSidebar";
 
-// ---------- Types ----------
 type Task = { id: string; text: string; done: boolean; required: boolean };
 type Assignment = {
   id: string;
@@ -89,8 +88,10 @@ export default function TaskListPage() {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
   const [employeeName, setEmployeeName] = useState<string | null>(null);
+  const [kioskRole, setKioskRole] = useState<string | null>(null);
+  const [employeeLogged, setEmployeeLogged] = useState(false);
 
-  // Load code & employee name
+  // Load code & employee info
   useEffect(() => {
     const c = readEmployeeCodeFromUrlOrStorage();
     setCode(c);
@@ -98,11 +99,18 @@ export default function TaskListPage() {
     const n = (localStorage.getItem("kiosk_employee_name") ?? "").trim();
     setEmployeeName(n || null);
 
+    const role = (localStorage.getItem("kiosk_role") ?? "").toUpperCase().trim() || null;
+    setKioskRole(role);
+
+    setEmployeeLogged(localStorage.getItem("kiosk_employee_logged") === "1");
+
     if (!c) {
       setLoading(false);
       setMsg("Veuillez entrer votre code via le kiosk.");
     }
   }, []);
+
+  const isPrivilegedLogged = kioskRole === "ADMIN" || kioskRole === "MANAGER";
 
   // Load assignments
   useEffect(() => {
@@ -167,9 +175,13 @@ export default function TaskListPage() {
 
   return (
     <div className="kiosk-layout">
-      {/* Suspense wraps the sidebar */}
+      {/* Sidebar with required props */}
       <Suspense fallback={<div>Loading menu…</div>}>
-        <KioskSidebar />
+        <KioskSidebar
+          isPrivilegedLogged={isPrivilegedLogged}
+          employeeLogged={employeeLogged}
+          employeeCode={code}
+        />
       </Suspense>
 
       <main className="tlPage scheduleScope page" style={{ flex: 1 }}>

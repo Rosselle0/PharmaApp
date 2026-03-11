@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Suspense } from "react";
 import Link from "next/link";
 import "./settings.css";
+import KioskSidebar from "@/components/KioskSidebar";
 
 type ThemeMode = "light" | "dark";
 
@@ -27,19 +28,17 @@ const DAYS: { key: DayKey; labelFR: string }[] = [
 ];
 
 function parseHHMM(t: string): number | null {
-  // returns minutes from 00:00 or null if invalid
   if (!/^\d{2}:\d{2}$/.test(t)) return null;
-  const [hh, mm] = t.split(":").map((x) => Number(x));
+  const [hh, mm] = t.split(":").map(Number);
   if (!Number.isFinite(hh) || !Number.isFinite(mm)) return null;
   if (hh < 0 || hh > 23 || mm < 0 || mm > 59) return null;
   return hh * 60 + mm;
 }
 
-function isValidRange(start: string, end: string): boolean {
+function isValidRange(start: string, end: string) {
   const s = parseHHMM(start);
   const e = parseHHMM(end);
-  if (s === null || e === null) return false;
-  return e > s; // same time or earlier = invalid
+  return s !== null && e !== null && e > s;
 }
 
 function defaultWeek(): DayAvailability[] {
@@ -53,74 +52,70 @@ function defaultWeek(): DayAvailability[] {
 }
 
 const PIN_LEN = 8;
-
 function readEmployeeCodeFromUrlOrStorage(): string | null {
   const params = new URLSearchParams(window.location.search);
   const urlCode = (params.get("code") ?? "").replace(/\D/g, "").slice(0, PIN_LEN);
   if (urlCode.length === PIN_LEN) return urlCode;
 
-  const lsCode = (localStorage.getItem("kiosk_employee_code") ?? "")
-    .replace(/\D/g, "")
-    .slice(0, PIN_LEN);
+  const lsCode = (localStorage.getItem("kiosk_employee_code") ?? "").replace(/\D/g, "").slice(0, PIN_LEN);
   if (lsCode.length === PIN_LEN) return lsCode;
 
   return null;
 }
 
 export default function SettingsPage() {
+  // THEME & AVAILABILITY STATES
   const [darkMode, setDarkMode] = useState(false);
-
-  // ===== Availability modal =====
   const [isAvailOpen, setIsAvailOpen] = useState(false);
   const [week, setWeek] = useState<DayAvailability[]>(() => defaultWeek());
   const [availError, setAvailError] = useState<string | null>(null);
-
-  // =========================
-  // Theme: load saved preference on mount
-  // =========================
   const [employeeFullName, setEmployeeFullName] = useState<string>("Profil");
 
-  useEffect(() => {
-    const saved = (localStorage.getItem("theme") as ThemeMode | null) ?? "light";
-    const isDark = saved === "dark";
-    setDarkMode(isDark);
-    document.documentElement.setAttribute("data-theme", saved);
+  // KIOSK / EMPLOYEE STATES
+  const [kioskRole, setKioskRole] = useState<string | null>(null);
+  const [employeeLogged, setEmployeeLogged] = useState(false);
+  const [employeeCode, setEmployeeCode] = useState<string | null>(readEmployeeCodeFromUrlOrStorage());
 
-    // ✅ exact same cache key as Tasks page
+  // Derived state for sidebar privileges
+  const isPrivilegedLogged = kioskRole === "ADMIN" || kioskRole === "MANAGER";
+
+  // Fetch employee info on mount
+  useEffect(() => {
+    const savedTheme = (localStorage.getItem("theme") as ThemeMode | null) ?? "light";
+    const isDark = savedTheme === "dark";
+    setDarkMode(isDark);
+    document.documentElement.setAttribute("data-theme", savedTheme);
+
     const cachedName = (localStorage.getItem("kiosk_employee_name") ?? "").trim();
     if (cachedName) setEmployeeFullName(cachedName);
 
     const code = readEmployeeCodeFromUrlOrStorage();
     if (!code) return;
 
-    // If we already had a cached name, you can skip fetch.
-    // But fetching keeps it always correct if names change.
+    setEmployeeCode(code);
+    setEmployeeLogged(true);
+
     (async () => {
       try {
-        const res = await fetch(`/api/settings/me?code=${encodeURIComponent(code)}`, {
-          cache: "no-store",
-        });
-
+        const res = await fetch(`/api/settings/me?code=${encodeURIComponent(code)}`, { cache: "no-store" });
         const text = await res.text();
         const data = text ? JSON.parse(text) : null;
 
-        if (!res.ok) return; // keep cached fallback
+        if (!res.ok) return;
         const name = String(data?.employeeName ?? "").trim();
+        const role = String(data?.role ?? "").trim();
+
         if (!name) return;
 
         setEmployeeFullName(name);
         localStorage.setItem("kiosk_employee_name", name);
-        localStorage.setItem("kiosk_employee_code", code); // keep consistent
-      } catch {
-        // ignore: keep fallback
-      }
+        localStorage.setItem("kiosk_employee_code", code);
+        setKioskRole(role);
+      } catch {}
     })();
   }, []);
 
-
-  // =========================
-  // Theme: toggle + persist
-  // =========================
+  // Theme toggle
   const toggleTheme = () => {
     const newMode: ThemeMode = darkMode ? "light" : "dark";
     setDarkMode(!darkMode);
@@ -128,13 +123,13 @@ export default function SettingsPage() {
     localStorage.setItem("theme", newMode);
   };
 
-  // Avatar letter (fallback icon)
+  // Avatar initial
   const avatarLetter = useMemo(() => {
     const clean = employeeFullName.trim();
     return clean.length ? clean[0].toUpperCase() : "E";
   }, [employeeFullName]);
 
-  // Build a simple summary for the boss “paper” feel
+  // Summary of availability
   const summaryLines = useMemo(() => {
     return week
       .filter((d) => d.available)
@@ -145,18 +140,14 @@ export default function SettingsPage() {
       });
   }, [week]);
 
+  // Update a day
   function updateDay(day: DayKey, patch: Partial<DayAvailability>) {
-    setWeek((prev) =>
-      prev.map((d) => (d.day === day ? { ...d, ...patch } : d))
-    );
+    setWeek((prev) => prev.map((d) => (d.day === day ? { ...d, ...patch } : d)));
   }
 
+  // Validate week
   function validateWeek(): string | null {
-    // at least one day selected
-    const any = week.some((d) => d.available);
-    if (!any) return "Choisis au moins une journée disponible.";
-
-    // validate ranges for available days
+    if (!week.some((d) => d.available)) return "Choisis au moins une journée disponible.";
     for (const d of week) {
       if (!d.available) continue;
       if (!isValidRange(d.start, d.end)) {
@@ -167,6 +158,7 @@ export default function SettingsPage() {
     return null;
   }
 
+  // Save availability
   async function handleSave() {
     const err = validateWeek();
     setAvailError(err);
@@ -183,7 +175,6 @@ export default function SettingsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code, week }),
     });
-
     const data = await res.json().catch(() => null);
 
     if (!res.ok) {
@@ -194,14 +185,13 @@ export default function SettingsPage() {
     setIsAvailOpen(false);
   }
 
+  // Load availability from API on mount
   useEffect(() => {
     (async () => {
       const code = readEmployeeCodeFromUrlOrStorage();
       if (!code) return;
 
-      const res = await fetch(`/api/availability?code=${encodeURIComponent(code)}`, {
-        cache: "no-store",
-      });
+      const res = await fetch(`/api/availability?code=${encodeURIComponent(code)}`, { cache: "no-store" });
       const data = await res.json().catch(() => null);
       if (data?.ok && Array.isArray(data.week) && data.week.length === 7) {
         setWeek(data.week);
@@ -209,84 +199,66 @@ export default function SettingsPage() {
     })();
   }, []);
 
-
   return (
-    <main className="settings-page">
-      {/* =========================
-          HEADER
-         ========================= */}
-      <header className="settings-header">
-        <h1 className="settings-title">Paramètres</h1>
-        <p className="settings-subtitle">Personnalise l’apparence de l’application.</p>
-      </header>
+    <div className="kiosk-layout">
+      {/* Sidebar */}
+      <Suspense fallback={<div>Loading menu…</div>}>
+        <KioskSidebar
+          isPrivilegedLogged={isPrivilegedLogged}
+          employeeLogged={employeeLogged}
+          employeeCode={employeeCode}
+        />
+        </Suspense>
+      {/* Main Content */}
+      <main className="tlPage" style={{ flex: 1, padding: "26px 24px 60px" }}>
+        <div className="tlContent">
+          {/* HEADER */}
+          <header className="settings-header">
+            <h1 className="settings-title">Paramètres</h1>
+            <p className="settings-subtitle">Personnalise l’apparence de l’application.</p>
+          </header>
 
-      {/* =========================
-          PROFILE (EMPLOYEE)
-         ========================= */}
-      <section className="settings-content">
-        <div className="settings-card profile-card">
-          <div className="profile-row">
-            <div className="avatar-fallback" aria-hidden="true">
-              {avatarLetter}
-            </div>
-
-            <div className="profile-meta">
-              <div className="profile-name">{employeeFullName}</div>
-              <div className="profile-role">Profil</div>
-            </div>
-          </div>
-
-          {/* Availability quick summary (optional but makes it feel real) */}
-          <div className="profile-summary">
-            <div className="profile-summary-title">Disponibilités (semaine)</div>
-            {summaryLines.length === 0 ? (
-              <div className="profile-summary-empty">
-                Aucune disponibilité enregistrée pour l’instant.
+          {/* PROFILE */}
+          <section className="settings-content">
+            <div className="settings-card profile-card">
+              <div className="profile-row">
+                <div className="avatar-fallback" aria-hidden="true">{avatarLetter}</div>
+                <div className="profile-meta">
+                  <div className="profile-name">{employeeFullName}</div>
+                  <div className="profile-role">Profil</div>
+                </div>
               </div>
-            ) : (
-              <ul className="profile-summary-list">
-                {summaryLines.map((line) => (
-                  <li key={line}>{line}</li>
-                ))}
-              </ul>
-            )}
-          </div>
 
-          <button
-            className="theme-toggle-btn"
-            type="button"
-            onClick={() => {
-              setAvailError(null);
-              setIsAvailOpen(true);
-            }}
-          >
-            Ajouter mes disponibilités
-          </button>
+              <div className="profile-summary">
+                <div className="profile-summary-title">Disponibilités (semaine)</div>
+                {summaryLines.length === 0 ? (
+                  <div className="profile-summary-empty">
+                    Aucune disponibilité enregistrée pour l’instant.
+                  </div>
+                ) : (
+                  <ul className="profile-summary-list">
+                    {summaryLines.map((line) => <li key={line}>{line}</li>)}
+                  </ul>
+                )}
+              </div>
+
+              <button className="theme-toggle-btn" type="button" onClick={() => { setAvailError(null); setIsAvailOpen(true); }}>
+                Ajouter mes disponibilités
+              </button>
+            </div>
+
+            {/* APPEARANCE */}
+            <div className="settings-card">
+              <h2>Apparence</h2>
+              <button className="theme-toggle-btn" onClick={toggleTheme} type="button" aria-pressed={darkMode}>
+                {darkMode ? "Mode clair 🌞" : "Mode sombre 🌙"}
+              </button>
+            </div>
+          </section>
         </div>
+      </main>
 
-        {/* =========================
-            APPEARANCE
-           ========================= */}
-        <div className="settings-card">
-          <h2>Apparence</h2>
-          <button className="theme-toggle-btn" onClick={toggleTheme} type="button" aria-pressed={darkMode}>
-            {darkMode ? "Mode clair 🌞" : "Mode sombre 🌙"}
-          </button>
-        </div>
-      </section>
-
-      {/* =========================
-          FOOTER / NAV
-         ========================= */}
-      <footer className="settings-footer">
-        <Link href="/kiosk" className="back-link">
-          <span aria-hidden="true">←</span> Retour au Dashboard
-        </Link>
-      </footer>
-
-      {/* =========================
-          AVAILABILITY MODAL 
-         ========================= */}
+      {/* AVAILABILITY MODAL */}
       {isAvailOpen && (
         <div className="modal-overlay" role="dialog" aria-modal="true">
           <div className="modal-card">
@@ -297,67 +269,31 @@ export default function SettingsPage() {
                   Indique quand tu peux travailler (Dimanche → Samedi).
                 </div>
               </div>
-
-              <button
-                className="modal-x"
-                type="button"
-                onClick={() => setIsAvailOpen(false)}
-                aria-label="Fermer"
-              >
-                ✕
-              </button>
+              <button className="modal-x" type="button" onClick={() => setIsAvailOpen(false)} aria-label="Fermer">✕</button>
             </div>
 
             <div className="modal-body">
               {availError && <div className="modal-error">{availError}</div>}
-
               <div className="avail-grid">
                 {DAYS.map((d) => {
                   const item = week.find((x) => x.day === d.key)!;
-
                   return (
                     <div className="avail-row" key={d.key}>
                       <div className="avail-day">
                         <div className="avail-day-name">{d.labelFR}</div>
-
                         <label className="avail-toggle">
-                          <input
-                            type="checkbox"
-                            checked={item.available}
-                            onChange={(e) =>
-                              updateDay(d.key, { available: e.target.checked })
-                            }
-                          />
+                          <input type="checkbox" checked={item.available} onChange={(e) => updateDay(d.key, { available: e.target.checked })} />
                           <span>{item.available ? "Disponible" : "Indispo"}</span>
                         </label>
                       </div>
 
                       <div className="avail-times">
-                        <input
-                          className="avail-time"
-                          type="time"
-                          value={item.start}
-                          disabled={!item.available}
-                          onChange={(e) => updateDay(d.key, { start: e.target.value })}
-                        />
+                        <input className="avail-time" type="time" value={item.start} disabled={!item.available} onChange={(e) => updateDay(d.key, { start: e.target.value })} />
                         <span className="avail-sep">→</span>
-                        <input
-                          className="avail-time"
-                          type="time"
-                          value={item.end}
-                          disabled={!item.available}
-                          onChange={(e) => updateDay(d.key, { end: e.target.value })}
-                        />
+                        <input className="avail-time" type="time" value={item.end} disabled={!item.available} onChange={(e) => updateDay(d.key, { end: e.target.value })} />
                       </div>
 
-                      <input
-                        className="avail-note"
-                        type="text"
-                        placeholder="Note (optionnel)"
-                        value={item.note}
-                        disabled={!item.available}
-                        onChange={(e) => updateDay(d.key, { note: e.target.value })}
-                      />
+                      <input className="avail-note" type="text" placeholder="Note (optionnel)" value={item.note} disabled={!item.available} onChange={(e) => updateDay(d.key, { note: e.target.value })} />
                     </div>
                   );
                 })}
@@ -365,28 +301,19 @@ export default function SettingsPage() {
             </div>
 
             <div className="modal-actions">
-              <button
-                className="modal-btn ghost"
-                type="button"
-                onClick={() => {
-                  setAvailError(null);
-                  setWeek(defaultWeek());
-                }}
-              >
+              <button className="modal-btn ghost" type="button" onClick={() => { setAvailError(null); setWeek(defaultWeek()); }}>
                 Réinitialiser
               </button>
-
               <button className="modal-btn" type="button" onClick={handleSave}>
                 Enregistrer (local)
               </button>
             </div>
-
             <div className="modal-footnote">
               *Pour l’instant, c’est juste sauvegardé localement (pas encore envoyé au manager).
             </div>
           </div>
         </div>
       )}
-    </main>
+    </div>
   );
 }
