@@ -6,6 +6,8 @@ import InboundRequestsClient from "./InBoundRequestClient";
 import { Suspense } from "react";
 import { headers } from "next/headers";
 
+const TZ = process.env.APP_TZ || "America/Toronto";
+
 type ShiftRow = {
   id: string;
   startTime: string;
@@ -126,10 +128,14 @@ function fmtDay(dt: string) {
 }
 
 function fmtTime(dt: string) {
-  return new Date(dt).toLocaleTimeString("fr-CA", {
+  const date = new Date(dt);
+
+  if (Number.isNaN(date.getTime())) return "--:--";
+
+  return date.toLocaleTimeString("fr-CA", {
+    timeZone: TZ,
     hour: "2-digit",
     minute: "2-digit",
-    hour12: false,
   });
 }
 
