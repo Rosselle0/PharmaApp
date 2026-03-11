@@ -51,13 +51,18 @@ function defaultWeek(): DayAvailability[] {
   }));
 }
 
-const PIN_LEN = 8;
+const PIN_LEN = 4;
 function readEmployeeCodeFromUrlOrStorage(): string | null {
+  if (typeof window === "undefined") return null;
+
   const params = new URLSearchParams(window.location.search);
   const urlCode = (params.get("code") ?? "").replace(/\D/g, "").slice(0, PIN_LEN);
   if (urlCode.length === PIN_LEN) return urlCode;
 
-  const lsCode = (localStorage.getItem("kiosk_employee_code") ?? "").replace(/\D/g, "").slice(0, PIN_LEN);
+  const lsCode = (window.localStorage.getItem("kiosk_employee_code") ?? "")
+    .replace(/\D/g, "")
+    .slice(0, PIN_LEN);
+
   if (lsCode.length === PIN_LEN) return lsCode;
 
   return null;
@@ -74,7 +79,7 @@ export default function SettingsPage() {
   // KIOSK / EMPLOYEE STATES
   const [kioskRole, setKioskRole] = useState<string | null>(null);
   const [employeeLogged, setEmployeeLogged] = useState(false);
-  const [employeeCode, setEmployeeCode] = useState<string | null>(readEmployeeCodeFromUrlOrStorage());
+const [employeeCode, setEmployeeCode] = useState<string | null>(null);
 
   // Derived state for sidebar privileges
   const isPrivilegedLogged = kioskRole === "ADMIN" || kioskRole === "MANAGER";
@@ -111,7 +116,7 @@ export default function SettingsPage() {
         localStorage.setItem("kiosk_employee_name", name);
         localStorage.setItem("kiosk_employee_code", code);
         setKioskRole(role);
-      } catch {}
+      } catch { }
     })();
   }, []);
 
@@ -200,29 +205,30 @@ export default function SettingsPage() {
   }, []);
 
   return (
-    <div className="kiosk-layout">
-      {/* Sidebar */}
+    <div className="settingsScope">
       <Suspense fallback={<div>Loading menu…</div>}>
         <KioskSidebar
           isPrivilegedLogged={isPrivilegedLogged}
           employeeLogged={employeeLogged}
           employeeCode={employeeCode}
         />
-        </Suspense>
-      {/* Main Content */}
-      <main className="tlPage" style={{ flex: 1, padding: "26px 24px 60px" }}>
-        <div className="tlContent">
-          {/* HEADER */}
+      </Suspense>
+
+      <main className="settingsPage">
+        <div className="settingsShell">
           <header className="settings-header">
             <h1 className="settings-title">Paramètres</h1>
-            <p className="settings-subtitle">Personnalise l’apparence de l’application.</p>
+            <p className="settings-subtitle">
+              Personnalise l’apparence de l’application.
+            </p>
           </header>
 
-          {/* PROFILE */}
           <section className="settings-content">
             <div className="settings-card profile-card">
               <div className="profile-row">
-                <div className="avatar-fallback" aria-hidden="true">{avatarLetter}</div>
+                <div className="avatar-fallback" aria-hidden="true">
+                  {avatarLetter}
+                </div>
                 <div className="profile-meta">
                   <div className="profile-name">{employeeFullName}</div>
                   <div className="profile-role">Profil</div>
@@ -230,27 +236,42 @@ export default function SettingsPage() {
               </div>
 
               <div className="profile-summary">
-                <div className="profile-summary-title">Disponibilités (semaine)</div>
+                <div className="profile-summary-title">
+                  Disponibilités (semaine)
+                </div>
                 {summaryLines.length === 0 ? (
                   <div className="profile-summary-empty">
                     Aucune disponibilité enregistrée pour l’instant.
                   </div>
                 ) : (
                   <ul className="profile-summary-list">
-                    {summaryLines.map((line) => <li key={line}>{line}</li>)}
+                    {summaryLines.map((line) => (
+                      <li key={line}>{line}</li>
+                    ))}
                   </ul>
                 )}
               </div>
 
-              <button className="theme-toggle-btn" type="button" onClick={() => { setAvailError(null); setIsAvailOpen(true); }}>
+              <button
+                className="theme-toggle-btn"
+                type="button"
+                onClick={() => {
+                  setAvailError(null);
+                  setIsAvailOpen(true);
+                }}
+              >
                 Ajouter mes disponibilités
               </button>
             </div>
 
-            {/* APPEARANCE */}
             <div className="settings-card">
-              <h2>Apparence</h2>
-              <button className="theme-toggle-btn" onClick={toggleTheme} type="button" aria-pressed={darkMode}>
+              <h2 className="settings-card-title">Apparence</h2>
+              <button
+                className="theme-toggle-btn"
+                onClick={toggleTheme}
+                type="button"
+                aria-pressed={darkMode}
+              >
                 {darkMode ? "Mode clair 🌞" : "Mode sombre 🌙"}
               </button>
             </div>
@@ -258,22 +279,35 @@ export default function SettingsPage() {
         </div>
       </main>
 
-      {/* AVAILABILITY MODAL */}
       {isAvailOpen && (
-        <div className="modal-overlay" role="dialog" aria-modal="true">
-          <div className="modal-card">
-            <div className="modal-head">
+        <div
+          className="settings-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="settings-modal-card">
+            <div className="settings-modal-head">
               <div>
-                <div className="modal-title">Mes disponibilités</div>
-                <div className="modal-subtitle">
+                <div className="settings-modal-title">Mes disponibilités</div>
+                <div className="settings-modal-subtitle">
                   Indique quand tu peux travailler (Dimanche → Samedi).
                 </div>
               </div>
-              <button className="modal-x" type="button" onClick={() => setIsAvailOpen(false)} aria-label="Fermer">✕</button>
+              <button
+                className="settings-modal-x"
+                type="button"
+                onClick={() => setIsAvailOpen(false)}
+                aria-label="Fermer"
+              >
+                ✕
+              </button>
             </div>
 
-            <div className="modal-body">
-              {availError && <div className="modal-error">{availError}</div>}
+            <div className="settings-modal-body">
+              {availError && (
+                <div className="settings-modal-error">{availError}</div>
+              )}
+
               <div className="avail-grid">
                 {DAYS.map((d) => {
                   const item = week.find((x) => x.day === d.key)!;
@@ -282,34 +316,78 @@ export default function SettingsPage() {
                       <div className="avail-day">
                         <div className="avail-day-name">{d.labelFR}</div>
                         <label className="avail-toggle">
-                          <input type="checkbox" checked={item.available} onChange={(e) => updateDay(d.key, { available: e.target.checked })} />
+                          <input
+                            type="checkbox"
+                            checked={item.available}
+                            onChange={(e) =>
+                              updateDay(d.key, { available: e.target.checked })
+                            }
+                          />
                           <span>{item.available ? "Disponible" : "Indispo"}</span>
                         </label>
                       </div>
 
                       <div className="avail-times">
-                        <input className="avail-time" type="time" value={item.start} disabled={!item.available} onChange={(e) => updateDay(d.key, { start: e.target.value })} />
+                        <input
+                          className="avail-time"
+                          type="time"
+                          value={item.start}
+                          disabled={!item.available}
+                          onChange={(e) =>
+                            updateDay(d.key, { start: e.target.value })
+                          }
+                        />
                         <span className="avail-sep">→</span>
-                        <input className="avail-time" type="time" value={item.end} disabled={!item.available} onChange={(e) => updateDay(d.key, { end: e.target.value })} />
+                        <input
+                          className="avail-time"
+                          type="time"
+                          value={item.end}
+                          disabled={!item.available}
+                          onChange={(e) =>
+                            updateDay(d.key, { end: e.target.value })
+                          }
+                        />
                       </div>
 
-                      <input className="avail-note" type="text" placeholder="Note (optionnel)" value={item.note} disabled={!item.available} onChange={(e) => updateDay(d.key, { note: e.target.value })} />
+                      <input
+                        className="avail-note"
+                        type="text"
+                        placeholder="Note (optionnel)"
+                        value={item.note}
+                        disabled={!item.available}
+                        onChange={(e) =>
+                          updateDay(d.key, { note: e.target.value })
+                        }
+                      />
                     </div>
                   );
                 })}
               </div>
             </div>
 
-            <div className="modal-actions">
-              <button className="modal-btn ghost" type="button" onClick={() => { setAvailError(null); setWeek(defaultWeek()); }}>
+            <div className="settings-modal-actions">
+              <button
+                className="settings-modal-btn ghost"
+                type="button"
+                onClick={() => {
+                  setAvailError(null);
+                  setWeek(defaultWeek());
+                }}
+              >
                 Réinitialiser
               </button>
-              <button className="modal-btn" type="button" onClick={handleSave}>
+              <button
+                className="settings-modal-btn"
+                type="button"
+                onClick={handleSave}
+              >
                 Enregistrer (local)
               </button>
             </div>
-            <div className="modal-footnote">
-              *Pour l’instant, c’est juste sauvegardé localement (pas encore envoyé au manager).
+
+            <div className="settings-modal-footnote">
+              *Pour l’instant, c’est juste sauvegardé localement (pas encore
+              envoyé au manager).
             </div>
           </div>
         </div>

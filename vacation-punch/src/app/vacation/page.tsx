@@ -1,6 +1,5 @@
 import "./vacation.css";
 import { prisma } from "@/lib/prisma";
-import Link from "next/link";
 import { enterEmployeeCode, cancelPendingRequest } from "./actions";
 import VacationFormClient from "./VacationFormClient";
 import KioskSidebar from "@/components/KioskSidebar";
@@ -12,12 +11,15 @@ function fmt(d: Date) {
 export default async function VacationPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ code?: string; theme?: "light" | "dark" }> | { code?: string; theme?: "light" | "dark" };
+  searchParams?:
+    | Promise<{ code?: string; theme?: "light" | "dark" }>
+    | { code?: string; theme?: "light" | "dark" };
 }) {
   const sp =
     (searchParams instanceof Promise ? await searchParams : searchParams) ?? {};
+
   const code = String(sp.code ?? "").trim();
-  const theme = sp.theme === "dark" ? "dark" : "light"; // default light
+  const theme = sp.theme === "dark" ? "dark" : "light";
 
   const employee = code
     ? await prisma.employee.findUnique({
@@ -39,15 +41,21 @@ export default async function VacationPage({
       })
     : [];
 
-  const returnHref = code ? `/kiosk?code=${encodeURIComponent(code)}` : "/kiosk";
+  const employeeLogged = !!employee && employee.isActive;
+const employeeCode =
+  employee?.employeeCode ??
+  (code ? code : null);
+  const isPrivilegedLogged = false;
 
   return (
     <div className="vacationScope" data-theme={theme}>
       <div className="kiosk-layout">
-        {/* ================= SIDEBAR ================= */}
-        <KioskSidebar />
+        <KioskSidebar
+          isPrivilegedLogged={isPrivilegedLogged}
+          employeeLogged={employeeLogged}
+          employeeCode={employeeCode}
+        />
 
-        {/* ================= CONTENT ================= */}
         <div className="kiosk-content">
           <div className="shell">
             <div className="head">
@@ -122,9 +130,7 @@ export default async function VacationPage({
                                 ) : null}
                               </td>
 
-                              <td className="muted">
-                                {r.reason ?? "—"}
-                              </td>
+                              <td className="muted">{r.reason ?? "—"}</td>
 
                               <td>
                                 <span

@@ -1,165 +1,255 @@
 /* =========================================================
-   SETTINGS PAGE — CLEAN + CENTERED + MODAL FIXES
+   SETTINGS PAGE — SCOPED VERSION
+   Everything is namespaced under .settingsScope
    ========================================================= */
 
-/* =========================
-   THEME TOKENS
-   ========================= */
 :root {
-  --bg-color: #ffffff;
-  --text-color: #111111;
-  --btn-bg: #111111;
-  --btn-text: #ffffff;
+  --settings-bg-color: #ffffff;
+  --settings-text-color: #111111;
+  --settings-btn-bg: #111111;
+  --settings-btn-text: #ffffff;
 
-  --card-light: rgba(0, 0, 0, 0.03);
-  --card-dark: rgba(255, 255, 255, 0.05);
+  --settings-card-light: rgba(0, 0, 0, 0.03);
+  --settings-card-dark: rgba(255, 255, 255, 0.05);
 
-  --shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  --settings-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  --settings-line: rgba(0, 0, 0, 0.12);
+  --settings-line-dark: rgba(255, 255, 255, 0.18);
 }
 
 [data-theme="dark"] {
-  --bg-color: #111111;
-  --text-color: #f5f5f5;
-  --btn-bg: #f5f5f5;
-  --btn-text: #111111;
+  --settings-bg-color: #111111;
+  --settings-text-color: #f5f5f5;
+  --settings-btn-bg: #f5f5f5;
+  --settings-btn-text: #111111;
 }
 
 /* =========================
-   GLOBAL PAGE BACKGROUND
-   (If you want this global for the entire app,
-    move this to globals.css)
+   ROOT LAYOUT
    ========================= */
-body {
-  background-color: var(--bg-color);
-  color: var(--text-color);
-  transition: background-color 0.3s, color 0.3s;
-}
+/* =========================================================
+   SETTINGS SIDEBAR SUPPORT
+   Needed because KioskSidebar is shared but its styles
+   are not globally available on hard refresh.
+   ========================================================= */
 
-/* =========================
-   PAGE LAYOUT (CENTERED)
-   ========================= */
-.settings-page {
-  min-height: 80vh;
-  padding: 2rem 1.5rem;
+   
+
+.settingsScope .kiosk-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 260px;
+  height: 100vh;
+  padding: 24px 18px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  z-index: 100;
 
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
+
+  background: linear-gradient(180deg, #07152b 0%, #081a36 100%);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 8px 0 28px rgba(0, 0, 0, 0.22);
+}
+
+.settingsScope .kiosk-navTop,
+.settingsScope .kiosk-navBottom {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.settingsScope .kiosk-navBottom {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: none;
+}
+
+.settingsScope .kiosk-btn {
+  display: flex;
   align-items: center;
-  /* ✅ center the whole page */
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 0 16px;
+
+  border-radius: 14px;
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 700;
+  color: #eef4ff;
+
+  background: linear-gradient(180deg, rgba(14, 51, 90, 0.96), rgba(9, 39, 72, 0.98));
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+
+.settingsScope .kiosk-btn:hover {
+  transform: translateY(-1px);
+  background: linear-gradient(180deg, rgba(19, 67, 116, 0.98), rgba(10, 49, 90, 1));
+  border-color: rgba(120, 180, 255, 0.14);
+}
+
+.settingsScope .kiosk-btn.active {
+  background: linear-gradient(180deg, #2267a8 0%, #16528b 100%);
+  border-color: rgba(133, 195, 255, 0.28);
+  color: #ffffff;
+  box-shadow: 0 8px 18px rgba(17, 76, 140, 0.28);
+}
+
+.settingsScope .kiosk-btn.disabled {
+  opacity: 0.55;
+  pointer-events: none;
+  cursor: not-allowed;
+  background: linear-gradient(180deg, rgba(173, 182, 196, 0.88), rgba(150, 160, 176, 0.92));
+  color: rgba(27, 39, 58, 0.72);
+  border-color: rgba(255, 255, 255, 0.04);
+  box-shadow: none;
+}
+
+.settingsScope .kiosk-btn > span:first-child {
+  width: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 17px;
+}
+
+.settingsScope .lockBadge {
+  margin-left: auto;
+  font-size: 12px;
+  opacity: 0.8;
+}
+/* Main page area beside sidebar */
+.settingsScope .settingsPage {
+  flex: 1;
+  min-height: 100vh;
+  margin-left: 260px;
+  padding: 26px 24px 60px;
+  box-sizing: border-box;
+
+  display: flex;
+  justify-content: center;
+}
+
+.settingsScope .settingsShell {
+  width: 100%;
+  max-width: 780px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: left;
 
   font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
   font-weight: 400;
   line-height: 1.6;
-
-  transition: background 0.3s, color 0.3s;
 }
 
 /* A centered content column */
-.settings-header,
-.settings-content,
-.settings-footer {
+.settingsScope .settings-header,
+.settingsScope .settings-content,
+.settingsScope .settings-footer {
   width: 100%;
   max-width: 560px;
-  /* ✅ keeps everything in the middle */
 }
 
 /* =========================
    HEADERS
    ========================= */
-h1 {
+.settingsScope .settings-title {
   font-size: 2.5rem;
   font-weight: 700;
   margin: 0 0 0.75rem 0;
 }
 
-h2 {
+.settingsScope .settings-card-title {
   font-size: 1.5rem;
   font-weight: 600;
   margin: 0 0 1rem 0;
 }
 
-/* Subtitle spacing */
-.settings-subtitle {
+.settingsScope .settings-subtitle {
   margin: 0 0 1rem 0;
   opacity: 0.9;
 }
 
 /* =========================
-   CARDS
+   CONTENT
    ========================= */
-.settings-card {
-  background-color: white;
-  padding: 1.5rem 2rem;
-  border-radius: 12px;
-  margin-bottom: 2rem;
-
-  width: 100%;
-  max-width: 500px;
-  /* keep your nice compact width */
-  transition: background-color 0.3s;
-}
-
-[data-theme="dark"] .settings-card {
-  background-color: var(--card-dark);
-}
-
-/* Center cards within the 560px container */
-.settings-content {
+.settingsScope .settings-content {
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
 /* =========================
+   CARDS
+   ========================= */
+.settingsScope .settings-card {
+  background-color: white;
+  padding: 1.5rem 2rem;
+  border-radius: 12px;
+  margin-bottom: 2rem;
+  width: 100%;
+  max-width: 500px;
+  transition: background-color 0.3s;
+  box-shadow: var(--settings-shadow);
+}
+
+[data-theme="dark"] .settingsScope .settings-card {
+  background-color: var(--settings-card-dark);
+}
+
+/* =========================
    BUTTONS
    ========================= */
-.theme-toggle-btn {
+.settingsScope .theme-toggle-btn {
   padding: 0.8rem 1.6rem;
   font-size: 1rem;
   font-weight: 600;
-
   border: none;
   border-radius: 8px;
   cursor: pointer;
-
-  background-color: var(--btn-bg);
-  color: var(--btn-text);
-
+  background-color: var(--settings-btn-bg);
+  color: var(--settings-btn-text);
   transition: background-color 0.3s, color 0.3s, opacity 0.2s;
 }
 
-.theme-toggle-btn:hover {
+.settingsScope .theme-toggle-btn:hover {
   opacity: 0.85;
 }
 
 /* =========================
    FOOTER / RETURN BUTTON
    ========================= */
-.settings-footer {
+.settingsScope .settings-footer {
   margin-top: 0.5rem;
   display: flex;
   justify-content: flex-start;
 }
 
-.back-link {
+.settingsScope .back-link {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-
   padding: 0.6rem 1.2rem;
-  background-color: var(--btn-bg);
-  color: var(--btn-text);
-
+  background-color: var(--settings-btn-bg);
+  color: var(--settings-btn-text);
   font-weight: 500;
   border-radius: 8px;
   text-decoration: none;
-
   transition: background-color 0.3s, color 0.3s, transform 0.2s, opacity 0.2s;
-  box-shadow: var(--shadow);
+  box-shadow: var(--settings-shadow);
 }
 
-.back-link:hover {
+.settingsScope .back-link:hover {
   opacity: 0.9;
   transform: translateY(-2px);
 }
@@ -167,110 +257,104 @@ h2 {
 /* =========================================================
    PROFILE CARD
    ========================================================= */
-.profile-card {
+.settingsScope .profile-card {
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
 
-.profile-row {
+.settingsScope .profile-row {
   display: flex;
   align-items: center;
   gap: 1rem;
 }
 
-.avatar-fallback {
+.settingsScope .avatar-fallback {
   width: 56px;
   height: 56px;
   border-radius: 999px;
   display: grid;
   place-items: center;
-
   font-weight: 700;
   font-size: 1.25rem;
-
   background-color: rgba(0, 0, 0, 0.06);
   border: 1px solid rgba(0, 0, 0, 0.12);
 }
 
-[data-theme="dark"] .avatar-fallback {
+[data-theme="dark"] .settingsScope .avatar-fallback {
   background-color: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
-.profile-meta {
+.settingsScope .profile-meta {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
 }
 
-.profile-name {
+.settingsScope .profile-name {
   font-size: 1.25rem;
   font-weight: 700;
 }
 
-.profile-role {
+.settingsScope .profile-role {
   font-size: 0.9rem;
   opacity: 0.75;
   letter-spacing: 0.02em;
 }
 
-.profile-summary {
+.settingsScope .profile-summary {
   background: rgba(26, 115, 232, 0.08);
   border-radius: 10px;
   padding: 0.9rem 1rem;
 }
 
-[data-theme="dark"] .profile-summary {
+[data-theme="dark"] .settingsScope .profile-summary {
   background: rgba(255, 255, 255, 0.04);
 }
 
-.profile-summary-title {
+.settingsScope .profile-summary-title {
   font-weight: 650;
   margin-bottom: 0.4rem;
 }
 
-.profile-summary-empty {
+.settingsScope .profile-summary-empty {
   opacity: 0.75;
 }
 
-.profile-summary-list {
+.settingsScope .profile-summary-list {
   margin: 0;
   padding-left: 1.1rem;
   opacity: 0.9;
 }
 
 /* =========================================================
-   MODAL (Availability) — SCROLLABLE + CLEAN
+   MODAL — fully scoped
    ========================================================= */
-.modal-overlay {
+.settingsScope .settings-modal-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.55);
-
   display: grid;
   place-items: center;
-
   padding: 1.25rem;
   z-index: 50;
   overscroll-behavior: contain;
 }
 
-.modal-card {
+.settingsScope .settings-modal-card {
   width: min(920px, 100%);
-  background: var(--bg-color);
-  color: var(--text-color);
+  background: var(--settings-bg-color);
+  color: var(--settings-text-color);
   border-radius: 14px;
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.35);
-
   max-height: 85vh;
   display: flex;
   flex-direction: column;
-
   padding: 1.1rem 1.1rem 0.9rem;
 }
 
-.modal-head {
+.settingsScope .settings-modal-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -278,20 +362,20 @@ h2 {
   padding-bottom: 0.75rem;
 }
 
-.modal-title {
+.settingsScope .settings-modal-title {
   font-size: 1.35rem;
   font-weight: 750;
 }
 
-.modal-subtitle {
+.settingsScope .settings-modal-subtitle {
   opacity: 0.75;
   margin-top: 0.2rem;
 }
 
-.modal-x {
+.settingsScope .settings-modal-x {
   border: none;
   background: transparent;
-  color: var(--text-color);
+  color: var(--settings-text-color);
   font-size: 1.2rem;
   cursor: pointer;
   opacity: 0.8;
@@ -299,19 +383,17 @@ h2 {
   padding: 0.25rem 0.35rem;
 }
 
-.modal-x:hover {
+.settingsScope .settings-modal-x:hover {
   opacity: 1;
 }
 
-/* Scrollable content */
-.modal-body {
+.settingsScope .settings-modal-body {
   overflow: auto;
   padding-right: 0.25rem;
   padding-bottom: 0.75rem;
 }
 
-/* Error */
-.modal-error {
+.settingsScope .settings-modal-error {
   background: rgba(255, 0, 0, 0.08);
   border: 1px solid rgba(255, 0, 0, 0.18);
   padding: 0.75rem 0.9rem;
@@ -320,36 +402,34 @@ h2 {
 }
 
 /* Availability rows */
-.avail-grid {
+.settingsScope .avail-grid {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
 }
 
-.avail-row {
+.settingsScope .avail-row {
   display: grid;
   grid-template-columns: 220px 260px auto;
-  /* 🔥 */
   gap: 0.9rem;
   align-items: center;
 }
 
-
-[data-theme="dark"] .avail-row {
+[data-theme="dark"] .settingsScope .avail-row {
   background: rgba(255, 255, 255, 0.04);
 }
 
-.avail-day {
+.settingsScope .avail-day {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
 }
 
-.avail-day-name {
+.settingsScope .avail-day-name {
   font-weight: 700;
 }
 
-.avail-toggle {
+.settingsScope .avail-toggle {
   display: inline-flex;
   align-items: center;
   gap: 0.55rem;
@@ -357,7 +437,7 @@ h2 {
   opacity: 0.9;
 }
 
-.avail-times {
+.settingsScope .avail-times {
   display: inline-flex;
   align-items: center;
   gap: 0.65rem;
@@ -365,104 +445,94 @@ h2 {
   min-width: 0;
 }
 
-.avail-time {
+.settingsScope .avail-time {
   width: 120px;
   max-width: 100%;
   padding: 0.55rem 0.65rem;
   border-radius: 10px;
-
   border: 1px solid rgba(0, 0, 0, 0.12);
   background: transparent;
-  color: var(--text-color);
+  color: var(--settings-text-color);
 }
 
-[data-theme="dark"] .avail-time {
+[data-theme="dark"] .settingsScope .avail-time {
   border: 1px solid rgba(255, 255, 255, 0.18);
 }
 
-.avail-sep {
+.settingsScope .avail-sep {
   opacity: 0.7;
 }
 
-/* Note input (hard reset to stop floating-label overlays) */
-.modal-card input.avail-note {
+.settingsScope .settings-modal-card input.avail-note {
   appearance: none;
   -webkit-appearance: none;
-
   width: 240px;
-  /* 🔥 fixed smaller width */
-  margin: 0;  
+  margin: 0;
   max-width: 100%;
   min-width: 0;
   justify-self: start;
   height: 40px;
   padding: 0 0.75rem;
-
   border-radius: 10px;
   border: 1px solid rgba(0, 0, 0, 0.12);
   background: transparent;
-  color: var(--text-color);
-
+  color: var(--settings-text-color);
   box-sizing: border-box;
 }
 
-
-[data-theme="dark"] .modal-card input.avail-note {
+[data-theme="dark"] .settingsScope .settings-modal-card input.avail-note {
   border: 1px solid rgba(255, 255, 255, 0.18);
 }
 
-.modal-card input.avail-note::placeholder {
+.settingsScope .settings-modal-card input.avail-note::placeholder {
   opacity: 0.7;
   transform: none !important;
 }
 
-.modal-card input.avail-note:focus {
+.settingsScope .settings-modal-card input.avail-note:focus {
   outline: none;
 }
 
-/* Footer actions pinned */
-.modal-actions {
+/* Footer actions */
+.settingsScope .settings-modal-actions {
   display: flex;
   justify-content: flex-end;
   gap: 0.6rem;
-
   margin-top: auto;
   padding-top: 0.75rem;
-
   border-top: 1px solid rgba(0, 0, 0, 0.08);
 }
 
-[data-theme="dark"] .modal-actions {
+[data-theme="dark"] .settingsScope .settings-modal-actions {
   border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 
-.modal-btn {
+.settingsScope .settings-modal-btn {
   padding: 0.7rem 1rem;
   border-radius: 10px;
   border: none;
   cursor: pointer;
-
-  background: var(--btn-bg);
-  color: var(--btn-text);
+  background: var(--settings-btn-bg);
+  color: var(--settings-btn-text);
   font-weight: 650;
   opacity: 0.95;
 }
 
-.modal-btn:hover {
+.settingsScope .settings-modal-btn:hover {
   opacity: 0.9;
 }
 
-.modal-btn.ghost {
+.settingsScope .settings-modal-btn.ghost {
   background: transparent;
-  color: var(--text-color);
+  color: var(--settings-text-color);
   border: 1px solid rgba(0, 0, 0, 0.16);
 }
 
-[data-theme="dark"] .modal-btn.ghost {
+[data-theme="dark"] .settingsScope .settings-modal-btn.ghost {
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.modal-footnote {
+.settingsScope .settings-modal-footnote {
   margin-top: 0.6rem;
   font-size: 0.9rem;
   opacity: 0.7;
@@ -471,30 +541,38 @@ h2 {
 /* =========================
    RESPONSIVE
    ========================= */
-@media (max-width: 700px) {
-  .settings-page {
-    padding: 1.5rem 1.25rem;
+@media (max-width: 900px) {
+  .settingsScope {
+    flex-direction: column;
   }
 
-  h1 {
+  .settingsScope .settingsPage {
+    margin-left: 0;
+    padding: 20px 16px 40px;
+  }
+}
+
+@media (max-width: 700px) {
+  .settingsScope .settings-title {
     font-size: 2rem;
+  }
+
+  .settingsScope .settingsPage {
+    padding: 1.5rem 1.25rem;
   }
 }
 
 @media (max-width: 760px) {
-  .modal-card {
+  .settingsScope .settings-modal-card {
     max-height: 90vh;
   }
 
-  .avail-row {
+  .settingsScope .avail-row {
     grid-template-columns: 1fr;
   }
 
-  .avail-time {
-    width: 100%;
-  }
-
-  .avail-times {
+  .settingsScope .avail-time,
+  .settingsScope .avail-times {
     width: 100%;
   }
 }
