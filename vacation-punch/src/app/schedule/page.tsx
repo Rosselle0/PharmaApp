@@ -138,6 +138,9 @@ export default async function SchedulePage({
   const prevWeek = ymdLocal(addDays(weekStart, -7));
   const nextWeek = ymdLocal(addDays(weekStart, 7));
   const codeQS = code ? `&code=${encodeURIComponent(code)}` : "";
+  const exportHref = `/api/schedule/export?week=${encodeURIComponent(
+    ymdLocal(weekStart)
+  )}`;
 
   return (
     <div className="kiosk-layout">
@@ -172,6 +175,29 @@ export default async function SchedulePage({
                 Semaine suivante →
               </Link>
             </div>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              marginTop: 12,
+              marginBottom: 14,
+            }}
+          >
+            <a
+              href={exportHref}
+              className="btn"
+              style={{
+                textDecoration: "none",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                fontWeight: 700,
+              }}
+            >
+              ⬇ Télécharger PDF (2 semaines)
+            </a>
           </div>
 
           <section className="section">
