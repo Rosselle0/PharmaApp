@@ -8,8 +8,7 @@ import KioskSidebar from "@/components/KioskSidebar";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const auth = await requireKioskManagerOrAdmin();
-const isPrivilegedLogged = auth.ok;
+
 
 type Candidate = {
   id: string;
@@ -93,6 +92,11 @@ export default async function ChangementShiftPage({
   params: Promise<{ shiftId: string }> | { shiftId: string };
   searchParams?: Promise<{ code?: string }> | { code?: string };
 }) {
+
+
+  const auth = await requireKioskManagerOrAdmin();
+  const isPrivilegedLogged = auth.ok;
+
   const resolvedParams = params instanceof Promise ? await params : params;
   const resolvedSearchParams =
     searchParams instanceof Promise ? await searchParams : searchParams;
