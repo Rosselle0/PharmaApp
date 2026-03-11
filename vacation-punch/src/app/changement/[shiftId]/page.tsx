@@ -76,6 +76,7 @@ async function getSentForShift(shiftId: string, code?: string) {
 
 function fmt(dt: string) {
   return new Date(dt).toLocaleString("fr-CA", {
+    timeZone: "America/Toronto",
     weekday: "short",
     year: "numeric",
     month: "2-digit",
