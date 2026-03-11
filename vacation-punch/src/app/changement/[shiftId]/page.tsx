@@ -75,23 +75,16 @@ async function getSentForShift(shiftId: string, code?: string) {
 }
 
 function fmt(dt: string) {
-  try {
-    const date = new Date(dt);
-    if (Number.isNaN(date.getTime())) return "Date invalide";
-
-    return date.toLocaleString("fr-CA", {
-      timeZone: "America/Toronto",
-      weekday: "short",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return "Date invalide";
-  }
+  return new Date(dt).toLocaleString("fr-CA", {
+    weekday: "short",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
+
 export default async function ChangementShiftPage({
   params,
   searchParams,
