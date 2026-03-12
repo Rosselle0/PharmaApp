@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 const ALLOWED_TERMINAL_IPS = new Set([
   "127.0.0.1",
   "::1",
-  "10.7.32.201",   // boss computer
+  "10.7.32.201",
 ]);
 
 function getClientIP(req: Request) {
@@ -20,16 +20,7 @@ function getClientIP(req: Request) {
 
 export async function requireTerminalOrDev(req: Request) {
   const url = new URL(req.url);
-  const ip = getClientIP(req);
-
-  const isDevBypass =
-    process.env.PUNCH_DEV_BYPASS === "1" &&
-    process.env.NODE_ENV !== "production" &&
-    url.searchParams.get("dev") === "1";
-
-  if (!ip || !ALLOWED_TERMINAL_IPS.has(ip)) {
-    return { ok: false as const, error: "IP non autorisée" };
-  }
+  const isDevBypass = process.env.NODE_ENV !== "production" && url.searchParams.get("dev") === "1";
 
   if (isDevBypass) {
     return {
@@ -37,6 +28,11 @@ export async function requireTerminalOrDev(req: Request) {
       terminalCompanyId: null as string | null,
       dev: true as const,
     };
+  }
+
+  const ip = getClientIP(req);
+  if (!ip || !ALLOWED_TERMINAL_IPS.has(ip)) {
+    return { ok: false as const, error: "IP non autorisée" };
   }
 
   const jar = await cookies();

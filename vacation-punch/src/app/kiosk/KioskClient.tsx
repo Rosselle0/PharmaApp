@@ -19,6 +19,26 @@ type ActiveRow = {
   time: string;
 };
 
+type PunchState = "OUT" | "IN" | "ON_BREAK" | "ON_LUNCH";
+
+type PunchAction =
+  | "CLOCK_IN"
+  | "CLOCK_OUT"
+  | "BREAK_START"
+  | "BREAK_END"
+  | "LUNCH_START"
+  | "LUNCH_END";
+
+type PunchStatus = {
+  state: PunchState;
+  breakDone: boolean;
+  lunchDone: boolean;
+  workMs: number;
+  breakMs: number;
+  lunchMs: number;
+  fetchedAt: string;
+};
+
 const PIN_LEN = 4;
 
 type KioskClientProps = {
@@ -81,6 +101,9 @@ export default function KioskClient({
 
   const [actifs, setActifs] = useState<ActiveRow[]>([]);
   const [actifsErr, setActifsErr] = useState<string | null>(null);
+  const [punchStatus, setPunchStatus] = useState<PunchStatus | null>(null);
+  const [punchStateErr, setPunchStateErr] = useState<string | null>(null);
+  const [tickNow, setTickNow] = useState(() => Date.now());
 
   function mapStateToUi(state: string): ActiveRow["status"] {
     const s = String(state || "").toUpperCase();
@@ -97,6 +120,58 @@ export default function KioskClient({
     const h = Math.floor(min / 60);
     const m = min % 60;
     return `${h}h ${m}m`;
+  }
+
+
+  function formatDuration(ms: number) {
+    const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${hours}h ${String(minutes).padStart(2, "0")}m ${String(seconds).padStart(2, "0")}s`;
+  }
+
+  const effectivePunchCode = employeeCodeConfirmed || (employeeLogged ? employeeCodeClean : "") || privilegedCode || "";
+
+  async function loadPunchState() {
+    if (!effectivePunchCode || effectivePunchCode.length !== PIN_LEN) {
+      setPunchStatus(null);
+      setPunchStateErr(null);
+      return;
+    }
+
+    try {
+      setPunchStateErr(null);
+      const url = new URL("/api/punch/state", window.location.origin);
+      url.searchParams.set("code", effectivePunchCode);
+      const res = await fetch(url.toString(), { cache: "no-store" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) {
+        setPunchStatus(null);
+        setPunchStateErr(data?.error ?? `Erreur (${res.status})`);
+        return;
+      }
+      setPunchStatus({
+        state: data.state ?? "OUT",
+        breakDone: Boolean(data.breakDone),
+        lunchDone: Boolean(data.lunchDone),
+        workMs: Number(data.workMs ?? 0),
+        breakMs: Number(data.breakMs ?? 0),
+        lunchMs: Number(data.lunchMs ?? 0),
+        fetchedAt: String(data.fetchedAt ?? new Date().toISOString()),
+      });
+    } catch {
+      setPunchStateErr("Erreur réseau punch.");
+    }
+  }
+
+  function getDisplayedMs(status: PunchStatus | null, nowMs: number) {
+    if (!status) return 0;
+    const sinceFetch = Math.max(0, nowMs - new Date(status.fetchedAt).getTime());
+    if (status.state === "IN") return status.workMs + sinceFetch;
+    if (status.state === "ON_BREAK") return status.breakMs + sinceFetch;
+    if (status.state === "ON_LUNCH") return status.lunchMs + sinceFetch;
+    return 0;
   }
 
   async function loadActifs() {
@@ -127,11 +202,9 @@ export default function KioskClient({
     }
   }
 
-  async function punch(
-    type: "CLOCK_IN" | "CLOCK_OUT" | "BREAK_START" | "BREAK_END" | "LUNCH_START" | "LUNCH_END"
-  ) {
+  async function punch(type: PunchAction) {
     try {
-      const code = employeeCodeConfirmed || employeeCodeClean;
+      const code = effectivePunchCode;
       if (!code || code.length !== PIN_LEN) {
         showToast("Code requis pour punch.");
         return;
@@ -150,7 +223,7 @@ export default function KioskClient({
         return;
       }
       showToast(`✅ ${type}`);
-      loadActifs();
+      await Promise.all([loadActifs(), loadPunchState()]);
     } catch {
       showToast("Erreur réseau punch.");
     }
@@ -161,6 +234,22 @@ export default function KioskClient({
     const t = window.setInterval(loadActifs, 5000);
     return () => window.clearInterval(t);
   }, []);
+
+  useEffect(() => {
+    if (!isAnyLogged) {
+      setPunchStatus(null);
+      setPunchStateErr(null);
+      return;
+    }
+
+    loadPunchState();
+    const refresh = window.setInterval(loadPunchState, 15000);
+    const tick = window.setInterval(() => setTickNow(Date.now()), 1000);
+    return () => {
+      window.clearInterval(refresh);
+      window.clearInterval(tick);
+    };
+  }, [isAnyLogged, effectivePunchCode]);
 
   function maskedPinBoxes(value: string) {
     const digits = value.slice(0, PIN_LEN);
@@ -308,7 +397,7 @@ export default function KioskClient({
     setAutoSubmitting(false);
     setBlockedCode(null);
 
-    await loadActifs();
+    await Promise.all([loadActifs(), loadPunchState()]);
     window.history.replaceState(null, "", "/kiosk");
     router.replace("/kiosk");
     router.refresh();
@@ -392,6 +481,65 @@ export default function KioskClient({
     router.replace("/kiosk");
     router.refresh();
   }
+
+  const state: PunchState = punchStatus?.state ?? "OUT";
+  const displayedMs = getDisplayedMs(punchStatus, tickNow);
+  const timerLabel =
+    state === "ON_BREAK"
+      ? "En pause"
+      : state === "ON_LUNCH"
+      ? "En lunch"
+      : state === "IN"
+      ? "Temps travaillé"
+      : "Temps";
+  const timerDanger =
+    (state === "ON_BREAK" && displayedMs > 15 * 60 * 1000) ||
+    (state === "ON_LUNCH" && displayedMs > 30 * 60 * 1000);
+
+  const buttons: {
+    key: string;
+    label: string;
+    action: PunchAction;
+    disabled: boolean;
+    danger: boolean;
+  }[] = [
+    {
+      key: "IN",
+      label: "IN",
+      action: "CLOCK_IN",
+      disabled: state !== "OUT",
+      danger: false,
+    },
+    {
+      key: "BREAK",
+      label: state === "ON_BREAK" ? "Back" : "Break",
+      action: state === "ON_BREAK" ? "BREAK_END" : "BREAK_START",
+      disabled:
+        state === "OUT" ||
+        state === "ON_LUNCH" ||
+        (state === "IN" && Boolean(punchStatus?.breakDone)) ||
+        (state !== "IN" && state !== "ON_BREAK"),
+      danger: false,
+    },
+    {
+      key: "LUNCH",
+      label: state === "ON_LUNCH" ? "Back" : "Lunch",
+      action: state === "ON_LUNCH" ? "LUNCH_END" : "LUNCH_START",
+      disabled:
+        state === "OUT" ||
+        state === "ON_BREAK" ||
+        (state === "IN" && Boolean(punchStatus?.lunchDone)) ||
+        (state !== "IN" && state !== "ON_LUNCH"),
+      danger: false,
+    },
+    {
+      key: "OUT",
+      label: "OUT",
+      action: "CLOCK_OUT",
+      disabled: state !== "IN",
+      danger: true,
+    },
+  ];
 
   return (
     <main className="kiosk-shell">
@@ -526,25 +674,25 @@ export default function KioskClient({
             <div className="punchPanel">
               <div className="punchTitle">Punch</div>
 
-              <div className="punchBtns">
-                <button className="punchBtn" type="button" onClick={() => punch("CLOCK_IN")}>
-                  IN
-                </button>
-                <button className="punchBtn" type="button" onClick={() => punch("BREAK_START")}>
-                  Break
-                </button>
-                <button className="punchBtn" type="button" onClick={() => punch("BREAK_END")}>
-                  Back
-                </button>
-                <button className="punchBtn" type="button" onClick={() => punch("LUNCH_START")}>
-                  Lunch
-                </button>
-                <button className="punchBtn" type="button" onClick={() => punch("LUNCH_END")}>
-                  Back
-                </button>
-                <button className="punchBtn punchBtnDanger" type="button" onClick={() => punch("CLOCK_OUT")}>
-                  OUT
-                </button>
+              <div className={`punchTimer ${timerDanger ? "danger" : ""}`}>
+                <div className="punchTimerLabel">{timerLabel}</div>
+                <div className="punchTimerValue">{formatDuration(displayedMs)}</div>
+              </div>
+
+              {punchStateErr && <div className="punchError">{punchStateErr}</div>}
+
+              <div className="punchBtns punchBtnsGrid">
+                {buttons.map((btn) => (
+                  <button
+                    key={btn.key}
+                    className={`punchBtn ${btn.danger ? "danger" : ""} ${btn.disabled ? "disabled" : ""}`}
+                    type="button"
+                    disabled={btn.disabled}
+                    onClick={() => punch(btn.action)}
+                  >
+                    {btn.label}
+                  </button>
+                ))}
               </div>
 
               <div style={{ marginTop: 14 }}>

@@ -4,113 +4,146 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// If you already use this guard elsewhere, use it here too.
-// import { requireEmployeeFromKioskOrCode } from "@/lib/shiftChange/auth";
+const PunchTypes = [
+  "CLOCK_IN",
+  "CLOCK_OUT",
+  "BREAK_START",
+  "BREAK_END",
+  "LUNCH_START",
+  "LUNCH_END",
+] as const;
 
+type PunchType = (typeof PunchTypes)[number];
 type UiState = "WORKING" | "BREAK" | "LUNCH" | "LEFT";
+type PunchState = "OUT" | "IN" | "ON_BREAK" | "ON_LUNCH";
 
-const TZ = process.env.APP_TZ || "America/Toronto";
-
-// Get YYYY-MM-DD in business TZ
-function ymdInTZ(d: Date) {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: TZ,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(d);
+function diffMs(a: Date, b: Date) {
+  return Math.max(0, a.getTime() - b.getTime());
 }
 
-function startOfTodayInTZ(now: Date) {
-  // Build "YYYY-MM-DDT00:00:00" and interpret as local time *in server*.
-  // We avoid UTC reset by using the date string in TZ.
-  const ymd = ymdInTZ(now); // "2026-02-24"
-  // This makes a Date at midnight server-local; imperfect but good enough for demo.
-  // If you want exact TZ midnight, we can tighten it later.
-  return new Date(`${ymd}T00:00:00`);
-}
+function getShiftStatus(events: Array<{ type: PunchType; at: Date }>, now = new Date()) {
+  let state: PunchState = "OUT";
+  let shiftStart: Date | null = null;
+  let activeStartedAt: Date | null = null;
+  let breakMs = 0;
+  let lunchMs = 0;
 
-function toState(punchType: string): UiState {
-  switch (punchType) {
-    case "CLOCK_IN":
-      return "WORKING";
-    case "BREAK_START":
-      return "BREAK";
-    case "BREAK_END":
-      return "WORKING";
-    case "LUNCH_START":
-      return "LUNCH";
-    case "LUNCH_END":
-      return "WORKING";
-    case "CLOCK_OUT":
-      return "LEFT";
-    default:
-      return "WORKING";
-  }
-}
-
-function minutesSince(d: Date) {
-  const ms = Date.now() - d.getTime();
-  return Math.max(0, Math.floor(ms / 60000));
-}
-
-export async function GET(req: Request) {
-  // ✅ If you want kiosk-only access, enforce it here.
-  // const auth = await requireEmployeeFromKioskOrCode(req);
-  // if (!auth.ok) return NextResponse.json({ ok: false, error: auth.error }, { status: 401 });
-
-  const now = new Date();
-  const dayStart = startOfTodayInTZ(now);
-
-  // Pull today’s punches (latest first)
-  const punches = await prisma.punchEvent.findMany({
-    where: {
-      at: { gte: dayStart },
-      // If you want per-company filtering:
-      // employee: { companyId: auth.companyId }
-    },
-    orderBy: { at: "desc" },
-    select: {
-      id: true,
-      type: true,
-      at: true,
-      employeeId: true,
-      employee: { select: { firstName: true, lastName: true } },
-    },
-    take: 500, // safety cap
-  });
-
-  // Latest punch per employee (since dayStart)
-  const latestByEmployee = new Map<
-    string,
-    { employeeId: string; name: string; type: string; at: Date }
-  >();
-
-  for (const p of punches) {
-    if (!latestByEmployee.has(p.employeeId)) {
-      latestByEmployee.set(p.employeeId, {
-        employeeId: p.employeeId,
-        name: `${p.employee.firstName} ${p.employee.lastName}`,
-        type: p.type,
-        at: p.at,
-      });
+  for (const event of events) {
+    switch (event.type) {
+      case "CLOCK_IN":
+        state = "IN";
+        shiftStart = event.at;
+        activeStartedAt = null;
+        breakMs = 0;
+        lunchMs = 0;
+        break;
+      case "BREAK_START":
+        if (shiftStart && state === "IN") {
+          state = "ON_BREAK";
+          activeStartedAt = event.at;
+        }
+        break;
+      case "BREAK_END":
+        if (shiftStart && state === "ON_BREAK" && activeStartedAt) {
+          breakMs += diffMs(event.at, activeStartedAt);
+          state = "IN";
+          activeStartedAt = null;
+        }
+        break;
+      case "LUNCH_START":
+        if (shiftStart && state === "IN") {
+          state = "ON_LUNCH";
+          activeStartedAt = event.at;
+        }
+        break;
+      case "LUNCH_END":
+        if (shiftStart && state === "ON_LUNCH" && activeStartedAt) {
+          lunchMs += diffMs(event.at, activeStartedAt);
+          state = "IN";
+          activeStartedAt = null;
+        }
+        break;
+      case "CLOCK_OUT":
+        state = "OUT";
+        shiftStart = null;
+        activeStartedAt = null;
+        breakMs = 0;
+        lunchMs = 0;
+        break;
     }
   }
 
-  const items = Array.from(latestByEmployee.values()).map((x) => {
-    const state = toState(x.type);
-    return {
-      employeeId: x.employeeId,
-      name: x.name,
-      state,
-      minutes: minutesSince(x.at),
-      lastAt: x.at.toISOString(),
-      lastType: x.type,
-    };
+  let workMs = 0;
+  if (shiftStart) {
+    const runningEnd = state === "IN" ? now : activeStartedAt ?? now;
+    workMs = Math.max(0, diffMs(runningEnd, shiftStart) - breakMs - lunchMs);
+  }
+
+  const liveBreakMs = state === "ON_BREAK" && activeStartedAt ? breakMs + diffMs(now, activeStartedAt) : breakMs;
+  const liveLunchMs = state === "ON_LUNCH" && activeStartedAt ? lunchMs + diffMs(now, activeStartedAt) : lunchMs;
+
+  return { state, workMs, breakMs: liveBreakMs, lunchMs: liveLunchMs };
+}
+
+function toUiState(state: PunchState): UiState {
+  if (state === "IN") return "WORKING";
+  if (state === "ON_BREAK") return "BREAK";
+  if (state === "ON_LUNCH") return "LUNCH";
+  return "LEFT";
+}
+
+export async function GET() {
+  const rows = await prisma.punchEvent.findMany({
+    orderBy: { at: "asc" },
+    select: {
+      employeeId: true,
+      type: true,
+      at: true,
+      employee: {
+        select: {
+          firstName: true,
+          lastName: true,
+          isActive: true,
+        },
+      },
+    },
   });
 
-  // Show “Actifs” = not LEFT (your call)
-  const actifs = items.filter((x) => x.state !== "LEFT");
+  const byEmployee = new Map<string, { name: string; events: Array<{ type: PunchType; at: Date }> }>();
 
-  return NextResponse.json({ ok: true, actifs, all: items });
+  for (const row of rows) {
+    if (!row.employee.isActive) continue;
+    const current = byEmployee.get(row.employeeId) ?? {
+      name: `${row.employee.firstName} ${row.employee.lastName}`.trim(),
+      events: [],
+    };
+    current.events.push({ type: row.type as PunchType, at: row.at });
+    byEmployee.set(row.employeeId, current);
+  }
+
+  const now = new Date();
+  const actifs = Array.from(byEmployee.entries())
+    .map(([employeeId, value]) => {
+      const status = getShiftStatus(value.events, now);
+      const state = toUiState(status.state);
+      const minutes = Math.floor(
+        (status.state === "IN"
+          ? status.workMs
+          : status.state === "ON_BREAK"
+          ? status.breakMs
+          : status.state === "ON_LUNCH"
+          ? status.lunchMs
+          : 0) / 60000
+      );
+      return {
+        employeeId,
+        name: value.name,
+        state,
+        minutes,
+      };
+    })
+    .filter((row) => row.state !== "LEFT")
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  return NextResponse.json({ ok: true, actifs });
 }

@@ -1143,3 +1143,55 @@
 .kiosk-dot.YELLOW { background: #f6d14a; box-shadow: 0 0 12px rgba(246,209,74,.55); }
 .kiosk-dot.RED { background: #ff4d4d; box-shadow: 0 0 12px rgba(255,77,77,.55); }
 .kiosk-dot.GRAY { background: rgba(255,255,255,.25); }
+
+.punchTimer{
+  margin-bottom: 12px;
+  border-radius: 16px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.06);
+}
+
+.punchTimer.danger{
+  border-color: rgba(255, 77, 94, .35);
+  background: rgba(255, 77, 94, .10);
+}
+
+.punchTimerLabel{
+  font-size: 14px;
+  font-weight: 800;
+  opacity: .82;
+  margin-bottom: 6px;
+}
+
+.punchTimerValue{
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: .3px;
+}
+
+.punchError{
+  margin-bottom: 12px;
+  color: #ff6b6b;
+  font-weight: 900;
+}
+
+.punchBtnsGrid{
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.punchBtn{
+  transition: filter .15s ease, opacity .15s ease, transform .15s ease;
+}
+
+.punchBtn:hover:not(:disabled){
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.punchBtn:disabled,
+.punchBtn.disabled{
+  opacity: .45;
+  cursor: not-allowed;
+  filter: saturate(.6);
+}
