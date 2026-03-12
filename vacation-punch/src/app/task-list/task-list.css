@@ -1,13 +1,18 @@
-@import "../sidebar.css";
-
 /* =========================================================
    TASK LIST PAGE + SIDEBAR
    ========================================================= */
 
 /* ===== THEME VARIABLES (LIGHT MODE DEFAULT) ===== */
 :root {
+  --sidebar-bg: #ffffff;
+  --sidebar-border: #e5e7eb;
 
+  --sidebar-btn-bg: #f1f5f9;
+  --sidebar-btn-text: #1f2937;
+  --sidebar-btn-hover: #e2e8f0;
 
+  --sidebar-active-bg: linear-gradient(135deg, #3b82f6, #2563eb);
+  --sidebar-active-text: #ffffff;
 
   --page-bg: #f4f5f7;
   --page-text: #0f172a;        /* darker text for better readability */
@@ -26,8 +31,15 @@
 
 /* ===== DARK MODE OVERRIDE ===== */
 [data-theme="dark"] {
+  --sidebar-bg: #0b1220;
+  --sidebar-border: rgba(255,255,255,0.06);
 
+  --sidebar-btn-bg: rgba(255,255,255,0.05);
+  --sidebar-btn-text: #e6ebf3;
+  --sidebar-btn-hover: rgba(255,255,255,0.1);
 
+  --sidebar-active-bg: linear-gradient(135deg, #2563eb, #1d4ed8);
+  --sidebar-active-text: #ffffff;
 
   --page-bg: 
     radial-gradient(1200px 700px at 18% 12%, rgba(54, 209, 227, 0.12), transparent 55%),
@@ -55,17 +67,59 @@
 }
 
 /* Sidebar */
+.kiosk-sidebar {
+  width: 260px;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--sidebar-border);
+  padding: 24px 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: background 0.3s ease, border 0.3s ease;
+}
 
+.kiosk-navTop,
+.kiosk-navBottom {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
 
+.kiosk-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: var(--sidebar-btn-bg);
+  color: var(--sidebar-btn-text);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid var(--btn-border);
+}
 
+.kiosk-btn:hover {
+  background: var(--sidebar-btn-hover);
+  transform: translateY(-1px);
+}
 
+.kiosk-btn.active {
+  background: var(--sidebar-active-bg);
+  color: var(--sidebar-active-text);
+  box-shadow: 0 6px 15px rgba(37, 99, 235, 0.25);
+}
 
+.kiosk-btn span {
+  font-size: 18px;
+}
 
 /* Task List Page */
 .tlPage {
   flex: 1;
   min-height: 100vh;
-  margin-left: var(--sb-width);
   background: var(--page-bg);
   color: var(--page-text);
   display: flex;
@@ -167,7 +221,17 @@
   gap: 10px;
 }
 
+.kiosk-btn {
+  width: 100%;
+  text-align: left;
+  background: var(--sidebar-btn-bg);
+  color: var(--sidebar-btn-text);
+  font-weight: 600;
+}
 
+.kiosk-btn:hover {
+  background: var(--sidebar-btn-hover);
+}
 
 /* Empty / messages */
 .empty {
@@ -178,10 +242,6 @@
 }
 
 /* Responsive */
-@media (max-width: 820px) {
-  .tlPage { margin-left: 0; }
-}
-
 @media (max-width: 1050px) {
   .tableWrap {
     overflow: auto;

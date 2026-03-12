@@ -1,16 +1,3 @@
-@import "../sidebar.css";
-
-/* Kiosk grid layout: sidebar is a grid item, not fixed */
-.kiosk-frame .kiosk-sidebar {
-  position: static;
-  width: auto;
-  height: auto;
-  box-shadow: none;
-  border-right: none;
-  border-radius: var(--r-lg, 22px);
-  overflow: visible;
-}
-
 /* ============ Base ============ */
 * {
     box-sizing: border-box;

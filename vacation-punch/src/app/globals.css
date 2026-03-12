@@ -25,3 +25,16 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+
+.kiosk-sidebar .kiosk-btn.disabled,
+.kiosk-sidebar a.kiosk-btn[aria-disabled="true"] {
+  opacity: 0.5;
+  pointer-events: none;
+  cursor: not-allowed;
+  filter: grayscale(0.35);
+}
+
+.kiosk-sidebar .kiosk-btn.disabled .lockBadge,
+.kiosk-sidebar a.kiosk-btn[aria-disabled="true"] .lockBadge {
+  opacity: 0.8;
+}
