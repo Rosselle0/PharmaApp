@@ -2,25 +2,42 @@
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 
-const ALLOWED_TERMINAL_IPS = new Set([
-  "127.0.0.1",
-  "::1",
-  "10.7.32.201",
-]);
+const ALLOWED_TERMINAL_IPS = new Set(
+  (process.env.ALLOWED_TERMINAL_IPS || "")
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean)
+);
+
+function normalizeIP(ip: string) {
+  const value = ip.trim();
+
+  // x-forwarded-for may contain multiple IPs
+  const first = value.split(",")[0].trim();
+
+  // Convert IPv6-mapped IPv4 ::ffff:10.7.32.201 -> 10.7.32.201
+  if (first.startsWith("::ffff:")) {
+    return first.slice(7);
+  }
+
+  return first;
+}
 
 function getClientIP(req: Request) {
   const xf = req.headers.get("x-forwarded-for");
-  if (xf) return xf.split(",")[0].trim();
+  if (xf) return normalizeIP(xf);
 
   const real = req.headers.get("x-real-ip");
-  if (real) return real;
+  if (real) return normalizeIP(real);
 
   return "unknown";
 }
 
 export async function requireTerminalOrDev(req: Request) {
   const url = new URL(req.url);
-  const isDevBypass = process.env.NODE_ENV !== "production" && url.searchParams.get("dev") === "1";
+  const isDevBypass =
+    process.env.NODE_ENV !== "production" &&
+    url.searchParams.get("dev") === "1";
 
   if (isDevBypass) {
     return {
@@ -31,12 +48,13 @@ export async function requireTerminalOrDev(req: Request) {
   }
 
   const ip = getClientIP(req);
+
   if (!ip || !ALLOWED_TERMINAL_IPS.has(ip)) {
     return { ok: false as const, error: "IP non autorisée" };
   }
 
   const jar = await cookies();
-  const sid = jar.get("kiosk_terminal_session")?.value ?? "";
+  const sid = jar.get("terminal_session")?.value ?? "";
 
   if (!sid) {
     return { ok: false as const, error: "Terminal non autorisé" };
