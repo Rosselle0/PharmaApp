@@ -2,14 +2,28 @@
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 
-export async function requireTerminalOrDev(req: Request) {
-  const isDevBypass =
-    process.env.PUNCH_DEV_BYPASS === "1" &&
-    (process.env.NODE_ENV !== "production") &&
-    new URL(req.url).searchParams.get("dev") === "1";
+const ALLOWED_TERMINAL_IPS = new Set([
+  "127.0.0.1",
+  "::1",
+  "10.7.32.201",   // boss computer
+]);
 
-  if (isDevBypass) {
-    return { ok: true as const, terminalCompanyId: null as string | null, dev: true as const };
+function getClientIP(req: Request) {
+  const xf = req.headers.get("x-forwarded-for");
+  if (xf) return xf.split(",")[0].trim();
+
+  const real = req.headers.get("x-real-ip");
+  if (real) return real;
+
+  return "unknown";
+}
+
+export async function requireTerminalOrDev(req: Request) {
+
+  const ip = getClientIP(req);
+
+  if (!ALLOWED_TERMINAL_IPS.has(ip)) {
+    return { ok: false as const, error: "IP non autorisée" };
   }
 
   const jar = await cookies();
