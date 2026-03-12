@@ -41,6 +41,11 @@ export default function KioskSidebar({
 
   const isActive = (href: string) => path.startsWith(href);
   const isKioskHome = path === "/kiosk";
+  const isSidebarUnlocked = isPrivilegedLogged || employeeLogged;
+
+  const preventWhenLocked = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (!isSidebarUnlocked) e.preventDefault();
+  };
 
   return (
     <aside className="kiosk-sidebar">
@@ -48,7 +53,10 @@ export default function KioskSidebar({
         {!isKioskHome && (
           <Link
             href={`/kiosk${qs}`}
-            className={`kiosk-btn ${isActive("/kiosk") ? "active" : ""}`}
+            className={`kiosk-btn ${isActive("/kiosk") ? "active" : ""} ${!isSidebarUnlocked ? "disabled" : ""}`}
+            aria-disabled={!isSidebarUnlocked}
+            title={!isSidebarUnlocked ? "Connecte-toi d’abord" : undefined}
+            onClick={preventWhenLocked}
           >
             <span>🏠</span> Retour au Kiosk
           </Link>
@@ -56,28 +64,40 @@ export default function KioskSidebar({
 
         <Link
           href={`/schedule${qs}`}
-          className={`kiosk-btn ${isActive("/schedule") ? "active" : ""}`}
+          className={`kiosk-btn ${isActive("/schedule") ? "active" : ""} ${!isSidebarUnlocked ? "disabled" : ""}`}
+          aria-disabled={!isSidebarUnlocked}
+          title={!isSidebarUnlocked ? "Connecte-toi d’abord" : undefined}
+          onClick={preventWhenLocked}
         >
           <span>📅</span> Horaire
         </Link>
 
         <Link
           href={`/changement${qs}`}
-          className={`kiosk-btn ${isActive("/changement") ? "active" : ""}`}
+          className={`kiosk-btn ${isActive("/changement") ? "active" : ""} ${!isSidebarUnlocked ? "disabled" : ""}`}
+          aria-disabled={!isSidebarUnlocked}
+          title={!isSidebarUnlocked ? "Connecte-toi d’abord" : undefined}
+          onClick={preventWhenLocked}
         >
           <span>🔁</span> Changement
         </Link>
 
         <Link
           href={`/task-list${qs}`}
-          className={`kiosk-btn ${isActive("/task-list") ? "active" : ""}`}
+          className={`kiosk-btn ${isActive("/task-list") ? "active" : ""} ${!isSidebarUnlocked ? "disabled" : ""}`}
+          aria-disabled={!isSidebarUnlocked}
+          title={!isSidebarUnlocked ? "Connecte-toi d’abord" : undefined}
+          onClick={preventWhenLocked}
         >
           <span>📋</span> Liste des tâches
         </Link>
 
         <Link
           href={`/vacation${qs}`}
-          className={`kiosk-btn ${isActive("/vacation") ? "active" : ""}`}
+          className={`kiosk-btn ${isActive("/vacation") ? "active" : ""} ${!isSidebarUnlocked ? "disabled" : ""}`}
+          aria-disabled={!isSidebarUnlocked}
+          title={!isSidebarUnlocked ? "Connecte-toi d’abord" : undefined}
+          onClick={preventWhenLocked}
         >
           <span>🌴</span> Vacance / Congé
         </Link>
@@ -86,7 +106,10 @@ export default function KioskSidebar({
       <div className="kiosk-navBottom">
         <Link
           href={`/settings${qs}`}
-          className={`kiosk-btn ${isActive("/settings") ? "active" : ""}`}
+          className={`kiosk-btn ${isActive("/settings") ? "active" : ""} ${!isSidebarUnlocked ? "disabled" : ""}`}
+          aria-disabled={!isSidebarUnlocked}
+          title={!isSidebarUnlocked ? "Connecte-toi d’abord" : undefined}
+          onClick={preventWhenLocked}
         >
           <span>⚙️</span> Paramètres
         </Link>
@@ -94,11 +117,12 @@ export default function KioskSidebar({
         <Link
           href="/admin/dashboard"
           className={`kiosk-btn ${isActive("/admin/dashboard") ? "active" : ""} ${
-            !isPrivilegedLogged ? "disabled" : ""
+            !isSidebarUnlocked || !isPrivilegedLogged ? "disabled" : ""
           }`}
-          title={!isPrivilegedLogged ? "Connexion admin ou manager requise" : undefined}
+          aria-disabled={!isSidebarUnlocked || !isPrivilegedLogged}
+          title={!isSidebarUnlocked ? "Connecte-toi d’abord" : !isPrivilegedLogged ? "Connexion admin ou manager requise" : undefined}
           onClick={(e) => {
-            if (!isPrivilegedLogged) e.preventDefault();
+            if (!isSidebarUnlocked || !isPrivilegedLogged) e.preventDefault();
           }}
         >
           <span>🔒</span> Logs

@@ -51,19 +51,17 @@ function defaultWeek(): DayAvailability[] {
   }));
 }
 
-const PIN_LEN = 4;
 function readEmployeeCodeFromUrlOrStorage(): string | null {
   if (typeof window === "undefined") return null;
 
   const params = new URLSearchParams(window.location.search);
-  const urlCode = (params.get("code") ?? "").replace(/\D/g, "").slice(0, PIN_LEN);
-  if (urlCode.length === PIN_LEN) return urlCode;
+  const urlCode = (params.get("code") ?? "").replace(/\D/g, "");
+  if (urlCode.length >= 4) return urlCode;
 
   const lsCode = (window.localStorage.getItem("kiosk_employee_code") ?? "")
-    .replace(/\D/g, "")
-    .slice(0, PIN_LEN);
+    .replace(/\D/g, "");
 
-  if (lsCode.length === PIN_LEN) return lsCode;
+  if (lsCode.length >= 4) return lsCode;
 
   return null;
 }

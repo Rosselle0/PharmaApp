@@ -9,16 +9,16 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const code = (url.searchParams.get("code") ?? "").replace(/\D/g, "");
 
-    if (!/^\d{8}$/.test(code)) {
+    if (!/^\d{4,}$/.test(code)) {
       return NextResponse.json(
-        { ok: false, error: "Invalid code (expected 8 digits)" },
+        { ok: false, error: "Invalid code (expected at least 4 digits)" },
         { status: 400 }
       );
     }
 
     const employee = await prisma.employee.findUnique({
       where: { employeeCode: code },
-      select: { firstName: true, lastName: true },
+      select: { firstName: true, lastName: true, role: true },
     });
 
     if (!employee) {
@@ -30,6 +30,7 @@ export async function GET(req: Request) {
     return NextResponse.json({
       ok: true,
       employeeName: employeeName || "EMPLOYEE",
+      role: employee.role ?? null,
     });
   } catch (e: any) {
     console.error("GET /api/settings/me failed:", e);
