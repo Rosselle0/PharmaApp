@@ -42,6 +42,54 @@ function isWithinHoursTZ(d: Date) {
   return h >= 8 && h <= 21;
 }
 
+function minutesFromHHMM(hhmm: string) {
+  const m = /^(\d{2}):(\d{2})$/.exec(hhmm);
+  if (!m) return null;
+
+  const hh = Number(m[1]);
+  const mm = Number(m[2]);
+  if (!Number.isFinite(hh) || !Number.isFinite(mm)) return null;
+  if (hh < 0 || hh > 23 || mm < 0 || mm > 59) return null;
+
+  return hh * 60 + mm;
+}
+
+async function assertShiftMatchesAvailability(employeeId: string, startTime: Date, endTime: Date) {
+  const dayOfWeek = startTime.getDay();
+
+  const rule = await prisma.availabilityRule.findUnique({
+    where: { employeeId_dayOfWeek: { employeeId, dayOfWeek } },
+    select: { available: true, startHHMM: true, endHHMM: true },
+  });
+
+  if (!rule || !rule.available) {
+    return { ok: false as const, error: "Cet employé n'est pas disponible cette journée." };
+  }
+
+  const shiftStart = minutesFromHHMM(hhmmInTZ(startTime) ?? "");
+  const shiftEnd = minutesFromHHMM(hhmmInTZ(endTime) ?? "");
+  const ruleStart = minutesFromHHMM(rule.startHHMM);
+  const ruleEnd = minutesFromHHMM(rule.endHHMM);
+
+  if (
+    shiftStart === null ||
+    shiftEnd === null ||
+    ruleStart === null ||
+    ruleEnd === null
+  ) {
+    return { ok: false as const, error: "Disponibilité invalide pour cet employé." };
+  }
+
+  if (shiftStart < ruleStart || shiftEnd > ruleEnd) {
+    return {
+      ok: false as const,
+      error: `Plage refusée: disponibilité de l'employé ${rule.startHHMM}–${rule.endHHMM}.`,
+    };
+  }
+
+  return { ok: true as const };
+}
+
 async function getDefaultCompany() {
   const companyName = process.env.DEFAULT_COMPANY_NAME?.trim() || "RxPlanning";
   return prisma.company.upsert({
@@ -113,6 +161,11 @@ export async function POST(req: Request) {
 
   if (!isWithinHoursTZ(startTime) || !isWithinHoursTZ(endTime)) {
     return NextResponse.json({ error: "Allowed range is 08:00–21:00" }, { status: 400 });
+  }
+
+  const availabilityCheck = await assertShiftMatchesAvailability(employeeId, startTime, endTime);
+  if (!availabilityCheck.ok) {
+    return NextResponse.json({ error: availabilityCheck.error }, { status: 400 });
   }
 
   const note = body.note === null ? null : String(body.note ?? "").trim() || null;

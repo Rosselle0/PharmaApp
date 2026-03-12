@@ -11,6 +11,14 @@ export type Employee = {
     lastName: string;
     department: Department;
 };
+export type AvailabilityRule = {
+    employeeId: string;
+    dayOfWeek: number;
+    available: boolean;
+    startHHMM: string;
+    endHHMM: string;
+};
+
 type Shift = {
     id: string;
     employeeId: string;
@@ -55,6 +63,17 @@ function clampToBusinessHours(hhmm: string) {
     return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
 }
 
+function minutesFromHHMM(hhmm: string) {
+    const m = /^(\d{2}):(\d{2})$/.exec(hhmm.trim());
+    if (!m) return null;
+
+    const hh = Number(m[1]);
+    const mm = Number(m[2]);
+    if (!Number.isFinite(hh) || !Number.isFinite(mm) || hh < 0 || hh > 23 || mm < 0 || mm > 59) return null;
+
+    return hh * 60 + mm;
+}
+
 function makeLocalDateTime(dayYMD: string, hhmm: string) {
     const d = new Date(dayYMD + "T00:00:00");
     const [hh, mm] = hhmm.split(":").map(Number);
@@ -67,6 +86,7 @@ export default function ScheduleEditorClient(props: {
     daysYMD: string[];
     employees: Employee[];
     shifts: Shift[];
+    availability: AvailabilityRule[];
 }) {
     const weekStart = new Date(props.weekStartYMD + "T12:00:00");
     const days = props.daysYMD.map((d) => new Date(d + "T12:00:00"));
@@ -92,6 +112,14 @@ export default function ScheduleEditorClient(props: {
         setOpen(false);
         setMsg(null);
     }, [props.shifts, props.weekStartYMD]);
+
+    const availabilityByEmpDay = useMemo(() => {
+        const map = new Map<string, AvailabilityRule>();
+        for (const rule of props.availability) {
+            map.set(`${rule.employeeId}:${rule.dayOfWeek}`, rule);
+        }
+        return map;
+    }, [props.availability]);
 
     const byEmpDay = useMemo(() => {
         const map = new Map<string, Shift[]>();
@@ -127,6 +155,11 @@ export default function ScheduleEditorClient(props: {
 
         const key = `${empId}:${ymdLocal(day)}`;
         const list = byEmpDay.get(key) ?? [];
+        const availability = availabilityByEmpDay.get(`${empId}:${day.getDay()}`);
+
+        if (!list[0] && !availability?.available) {
+            return;
+        }
 
         if (list[0]) {
             const s = list[0];
@@ -134,8 +167,8 @@ export default function ScheduleEditorClient(props: {
             setEndHHMM(hm(new Date(s.endTime)));
             setNote(s.note ?? "");
         } else {
-            setStartHHMM("08:00");
-            setEndHHMM("17:00");
+            setStartHHMM(availability?.startHHMM ?? "08:00");
+            setEndHHMM(availability?.endHHMM ?? "17:00");
             setNote("");
         }
         setRepeatWeekly(false);
@@ -158,6 +191,32 @@ export default function ScheduleEditorClient(props: {
         // ✅ restore the real Date objects (you lost these in your broken paste)
         const start = makeLocalDateTime(activeDayISO, st);
         const end = makeLocalDateTime(activeDayISO, en);
+
+        const availability = availabilityByEmpDay.get(`${activeEmployeeId}:${new Date(activeDayISO + "T12:00:00").getDay()}`);
+        if (!availability?.available) {
+            setMsg("Employé indisponible cette journée.");
+            return;
+        }
+
+        const shiftStart = minutesFromHHMM(st);
+        const shiftEnd = minutesFromHHMM(en);
+        const availStart = minutesFromHHMM(availability.startHHMM);
+        const availEnd = minutesFromHHMM(availability.endHHMM);
+
+        if (
+            shiftStart === null ||
+            shiftEnd === null ||
+            availStart === null ||
+            availEnd === null
+        ) {
+            setMsg("Disponibilité invalide pour cet employé.");
+            return;
+        }
+
+        if (shiftStart < availStart || shiftEnd > availEnd) {
+            setMsg(`Disponibilité: ${availability.startHHMM} à ${availability.endHHMM}.`);
+            return;
+        }
 
         if (end.getTime() <= start.getTime()) {
             setMsg("Fin doit être après début.");
@@ -328,19 +387,29 @@ export default function ScheduleEditorClient(props: {
                                             const key = `${emp.id}:${ymdLocal(d)}`;
                                             const list = byEmpDay.get(key) ?? [];
 
+                                            const availability = availabilityByEmpDay.get(`${emp.id}:${d.getDay()}`);
+                                            const unavailable = !availability?.available;
+                                            const canOpen = list.length > 0 || !unavailable;
+
                                             return (
                                                 <td
                                                     key={key}
-                                                    className={`td cell ${list.length ? "filled" : "empty"} ${hoverDay === i ? "dayHoverCell" : ""}`}
+                                                    className={`td cell ${list.length ? "filled" : "empty"} ${unavailable ? "unavailable" : ""} ${hoverDay === i ? "dayHoverCell" : ""}`}
                                                     onMouseEnter={() => setHoverDay(i)}
                                                     onMouseLeave={() => setHoverDay(null)}
-                                                    onClick={() => openCell(emp.id, d)}
-                                                    role="button"
-                                                    tabIndex={0}
+                                                    onClick={canOpen ? () => openCell(emp.id, d) : undefined}
+                                                    role={canOpen ? "button" : undefined}
+                                                    tabIndex={canOpen ? 0 : -1}
+                                                    aria-disabled={!canOpen}
+                                                    title={unavailable ? "Employé indisponible cette journée" : undefined}
                                                 >
 
                                                     {list.length === 0 ? (
-                                                        <span className="muted">+</span>
+                                                        unavailable ? (
+                                                            <span className="cellBadge unavailableBadge">Indispo</span>
+                                                        ) : (
+                                                            <span className="muted">+</span>
+                                                        )
                                                     ) : (
                                                         list.map((s) => (
                                                             <div key={s.id} className="pill" title={s.note ?? ""}>

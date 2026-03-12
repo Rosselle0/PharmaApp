@@ -8,6 +8,14 @@ import { prisma } from "@/lib/prisma";
 import ScheduleEditorClient from "./ui";
 import { requireKioskManagerOrAdmin } from "@/lib/kioskAuth"; // <-- use your kiosk+supabase guard
 
+export type AvailabilityForEditor = {
+  employeeId: string;
+  dayOfWeek: number;
+  available: boolean;
+  startHHMM: string;
+  endHHMM: string;
+};
+
 const TZ = process.env.APP_TZ || "America/Toronto";
 
 // format a Date into YMD in the business timezone
@@ -68,7 +76,11 @@ function makeDateInTZ(ymd: string, hhmm: string) {
   return new Date(utc);
 }
 
-async function applyRecurringFillMissing(companyId: string, weekStart: Date, weekEnd: Date) {
+async function applyRecurringFillMissing(companyId: string, weekStart: Date, weekEnd: Date, availabilityRules: AvailabilityForEditor[]) {
+  const availabilityMap = new Map(
+    availabilityRules.map((r) => [`${r.employeeId}:${r.dayOfWeek}`, r])
+  );
+
   const rules = await prisma.recurringShiftRule.findMany({
     where: {
       active: true,
@@ -118,6 +130,10 @@ async function applyRecurringFillMissing(companyId: string, weekStart: Date, wee
   for (const r of rules) {
     const dayYMD = daysYMD[r.dayOfWeek];
     if (!dayYMD) continue;
+
+    const availability = availabilityMap.get(`${r.employeeId}:${r.dayOfWeek}`);
+    if (!availability?.available) continue;
+    if (r.startHHMM < availability.startHHMM || r.endHHMM > availability.endHHMM) continue;
 
     const key = `${r.employeeId}:${dayYMD}`;
     if (existingKeys.has(key)) continue;
@@ -198,7 +214,18 @@ export default async function ScheduleEditPage({
   const weekEnd = addDays(weekStart, 7);
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
-  await applyRecurringFillMissing(companyId, weekStart, weekEnd);
+  const availabilityRules = await prisma.availabilityRule.findMany({
+    where: { employee: { is: { companyId, isActive: true } } },
+    select: {
+      employeeId: true,
+      dayOfWeek: true,
+      available: true,
+      startHHMM: true,
+      endHHMM: true,
+    },
+  });
+
+  await applyRecurringFillMissing(companyId, weekStart, weekEnd, availabilityRules);
 
   const employees = await prisma.employee.findMany({
     where: { companyId, isActive: true },
@@ -230,6 +257,7 @@ export default async function ScheduleEditPage({
       daysYMD={days.map(ymdLocal)}
       employees={employees}
       shifts={shiftsForClient}
+      availability={availabilityRules}
     />
   );
 }
