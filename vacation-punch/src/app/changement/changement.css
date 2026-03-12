@@ -10,6 +10,7 @@ body {
 }
 
 :root {
+  --chg-sidebar-shadow: 8px 0 28px rgba(15, 23, 42, 0.1);
   --chg-page-bg: linear-gradient(180deg, #e6eff9, #cfe2ff);
   --chg-page-text: #0d1b2a;
 
@@ -40,13 +41,14 @@ body {
   --chg-toast-ok-border: #00ffc0;
   --chg-toast-ok-text: #00b384;
 
-  --chg-sidebar-bg: #0b1220;
-  --chg-sidebar-border: rgba(255, 255, 255, 0.08);
-  --chg-sidebar-btn-bg: rgba(255, 255, 255, 0.04);
-  --chg-sidebar-btn-text: #e5eefc;
-  --chg-sidebar-btn-hover: rgba(255, 255, 255, 0.08);
-  --chg-sidebar-btn-active-bg: rgba(59, 130, 246, 0.18);
-  --chg-sidebar-btn-active-border: rgba(96, 165, 250, 0.45);
+  --chg-sidebar-bg: linear-gradient(180deg, #f8fbff 0%, #e7f0ff 100%);
+  --chg-sidebar-border: rgba(15, 23, 42, 0.08);
+  --chg-sidebar-btn-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(241, 245, 249, 0.96));
+  --chg-sidebar-btn-text: #0f172a;
+  --chg-sidebar-btn-hover: linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(226, 232, 240, 1));
+  --chg-sidebar-btn-hover-border: rgba(96, 165, 250, 0.22);
+  --chg-sidebar-btn-active-bg: linear-gradient(180deg, #2267a8 0%, #16528b 100%);
+  --chg-sidebar-btn-active-border: rgba(133, 195, 255, 0.28);
   --chg-sidebar-btn-active-text: #ffffff;
   --chg-sidebar-disabled: 0.55;
 }
@@ -86,13 +88,15 @@ body {
   --chg-toast-ok-border: #00ffc0;
   --chg-toast-ok-text: #00ffc0;
 
-  --chg-sidebar-bg: #0b1220;
+  --chg-sidebar-shadow: 8px 0 28px rgba(0, 0, 0, 0.22);
+  --chg-sidebar-bg: linear-gradient(180deg, #07152b 0%, #081a36 100%);
   --chg-sidebar-border: rgba(255, 255, 255, 0.08);
-  --chg-sidebar-btn-bg: rgba(255, 255, 255, 0.04);
-  --chg-sidebar-btn-text: #e5eefc;
-  --chg-sidebar-btn-hover: rgba(255, 255, 255, 0.08);
-  --chg-sidebar-btn-active-bg: rgba(59, 130, 246, 0.18);
-  --chg-sidebar-btn-active-border: rgba(96, 165, 250, 0.45);
+  --chg-sidebar-btn-bg: linear-gradient(180deg, rgba(14, 51, 90, 0.96), rgba(9, 39, 72, 0.98));
+  --chg-sidebar-btn-text: #eef4ff;
+  --chg-sidebar-btn-hover: linear-gradient(180deg, rgba(19, 67, 116, 0.98), rgba(10, 49, 90, 1));
+  --chg-sidebar-btn-hover-border: rgba(120, 180, 255, 0.14);
+  --chg-sidebar-btn-active-bg: linear-gradient(180deg, #2267a8 0%, #16528b 100%);
+  --chg-sidebar-btn-active-border: rgba(133, 195, 255, 0.28);
   --chg-sidebar-btn-active-text: #ffffff;
 }
 
@@ -102,6 +106,7 @@ body {
   min-height: 100vh;
   width: 100%;
   background: var(--chg-page-bg);
+  color: var(--chg-page-text);
 }
 
 /* ===== SIDEBAR ===== */
@@ -114,6 +119,7 @@ body {
   padding: 24px 18px;
   background: var(--chg-sidebar-bg);
   border-right: 1px solid var(--chg-sidebar-border);
+  box-shadow: var(--chg-sidebar-shadow);
   z-index: 100;
   display: flex;
   flex-direction: column;
@@ -140,12 +146,13 @@ body {
   text-decoration: none;
   font-weight: 600;
   font-size: 15px;
-  border: 1px solid transparent;
+  border: 1px solid var(--chg-sidebar-border);
   transition: all 0.2s ease;
 }
 
 .changementScope .kiosk-btn:hover {
   background: var(--chg-sidebar-btn-hover);
+  border-color: var(--chg-sidebar-btn-hover-border);
   transform: translateY(-1px);
 }
 
@@ -159,6 +166,7 @@ body {
   opacity: var(--chg-sidebar-disabled);
   cursor: not-allowed;
   pointer-events: auto;
+  filter: saturate(0.7);
 }
 
 .changementScope .lockBadge {

@@ -8,6 +8,12 @@ export const dynamic = "force-dynamic";
 const TZ = process.env.APP_TZ || "America/Toronto";
 const DAY_LABELS = ["DIM", "LUN", "MAR", "MER", "JEU", "VEND", "SAM"];
 
+const COLORS = {
+  text: "#111111",
+  grid: "#555555",
+  outer: "#222222",
+};
+
 function startOfWeek(d: Date) {
   const x = new Date(d);
   const day = x.getDay();
@@ -22,21 +28,31 @@ function addDays(d: Date, n: number) {
   return x;
 }
 
-function ymdLocal(d: Date) {
-  const x = new Date(d);
-  const y = x.getFullYear();
-  const m = String(x.getMonth() + 1).padStart(2, "0");
-  const day = String(x.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+function ymdInTZ(d: Date) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
 }
 
-function hmLocal(d: Date) {
-  return d.toLocaleTimeString("fr-CA", {
-    hour: "2-digit",
+function hmCompact(d: Date) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TZ,
+    hour: "numeric",
     minute: "2-digit",
     hour12: false,
-    timeZone: TZ,
-  });
+  }).formatToParts(d);
+
+  const hour = parts.find((p) => p.type === "hour")?.value ?? "0";
+  const minute = parts.find((p) => p.type === "minute")?.value ?? "00";
+
+  return minute === "00" ? `${Number(hour)}` : `${Number(hour)}${minute}`;
+}
+
+function formatShiftRange(start: Date, end: Date) {
+  return `${hmCompact(start)}-${hmCompact(end)}`;
 }
 
 function dayNum(d: Date) {
@@ -90,13 +106,53 @@ function buildShiftMap(shifts: ShiftLite[]) {
   const map = new Map<string, ShiftLite[]>();
 
   for (const s of shifts) {
-    const key = `${s.employeeId}:${ymdLocal(new Date(s.startTime))}`;
+    const key = `${s.employeeId}:${ymdInTZ(new Date(s.startTime))}`;
     const arr = map.get(key) ?? [];
     arr.push(s);
     map.set(key, arr);
   }
 
   return map;
+}
+
+function fitText(
+  doc: PDFKit.PDFDocument,
+  text: string,
+  maxWidth: number,
+  baseSize: number,
+  minSize = 6
+) {
+  let size = baseSize;
+  doc.fontSize(size);
+
+  while (size > minSize && doc.widthOfString(text) > maxWidth) {
+    size -= 0.25;
+    doc.fontSize(size);
+  }
+
+  return size;
+}
+
+function drawCellText(
+  doc: PDFKit.PDFDocument,
+  text: string,
+  x: number,
+  y: number,
+  width: number,
+  font: string,
+  fontSize: number,
+  align: "left" | "center" | "right" = "center"
+) {
+  doc
+    .font(font)
+    .fontSize(fontSize)
+    .fillColor(COLORS.text)
+    .text(text, x, y, {
+      width,
+      align,
+      lineBreak: false,
+      ellipsis: true,
+    });
 }
 
 function drawWeekTable(
@@ -110,115 +166,126 @@ function drawWeekTable(
 ) {
   const { weekStart, employees, byUserDay, topY } = opts;
 
-  const left = 36;
+  const pageWidth = doc.page.width;
   const top = topY;
-  const nameW = 96;
-  const dayW = 62;
+
+  // proportions closer to the scanned sheet
+  const nameW = 102;
+  const dayW = 58;
   const totalW = 64;
-  const headerH = 26;
-  const rowH = 22;
+  const headerH = 24;
+  const rowH = 21;
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const tableWidth = nameW + 7 * dayW + totalW;
+  const tableHeight = headerH * 2 + rowH * employees.length;
+  const left = (pageWidth - tableWidth) / 2;
 
-  doc.font("Helvetica-Bold").fontSize(12).text("Horaire", left, top - 22, {
-    width: tableWidth,
-    align: "center",
-  });
+  // single title only
+  drawCellText(doc, "Horaire", left, top - 28, tableWidth, "Helvetica", 12.5, "center");
 
-  doc.rect(left, top, tableWidth, headerH * 2 + rowH * employees.length).stroke();
+  // outer border
+  doc.save();
+  doc.lineWidth(0.9).strokeColor(COLORS.outer).rect(left, top, tableWidth, tableHeight).stroke();
+  doc.restore();
+
+  // grid lines
+  doc.save();
+  doc.lineWidth(0.45).strokeColor(COLORS.grid);
 
   let x = left;
   const widths = [nameW, ...Array(7).fill(dayW), totalW];
   for (const w of widths) {
-    doc
-      .moveTo(x, top)
-      .lineTo(x, top + headerH * 2 + rowH * employees.length)
-      .stroke();
+    doc.moveTo(x, top).lineTo(x, top + tableHeight).stroke();
     x += w;
   }
-  doc
-    .moveTo(x, top)
-    .lineTo(x, top + headerH * 2 + rowH * employees.length)
-    .stroke();
+  doc.moveTo(x, top).lineTo(x, top + tableHeight).stroke();
 
   doc.moveTo(left, top + headerH).lineTo(left + tableWidth, top + headerH).stroke();
-  doc
-    .moveTo(left, top + headerH * 2)
-    .lineTo(left + tableWidth, top + headerH * 2)
-    .stroke();
+  doc.moveTo(left, top + headerH * 2).lineTo(left + tableWidth, top + headerH * 2).stroke();
 
   for (let i = 0; i <= employees.length; i++) {
     const yy = top + headerH * 2 + i * rowH;
     doc.moveTo(left, yy).lineTo(left + tableWidth, yy).stroke();
   }
 
+  doc.restore();
+
+  // top header
   let cx = left + nameW;
   for (let i = 0; i < 7; i++) {
-    doc.font("Helvetica-Bold").fontSize(10).text(DAY_LABELS[i], cx, top + 7, {
-      width: dayW,
-      align: "center",
-    });
+    drawCellText(doc, DAY_LABELS[i], cx, top + 6, dayW, "Helvetica-Bold", 8.9, "center");
     cx += dayW;
   }
 
-  doc.font("Helvetica-Bold").fontSize(10).text("TOTAL", left + nameW + 7 * dayW, top + 7, {
-    width: totalW,
-    align: "center",
-  });
+  drawCellText(
+    doc,
+    "TOTAL",
+    left + nameW + 7 * dayW,
+    top + 6,
+    totalW,
+    "Helvetica-Bold",
+    8.9,
+    "center"
+  );
 
-  doc.font("Helvetica").fontSize(10).text(monthLabel(weekStart), left + 6, top + headerH + 6, {
-    width: nameW - 12,
-    align: "left",
-  });
+  // second header row
+  drawCellText(
+    doc,
+    monthLabel(weekStart),
+    left + 6,
+    top + headerH + 5,
+    nameW - 10,
+    "Helvetica-Bold",
+    8.7,
+    "left"
+  );
 
   cx = left + nameW;
   for (let i = 0; i < 7; i++) {
-    doc.font("Helvetica-Bold").fontSize(10).text(dayNum(days[i]), cx, top + headerH + 6, {
-      width: dayW,
-      align: "center",
-    });
+    drawCellText(doc, dayNum(days[i]), cx, top + headerH + 5, dayW, "Helvetica-Bold", 8.7, "center");
     cx += dayW;
   }
 
+  // rows
   employees.forEach((emp, rowIdx) => {
-    const y = top + headerH * 2 + rowIdx * rowH + 6;
+    const y = top + headerH * 2 + rowIdx * rowH + 5.5;
     const fullName = `${emp.firstName} ${emp.lastName}`;
 
-    doc.font("Helvetica").fontSize(10).text(fullName, left + 6, y, {
-      width: nameW - 10,
-      ellipsis: true,
-    });
+    drawCellText(doc, fullName, left + 5, y, nameW - 8, "Helvetica", 8.8, "left");
 
     let weeklyTotal = 0;
 
     days.forEach((d, i) => {
-      const key = `${emp.id}:${ymdLocal(d)}`;
+      const key = `${emp.id}:${ymdInTZ(d)}`;
       const list = byUserDay.get(key) ?? [];
 
       const text = list
         .map((sh) => {
           if (sh.note === "VAC") return "VAC";
           weeklyTotal += hoursBetween(new Date(sh.startTime), new Date(sh.endTime));
-          return `${hmLocal(new Date(sh.startTime))}-${hmLocal(new Date(sh.endTime))}`;
+          return formatShiftRange(new Date(sh.startTime), new Date(sh.endTime));
         })
         .join(" / ");
 
-      doc.font("Helvetica").fontSize(9).text(text, left + nameW + i * dayW + 3, y, {
-        width: dayW - 6,
-        align: "center",
-        ellipsis: true,
-      });
+      const cellX = left + nameW + i * dayW + 2;
+      const cellW = dayW - 4;
+
+      doc.font("Helvetica-Bold").fillColor(COLORS.text);
+      const fitted = fitText(doc, text, cellW, 7.9, 6.4);
+
+      drawCellText(doc, text, cellX, y, cellW, "Helvetica-Bold", fitted, "center");
     });
 
-    doc.font("Helvetica-Bold").fontSize(10).text(
+    drawCellText(
+      doc,
       fmtHours(weeklyTotal),
       left + nameW + 7 * dayW,
       y,
-      {
-        width: totalW,
-        align: "center",
-      }
+      totalW,
+      "Helvetica-Bold",
+      8.9,
+      "center"
     );
   });
 }
@@ -265,8 +332,9 @@ export async function GET(req: NextRequest) {
 
   const doc = new PDFDocument({
     size: "A4",
-    margin: 24,
-    layout: "landscape",
+    margin: 36,
+    layout: "portrait",
+    compress: true,
   });
 
   const chunks: Buffer[] = [];
@@ -277,24 +345,38 @@ export async function GET(req: NextRequest) {
     doc.on("error", reject);
   });
 
-  drawWeekTable(doc, {
-    weekStart: week1,
-    employees,
-    byUserDay: byUserDay1,
-    topY: 48,
-  });
+  const employeesPerPage = 8;
 
-  drawWeekTable(doc, {
-    weekStart: week2,
-    employees,
-    byUserDay: byUserDay2,
-    topY: 380,
-  });
+  for (let i = 0; i < employees.length; i += employeesPerPage) {
+    const batch = employees.slice(i, i + employeesPerPage);
+
+    if (i > 0) {
+      doc.addPage({
+        size: "A4",
+        margin: 36,
+        layout: "portrait",
+      });
+    }
+
+    drawWeekTable(doc, {
+      weekStart: week1,
+      employees: batch,
+      byUserDay: byUserDay1,
+      topY: 78,
+    });
+
+    drawWeekTable(doc, {
+      weekStart: week2,
+      employees: batch,
+      byUserDay: byUserDay2,
+      topY: 332,
+    });
+  }
 
   doc.end();
 
   const pdf = await pdfDone;
-  const fileName = `horaire-${ymdLocal(week1)}-to-${ymdLocal(addDays(week2, 6))}.pdf`;
+  const fileName = `horaire-${ymdInTZ(week1)}-to-${ymdInTZ(addDays(week2, 6))}.pdf`;
 
   return new Response(new Uint8Array(pdf), {
     status: 200,
