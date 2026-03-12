@@ -1,3 +1,5 @@
+@import "../sidebar.css";
+
 /* =========================================================
    BASE VARIABLES (Scoped)
    ========================================================= */
@@ -24,15 +26,8 @@
 
   --ap-focus: rgba(26, 86, 219, 0.22);
 
-  --sidebar-bg: #ffffff;
-  --sidebar-border: #e5e7eb;
 
-  --sidebar-btn-bg: #f1f5f9;
-  --sidebar-btn-text: #1f2937;
-  --sidebar-btn-hover: #e2e8f0;
 
-  --sidebar-active-bg: linear-gradient(135deg, #3b82f6, #2563eb);
-  --sidebar-active-text: #ffffff;
 }
 
 /* =========================================================
@@ -60,15 +55,8 @@
   --ap-focus: rgba(37, 99, 235, 0.25);
 
   /* Sidebar (match dark blue background) */
-  --sidebar-bg: #0a1020;                     /* same as --ap-bg-0 */
-  --sidebar-border: rgba(255, 255, 255, 0.06);
 
-  --sidebar-btn-bg: rgba(255, 255, 255, 0.05);
-  --sidebar-btn-text: #e6ebf3;
-  --sidebar-btn-hover: rgba(255, 255, 255, 0.1);
 
-  --sidebar-active-bg: linear-gradient(135deg, #2563eb, #1d4ed8); /* keep blue gradient for active */
-  --sidebar-active-text: #ffffff;
 }
 
 [data-theme="dark"] .vacationScope input[type="date"]::-webkit-calendar-picker-indicator {
@@ -100,6 +88,7 @@
 
 .vacationScope .kiosk-content {
   flex: 1;
+  margin-left: var(--sb-width);
   padding: 28px;
   background: radial-gradient(
     1200px 600px at 20% 0%,
@@ -145,49 +134,10 @@
 /* =========================================================
    SIDEBAR
    ========================================================= */
-.vacationScope .kiosk-sidebar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  height: 100vh;
-  width: 260px;
-  padding: 24px 18px;
-  background: var(--sidebar-bg);
-  border-right: 1px solid var(--sidebar-border);
-  z-index: 100;
-}
 
-.vacationScope .kiosk-navTop,
-.vacationScope .kiosk-navBottom {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
 
-.vacationScope .kiosk-btn {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 16px 18px;
-  border-radius: 14px;
-  background: var(--sidebar-btn-bg);
-  color: var(--sidebar-btn-text);
-  text-decoration: none;
-  font-weight: 600;
-  font-size: 15px;
-  transition: all 0.2s ease;
-}
 
-.vacationScope .kiosk-btn:hover {
-  background: var(--sidebar-btn-hover);
-  transform: translateY(-1px);
-}
 
-.vacationScope .kiosk-btn.active {
-  background: var(--sidebar-active-bg);
-  color: var(--sidebar-active-text);
-  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.35);
-}
 
 /* =========================================================
    BUTTONS & CARDS
