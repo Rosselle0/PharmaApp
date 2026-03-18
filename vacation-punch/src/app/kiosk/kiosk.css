@@ -112,6 +112,162 @@
     padding: 0; /* remove padding here */
 }
 
+@media (max-width: 900px) {
+    /* Allow page to scroll so Admin bar is at bottom of content */
+    .kiosk-shell {
+        min-height: 100vh;
+        height: auto;
+    }
+
+    .kiosk-frame {
+        grid-template-columns: 1fr;
+        padding-top: 56px; /* space for mobile menu bar */
+        min-height: 0; /* allow shrink */
+        height: auto;
+    }
+
+    /* Hide right column in flow; show via FAB + overlay */
+    .kiosk-rightCol {
+        display: none !important;
+    }
+
+    /* Actifs overlay: no Admin block (Admin is in bottom bar on mobile) */
+    .kiosk-rightCol .kiosk-admin-desktop {
+        display: none !important;
+    }
+
+    .kiosk-rightCol.kiosk-actifs-overlay-open {
+        display: grid !important;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        top: auto;
+        max-height: 85vh;
+        z-index: 1002;
+        border-radius: 20px 20px 0 0;
+        box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.2);
+        animation: kiosk-actifs-slide-up 0.25s ease-out;
+        overflow: auto;
+        padding-top: 52px; /* room for overlay close button */
+    }
+
+    @keyframes kiosk-actifs-slide-up {
+        from { transform: translateY(100%); opacity: 0.9; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+
+    /* Close button: theme-aware so X is visible in light and dark mode */
+    .kiosk-actifs-overlay-close {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        border: 1px solid var(--ap-line);
+        border-radius: 12px;
+        background: var(--ap-surface-2);
+        color: var(--ap-ink);
+        font-size: 20px;
+        font-weight: 700;
+        line-height: 1;
+        cursor: pointer;
+        z-index: 3;
+        transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    .kiosk-actifs-overlay-close:hover {
+        background: var(--ap-surface);
+        color: var(--ap-ink);
+    }
+
+    /* FAB: theme-aware so "Actifs" text is always readable */
+    .kiosk-actifs-fab {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        position: fixed;
+        bottom: 92px; /* above kiosk-admin-mobile-bar */
+        right: 20px;
+        z-index: 1000;
+        height: 52px;
+        padding: 0 20px;
+        border-radius: 26px;
+        border: 1px solid var(--ap-line);
+        background: var(--ap-surface-2);
+        color: var(--ap-ink);
+        font-weight: 700;
+        font-size: 15px;
+        box-shadow: var(--ap-shadow-2);
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.2s ease;
+    }
+
+    .kiosk-actifs-fab:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--ap-shadow);
+    }
+
+    .kiosk-actifs-fab:active {
+        transform: translateY(0);
+    }
+
+    .kiosk-actifs-fab .kiosk-actifs-fab-label,
+    .kiosk-actifs-fab .kiosk-actifs-fab-icon {
+        color: inherit;
+    }
+
+    .kiosk-actifs-fab-icon {
+        font-size: 20px;
+    }
+
+    .kiosk-actifs-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 1001;
+        background: rgba(0, 0, 0, 0.4);
+        animation: kiosk-backdrop-in 0.2s ease;
+    }
+
+    /* Admin bar at bottom of page content (scroll to see it, doesn't block Déconnecter) */
+    .kiosk-admin-mobile-bar {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-top: 32px;
+        padding: 20px 16px 28px;
+        padding-bottom: max(28px, env(safe-area-inset-bottom));
+        background: transparent;
+        border-top: none;
+        box-shadow: none;
+    }
+
+    .kiosk-admin-mobile-bar .kiosk-adminBtn {
+        width: 100%;
+        max-width: 280px;
+        height: 48px;
+        font-size: 16px;
+    }
+
+    /* FAB no longer needs to sit above a fixed bar */
+    .kiosk-actifs-fab {
+        bottom: 24px;
+    }
+}
+
+/* Desktop: hide FAB, overlay close, and mobile admin bar */
+@media (min-width: 901px) {
+    .kiosk-actifs-fab,
+    .kiosk-actifs-overlay-close,
+    .kiosk-admin-mobile-bar {
+        display: none !important;
+    }
+}
 
 /* =========================================================
    LEFT SIDEBAR
@@ -986,6 +1142,18 @@
     --ap-danger: #ff6b77;
     --ap-shadow: 0 28px 90px rgba(0,0,0,0.65);
     --ap-shadow-2: 0 16px 44px rgba(0,0,0,0.55);
+}
+
+/* Actifs FAB & overlay close: force theme contrast (override any inherited color) */
+[data-theme="dark"] .kiosk-actifs-fab,
+[data-theme="dark"] .kiosk-actifs-fab .kiosk-actifs-fab-label,
+[data-theme="dark"] .kiosk-actifs-fab .kiosk-actifs-fab-icon {
+    color: var(--ap-ink) !important;
+}
+
+[data-theme="dark"] .kiosk-actifs-overlay-close {
+    background: var(--ap-surface-2) !important;
+    color: var(--ap-ink) !important;
 }
 
 [data-theme="dark"] .kiosk-shell {

@@ -145,15 +145,150 @@
   opacity: 0.8 !important;
 }
 
+/* =========================================================
+   Mobile: menu bar (hamburger) + slide-out drawer
+   ========================================================= */
+
+/* Mobile header bar: visible only on small screens */
+.kiosk-mobile-header {
+  display: none;
+}
+
+.kiosk-mobile-menu-btn {
+  display: none;
+}
+
+.kiosk-sidebar-close {
+  display: none;
+}
+
 @media (max-width: 900px) {
+  .kiosk-mobile-header {
+    display: flex !important;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 12px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 56px;
+    padding: 0 12px 0 8px;
+    z-index: 1001;
+    background: var(--chg-sidebar-bg);
+    border-bottom: 1px solid var(--chg-sidebar-border);
+    box-shadow: var(--chg-sidebar-shadow);
+  }
+
+  .kiosk-mobile-menu-btn {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 1px solid var(--chg-sidebar-border);
+    border-radius: 12px;
+    background: var(--chg-sidebar-btn-bg);
+    color: var(--chg-sidebar-btn-text);
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.15s ease;
+    flex-shrink: 0;
+  }
+
+  .kiosk-mobile-menu-btn:hover {
+    background: var(--chg-sidebar-btn-hover);
+    transform: scale(1.02);
+  }
+
+  .kiosk-mobile-menu-btn:active {
+    transform: scale(0.98);
+  }
+
+  .kiosk-mobile-menu-icon {
+    font-size: 22px;
+    line-height: 1;
+  }
+
+  .kiosk-mobile-header-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--chg-sidebar-btn-text);
+    letter-spacing: 0.02em;
+  }
+
+  /* Backdrop when drawer is open */
+  .kiosk-sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+    background: rgba(0, 0, 0, 0.45);
+    animation: kiosk-backdrop-in 0.2s ease;
+  }
+
+  @keyframes kiosk-backdrop-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  /* Sidebar becomes a drawer: off-screen by default, slides in when .mobile-open */
   .kiosk-sidebar {
-    position: static !important;
-    width: 100% !important;
-    height: auto !important;
-    border-right: none !important;
-    border-bottom: 1px solid var(--chg-sidebar-border) !important;
-    overflow-y: visible !important;
-    box-shadow: none !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 260px !important;
+    max-width: 85vw !important;
+    height: 100vh !important;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease-out;
+    z-index: 1000 !important;
+    border-right: 1px solid var(--chg-sidebar-border) !important;
+    overflow-y: auto !important;
+    box-shadow: var(--chg-sidebar-shadow) !important;
+  }
+
+  .kiosk-sidebar.mobile-open {
+    transform: translateX(0);
+  }
+
+  /* Close button inside drawer (mobile only) */
+  .kiosk-sidebar-close {
+    display: flex !important;
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 40px;
+    height: 40px;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid var(--chg-sidebar-border);
+    border-radius: 12px;
+    background: var(--chg-sidebar-btn-bg);
+    color: var(--chg-sidebar-btn-text);
+    font-size: 18px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    z-index: 2;
+  }
+
+  .kiosk-sidebar-close:hover {
+    background: var(--chg-sidebar-btn-hover);
+  }
+
+  /* Extra top padding so nav content isn’t under the close button */
+  .kiosk-sidebar .kiosk-navTop {
+    padding-top: 52px;
+  }
+
+  /* Main content areas: reserve space for the fixed mobile header */
+  .scheduleScope .scheduleMain,
+  .scheduleScope.page,
+  .changementScope .chgPage,
+  .taskListScope .tlPage,
+  .vacationScope .kiosk-content,
+  .settingsScope .settingsPage {
+    padding-top: 64px !important;
   }
 }
 

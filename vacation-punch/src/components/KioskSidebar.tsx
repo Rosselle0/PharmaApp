@@ -34,6 +34,7 @@ export default function KioskSidebar({
   employeeCode,
 }: KioskSidebarProps) {
   const path = usePathname();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [effectiveEmployeeCode, setEffectiveEmployeeCode] = useState<string | null>(
     normalizeEmployeeCode(employeeCode)
   );
@@ -47,6 +48,40 @@ export default function KioskSidebar({
     setEffectiveEmployeeCode(nextCode);
   }, [employeeCode]);
 
+  // Close drawer on route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [path]);
+
+  // Close drawer when resizing to desktop
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 901px)");
+    const handler = () => {
+      if (mq.matches) setMobileMenuOpen(false);
+    };
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  // Lock body scroll when drawer is open on mobile
+  useEffect(() => {
+    if (mobileMenuOpen && typeof window !== "undefined" && window.matchMedia("(max-width: 900px)").matches) {
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = "";
+      };
+    }
+  }, [mobileMenuOpen]);
+
+  // Close drawer on Escape
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileMenuOpen(false);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
   const qs = effectiveEmployeeCode
     ? `?code=${encodeURIComponent(effectiveEmployeeCode)}`
     : "";
@@ -59,16 +94,54 @@ export default function KioskSidebar({
     if (!isSidebarUnlocked) e.preventDefault();
   };
 
+  const closeMobileMenu = () => setMobileMenuOpen(false);
+
   return (
-    <aside className="kiosk-sidebar">
-      <div className="kiosk-navTop">
+    <>
+      {/* Mobile: fixed header bar with hamburger */}
+      <header className="kiosk-mobile-header">
+        <button
+          type="button"
+          className="kiosk-mobile-menu-btn"
+          onClick={() => setMobileMenuOpen(true)}
+          aria-label="Ouvrir le menu"
+        >
+          <span className="kiosk-mobile-menu-icon" aria-hidden>☰</span>
+        </button>
+        <span className="kiosk-mobile-header-title">Accès Pharma</span>
+      </header>
+
+      {/* Backdrop when drawer is open */}
+      {mobileMenuOpen && (
+        <div
+          className="kiosk-sidebar-backdrop"
+          onClick={closeMobileMenu}
+          role="button"
+          tabIndex={0}
+          aria-label="Fermer le menu"
+        />
+      )}
+
+      <aside className={`kiosk-sidebar ${mobileMenuOpen ? "mobile-open" : ""}`}>
+        <button
+          type="button"
+          className="kiosk-sidebar-close"
+          onClick={closeMobileMenu}
+          aria-label="Fermer le menu"
+        >
+          ✕
+        </button>
+        <div className="kiosk-navTop">
         {!isKioskHome && (
           <Link
             href={`/kiosk${qs}`}
             className={`kiosk-btn ${isActive("/kiosk") ? "active" : ""} ${!isSidebarUnlocked ? "disabled" : ""}`}
             aria-disabled={!isSidebarUnlocked}
             title={!isSidebarUnlocked ? "Connecte-toi d’abord" : undefined}
-            onClick={preventWhenLocked}
+            onClick={(e) => {
+              preventWhenLocked(e);
+              closeMobileMenu();
+            }}
           >
             <span>🏠</span> Retour au Kiosk
           </Link>
@@ -79,7 +152,10 @@ export default function KioskSidebar({
           className={`kiosk-btn ${isActive("/schedule") ? "active" : ""} ${!isSidebarUnlocked ? "disabled" : ""}`}
           aria-disabled={!isSidebarUnlocked}
           title={!isSidebarUnlocked ? "Connecte-toi d’abord" : undefined}
-          onClick={preventWhenLocked}
+          onClick={(e) => {
+            preventWhenLocked(e);
+            closeMobileMenu();
+          }}
         >
           <span>📅</span> Horaire
         </Link>
@@ -89,7 +165,10 @@ export default function KioskSidebar({
           className={`kiosk-btn ${isActive("/changement") ? "active" : ""} ${!isSidebarUnlocked ? "disabled" : ""}`}
           aria-disabled={!isSidebarUnlocked}
           title={!isSidebarUnlocked ? "Connecte-toi d’abord" : undefined}
-          onClick={preventWhenLocked}
+          onClick={(e) => {
+            preventWhenLocked(e);
+            closeMobileMenu();
+          }}
         >
           <span>🔁</span> Changement
         </Link>
@@ -99,7 +178,10 @@ export default function KioskSidebar({
           className={`kiosk-btn ${isActive("/task-list") ? "active" : ""} ${!isSidebarUnlocked ? "disabled" : ""}`}
           aria-disabled={!isSidebarUnlocked}
           title={!isSidebarUnlocked ? "Connecte-toi d’abord" : undefined}
-          onClick={preventWhenLocked}
+          onClick={(e) => {
+            preventWhenLocked(e);
+            closeMobileMenu();
+          }}
         >
           <span>📋</span> Liste des tâches
         </Link>
@@ -109,7 +191,10 @@ export default function KioskSidebar({
           className={`kiosk-btn ${isActive("/vacation") ? "active" : ""} ${!isSidebarUnlocked ? "disabled" : ""}`}
           aria-disabled={!isSidebarUnlocked}
           title={!isSidebarUnlocked ? "Connecte-toi d’abord" : undefined}
-          onClick={preventWhenLocked}
+          onClick={(e) => {
+            preventWhenLocked(e);
+            closeMobileMenu();
+          }}
         >
           <span>🌴</span> Vacance / Congé
         </Link>
@@ -121,7 +206,10 @@ export default function KioskSidebar({
           className={`kiosk-btn ${isActive("/settings") ? "active" : ""} ${!isSidebarUnlocked ? "disabled" : ""}`}
           aria-disabled={!isSidebarUnlocked}
           title={!isSidebarUnlocked ? "Connecte-toi d’abord" : undefined}
-          onClick={preventWhenLocked}
+          onClick={(e) => {
+            preventWhenLocked(e);
+            closeMobileMenu();
+          }}
         >
           <span>⚙️</span> Paramètres
         </Link>
@@ -135,6 +223,7 @@ export default function KioskSidebar({
           title={!isSidebarUnlocked ? "Connecte-toi d’abord" : !isPrivilegedLogged ? "Connexion admin ou manager requise" : undefined}
           onClick={(e) => {
             if (!isSidebarUnlocked || !isPrivilegedLogged) e.preventDefault();
+            closeMobileMenu();
           }}
         >
           <span>🔒</span> Logs
@@ -142,5 +231,6 @@ export default function KioskSidebar({
         </Link>
       </div>
     </aside>
+    </>
   );
 }

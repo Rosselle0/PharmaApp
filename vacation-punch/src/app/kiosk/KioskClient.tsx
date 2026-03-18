@@ -79,6 +79,16 @@ export default function KioskClient({
   const [adminError, setAdminError] = useState<string | null>(null);
   const [adminLoading, setAdminLoading] = useState(false);
 
+  const [actifsOverlayOpen, setActifsOverlayOpen] = useState(false);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setActifsOverlayOpen(false);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
   const [toast, setToast] = useState<string | null>(null);
   function showToast(msg: string) {
     setToast(msg);
@@ -713,8 +723,39 @@ export default function KioskClient({
           )}
         </section>
 
-        <aside className="kiosk-rightCol">
-          <div className="adminPanelHead">
+        {/* Mobile: button to open Actifs panel */}
+        <button
+          type="button"
+          className="kiosk-actifs-fab"
+          onClick={() => setActifsOverlayOpen(true)}
+          aria-label="Voir les actifs"
+        >
+          <span className="kiosk-actifs-fab-icon" aria-hidden>👥</span>
+          <span className="kiosk-actifs-fab-label">Actifs</span>
+        </button>
+
+        {/* Backdrop when Actifs overlay is open on mobile */}
+        {actifsOverlayOpen && (
+          <div
+            className="kiosk-actifs-backdrop"
+            onClick={() => setActifsOverlayOpen(false)}
+            role="button"
+            tabIndex={0}
+            aria-label="Fermer"
+            onKeyDown={(e) => e.key === "Escape" && setActifsOverlayOpen(false)}
+          />
+        )}
+
+        <aside className={`kiosk-rightCol ${actifsOverlayOpen ? "kiosk-actifs-overlay-open" : ""}`}>
+          <button
+            type="button"
+            className="kiosk-actifs-overlay-close"
+            onClick={() => setActifsOverlayOpen(false)}
+            aria-label="Fermer"
+          >
+            ✕
+          </button>
+          <div className="adminPanelHead kiosk-admin-desktop">
             <button
               className="kiosk-adminBtn"
               type="button"
@@ -727,7 +768,6 @@ export default function KioskClient({
               Admin
             </button>
           </div>
-
           <div className="kiosk-actifsCard">
             <div className="kiosk-actifsTitle">Actifs</div>
 
@@ -777,6 +817,21 @@ export default function KioskClient({
             </div>
           </div>
         </aside>
+      </div>
+
+      {/* Mobile: Admin button fixed at bottom of page */}
+      <div className="kiosk-admin-mobile-bar">
+        <button
+          className="kiosk-adminBtn"
+          type="button"
+          onClick={() => {
+            setAdminError(null);
+            setAdminPassword("");
+            setShowAdminModal(true);
+          }}
+        >
+          Admin
+        </button>
       </div>
 
       {showAdminModal && !isPrivilegedLogged && (
