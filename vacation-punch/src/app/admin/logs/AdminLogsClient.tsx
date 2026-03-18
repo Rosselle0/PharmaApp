@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 
 type Department = "CASH" | "LAB" | "FLOOR";
 
@@ -345,9 +345,8 @@ export default function AdminLogsClient() {
                             const date = clampToDayISO(s.startTime);
 
                             return (
-                              <>
+                              <Fragment key={s.id}>
                                 <tr
-                                  key={s.id}
                                   className={`adminLogsRow ${isOpen ? "open" : ""}`}
                                   onClick={() => setExpandedShiftId(isOpen ? null : s.id)}
                                 >
@@ -439,7 +438,7 @@ export default function AdminLogsClient() {
                                     </td>
                                   </tr>
                                 )}
-                              </>
+                              </Fragment>
                             );
                           })
                         )}
