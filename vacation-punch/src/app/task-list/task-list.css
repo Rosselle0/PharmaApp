@@ -61,13 +61,14 @@
 }
 
 /* ===== LAYOUT ===== */
-.kiosk-layout {
+.taskListScope {
   display: flex;
   min-height: 100vh;
+  width: 100%;
 }
 
 /* Sidebar */
-.kiosk-sidebar {
+.taskListScope .kiosk-sidebar {
   width: 260px;
   background: var(--sidebar-bg);
   border-right: 1px solid var(--sidebar-border);
@@ -76,16 +77,21 @@
   flex-direction: column;
   justify-content: space-between;
   transition: background 0.3s ease, border 0.3s ease;
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  z-index: 100;
 }
 
-.kiosk-navTop,
-.kiosk-navBottom {
+.taskListScope .kiosk-navTop,
+.taskListScope .kiosk-navBottom {
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
 
-.kiosk-btn {
+.taskListScope .kiosk-btn {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -101,23 +107,23 @@
   border: 1px solid var(--btn-border);
 }
 
-.kiosk-btn:hover {
+.taskListScope .kiosk-btn:hover {
   background: var(--sidebar-btn-hover);
   transform: translateY(-1px);
 }
 
-.kiosk-btn.active {
+.taskListScope .kiosk-btn.active {
   background: var(--sidebar-active-bg);
   color: var(--sidebar-active-text);
   box-shadow: 0 6px 15px rgba(37, 99, 235, 0.25);
 }
 
-.kiosk-btn span {
+.taskListScope .kiosk-btn span {
   font-size: 18px;
 }
 
 /* Task List Page */
-.tlPage {
+.taskListScope .tlPage {
   flex: 1;
   min-height: 100vh;
   background: var(--page-bg);
@@ -125,6 +131,8 @@
   display: flex;
   justify-content: center;
   padding: 26px 24px 60px;
+  margin-left: 260px; /* offset for fixed sidebar */
+  box-sizing: border-box;
 }
 
 /* Light wrapper for content width */
@@ -221,7 +229,7 @@
   gap: 10px;
 }
 
-.kiosk-btn {
+.taskListScope .kiosk-btn {
   width: 100%;
   text-align: left;
   background: var(--sidebar-btn-bg);
@@ -229,7 +237,7 @@
   font-weight: 600;
 }
 
-.kiosk-btn:hover {
+.taskListScope .kiosk-btn:hover {
   background: var(--sidebar-btn-hover);
 }
 
@@ -245,6 +253,26 @@
 @media (max-width: 1050px) {
   .tableWrap {
     overflow: auto;
+  }
+}
+
+@media (max-width: 900px) {
+  .taskListScope {
+    flex-direction: column;
+  }
+
+  .taskListScope .kiosk-sidebar {
+    position: static;
+    width: 100%;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--sidebar-border);
+  }
+
+  .taskListScope .tlPage {
+    margin-left: 0;
+    padding: 20px 16px 40px;
+    min-height: auto;
   }
 }
 

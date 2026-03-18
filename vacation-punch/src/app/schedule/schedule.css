@@ -1,23 +1,28 @@
 /* ===== SIDEBAR ===== */
-.kiosk-sidebar {
+.scheduleScope .kiosk-sidebar {
   width: 260px;
   background: #0f172a;
   padding: 24px 18px; /* important for card spacing */
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  z-index: 100;
 }
 
 /* ===== NAV GROUPS ===== */
-.kiosk-navTop,
-.kiosk-navBottom {
+.scheduleScope .kiosk-navTop,
+.scheduleScope .kiosk-navBottom {
   display: flex;
   flex-direction: column;
   gap: 14px; /* spacing between buttons */
 }
 
 /* ===== BUTTON CARDS ===== */
-.kiosk-btn {
+.scheduleScope .kiosk-btn {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -35,51 +40,81 @@
 }
 
 /* Hover */
-.kiosk-btn:hover {
+.scheduleScope .kiosk-btn:hover {
   background: rgba(255, 255, 255, 0.12);
   transform: translateY(-1px);
 }
 
 /* Active */
-.kiosk-btn.active {
+.scheduleScope .kiosk-btn.active {
   background: linear-gradient(135deg, #3b82f6, #2563eb);
   color: white;
   box-shadow: 0 8px 20px rgba(37, 99, 235, 0.35);
 }
 
 /* Optional: emoji size */
-.kiosk-btn span {
+.scheduleScope .kiosk-btn span {
   font-size: 18px;
 }
 
-/* ===== Layout Fix For Sidebar + Schedule ===== */
+@media (max-width: 900px) {
+  .scheduleScope {
+    flex-direction: column;
+  }
 
-.kiosk-layout {
-  display: flex;
-  min-height: 100vh;
+  .scheduleScope .kiosk-sidebar {
+    position: static;
+    width: 100%;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--sidebar-border);
+  }
+
+  .scheduleScope .scheduleMain {
+    margin-left: 0;
+    padding: 20px 16px 40px;
+    min-height: auto;
+  }
 }
 
-.kiosk-layout > .scheduleScope.page {
+/* ===== Layout (Sidebar + Center Content) ===== */
+
+.scheduleScope {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+}
+
+.scheduleScope .scheduleMain {
   flex: 1;
+  min-height: 100vh;
+  width: 100%;
+  margin-left: 260px;
+  padding: 26px 24px 60px;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+
+  /* Light mode page background */
+  background: linear-gradient(135deg, #dbe6ee, #cfdbe5);
+  color: #1f2937;
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
 }
 
 
 
 /* ===== ACCÈS PHARMA LIGHT THEME ===== */
 
-.scheduleScope.page {
-  min-height: 100vh;
-  width: 100%;
-  background: linear-gradient(135deg, #dbe6ee, #cfdbe5);
-  color: #1f2937;
-  font-family: "Inter", system-ui, -apple-system, sans-serif;
-}
-
 /* Container */
 .scheduleScope .shell {
-  max-width: 1800px;
+  width: 100%;
+  max-width: 1600px;
+  min-width: 320px;
   margin: 0 auto;
-  padding: 26px 24px 60px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 /* Header */
@@ -256,7 +291,7 @@
 [data-theme="dark"] {
 
   /* ===== Page Background ===== */
-  .scheduleScope.page,
+  .scheduleScope .scheduleMain,
   .horaire-page,
   .page {
     background:
@@ -361,7 +396,7 @@
 
 /* ===== SIDEBAR BASE ===== */
 
-.kiosk-sidebar {
+.scheduleScope .kiosk-sidebar {
   width: 260px;
   background: var(--sidebar-bg);
   border-right: 1px solid var(--sidebar-border);
@@ -370,11 +405,16 @@
   flex-direction: column;
   justify-content: space-between;
   transition: background 0.3s ease, border 0.3s ease;
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  z-index: 100;
 }
 
 /* ===== BUTTONS ===== */
 
-.kiosk-btn {
+.scheduleScope .kiosk-btn {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -391,17 +431,17 @@
   transition: all 0.2s ease;
 }
 
-.kiosk-btn:hover {
+.scheduleScope .kiosk-btn:hover {
   background: var(--sidebar-btn-hover);
   transform: translateY(-1px);
 }
 
-.kiosk-btn.active {
+.scheduleScope .kiosk-btn.active {
   background: var(--sidebar-active-bg);
   color: var(--sidebar-active-text);
   box-shadow: 0 8px 20px rgba(37, 99, 235, 0.35);
 }
 
-.kiosk-btn span {
+.scheduleScope .kiosk-btn span {
   font-size: 18px;
 }

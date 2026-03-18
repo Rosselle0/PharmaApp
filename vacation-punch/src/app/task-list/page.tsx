@@ -174,7 +174,7 @@ export default function TaskListPage() {
   }
 
   return (
-    <div className="kiosk-layout">
+    <div className="taskListScope">
       {/* Sidebar with required props */}
       <Suspense fallback={<div>Loading menu…</div>}>
         <KioskSidebar
@@ -184,7 +184,7 @@ export default function TaskListPage() {
         />
       </Suspense>
 
-      <main className="tlPage scheduleScope page" style={{ flex: 1 }}>
+      <main className="tlPage page">
         <div className="tlContent">
           <div className="head">
             <div>

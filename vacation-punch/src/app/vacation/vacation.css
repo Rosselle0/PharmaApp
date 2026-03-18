@@ -100,6 +100,7 @@
 
 .vacationScope .kiosk-content {
   flex: 1;
+  margin-left: 260px; /* offset content for fixed sidebar */
   padding: 28px;
   background: radial-gradient(
     1200px 600px at 20% 0%,
@@ -155,6 +156,9 @@
   background: var(--sidebar-bg);
   border-right: 1px solid var(--sidebar-border);
   z-index: 100;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 .vacationScope .kiosk-navTop,
@@ -297,4 +301,23 @@
 @media (max-width: 860px) {
   .vacationScope .kiosk-content { padding: 18px; }
   .vacationScope .tableWrap { overflow-x: auto; }
+}
+
+@media (max-width: 900px) {
+  .vacationScope .kiosk-layout {
+    flex-direction: column;
+  }
+
+  .vacationScope .kiosk-sidebar {
+    position: static;
+    width: 100%;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--sidebar-border);
+  }
+
+  .vacationScope .kiosk-content {
+    margin-left: 0;
+    min-height: auto;
+  }
 }

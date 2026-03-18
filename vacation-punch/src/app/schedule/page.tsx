@@ -143,14 +143,14 @@ export default async function SchedulePage({
   )}`;
 
   return (
-    <div className="kiosk-layout">
+    <div className="scheduleScope">
       <KioskSidebar
         isPrivilegedLogged={isPrivilegedLogged}
         employeeLogged={employeeLogged}
         employeeCode={employeeCode}
       />
 
-      <main className="scheduleScope page" style={{ flex: 1 }}>
+      <main className="scheduleMain page">
         <div className="shell">
           <div className="head">
             <div>

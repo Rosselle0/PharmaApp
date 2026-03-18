@@ -107,7 +107,7 @@
     width: 100%;
     height: 100%;
     display: grid;
-    grid-template-columns: 210px minmax(0, 1fr) 340px; /* prevents center from overflowing */
+    grid-template-columns: 260px minmax(0, 1fr) 340px; /* aligns with 260px sidebar */
     gap: 14px;
     padding: 0; /* remove padding here */
 }
@@ -117,15 +117,16 @@
    LEFT SIDEBAR
    ========================================================= */
 
-.kiosk-left {
-    background: var(--card-light);      /* subtle card feel */
+.kiosk-left,
+.kiosk-sidebar {
+    background: var(--ap-surface);      /* subtle card feel */
     border-radius: var(--r-lg);
     padding: 24px 18px;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
     gap: 12px;
-    box-shadow: var(--shadow);         /* soft shadow like settings page */
+    box-shadow: var(--ap-shadow);      /* soft shadow like settings page */
 }
 
 .kiosk-nav {
@@ -214,7 +215,7 @@
     box-shadow: var(--ap-shadow);
     display: grid;
     justify-items: center;
-    align-content: start;
+    align-content: center; /* center vertically within the grid column */
     gap: 18px;
     animation: floatIn .35s ease both;
     padding: 28px 22px;
@@ -222,7 +223,7 @@
     max-width: 1300px;
     width: 100%;
     
-    margin-left: 50px;
+    margin-left: 0; /* prevent horizontal nudge */
 }
 
 .kiosk-title { margin: 0; font-size: 34px; font-weight: 950; letter-spacing: .2px; }
@@ -1003,6 +1004,7 @@
 
   /* ---------- CORE SURFACES ---------- */
   .kiosk-left,
+  .kiosk-sidebar,
   .kiosk-center,
   .kiosk-rightCol,
   .loggedWrap,
@@ -1070,6 +1072,7 @@
 }
 /* QUICK FIX: all left-nav buttons same full size */
 .kiosk-left,
+.kiosk-sidebar,
 .kiosk-nav,
 .kiosk-navTop,
 .kiosk-navBottom {

@@ -21,7 +21,10 @@ export default async function VacationPage({
     (searchParams instanceof Promise ? await searchParams : searchParams) ?? {};
 
   const code = String(sp.code ?? "").trim();
-  const theme = sp.theme === "dark" ? "dark" : "light";
+  // Only override theme when explicitly provided.
+  // Otherwise rely on the global ThemeProvider (html[data-theme]).
+  const theme =
+    sp.theme === "dark" || sp.theme === "light" ? (sp.theme as "dark" | "light") : undefined;
 
   const employee = code
     ? await prisma.employee.findUnique({

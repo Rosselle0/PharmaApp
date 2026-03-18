@@ -1,0 +1,170 @@
+:root {
+  /* Match the sidebar visuals from the Changement page */
+  --chg-sidebar-shadow: 8px 0 28px rgba(15, 23, 42, 0.1);
+  --chg-sidebar-bg: linear-gradient(180deg, #f8fbff 0%, #e7f0ff 100%);
+  --chg-sidebar-border: rgba(15, 23, 42, 0.08);
+
+  --chg-sidebar-btn-bg: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.96),
+    rgba(241, 245, 249, 0.96)
+  );
+  --chg-sidebar-btn-text: #0f172a;
+  --chg-sidebar-btn-hover: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 1),
+    rgba(226, 232, 240, 1)
+  );
+  --chg-sidebar-btn-hover-border: rgba(96, 165, 250, 0.22);
+
+  --chg-sidebar-btn-active-bg: linear-gradient(180deg, #2267a8 0%, #16528b 100%);
+  --chg-sidebar-btn-active-border: rgba(133, 195, 255, 0.28);
+  --chg-sidebar-btn-active-text: #ffffff;
+
+  --chg-sidebar-disabled: 0.55;
+}
+
+[data-theme="dark"] {
+  --chg-sidebar-shadow: 8px 0 28px rgba(0, 0, 0, 0.22);
+  /* Darker sidebar shade (matches the darker look you highlighted) */
+  --chg-sidebar-bg: linear-gradient(180deg, #0b1220 0%, #0f172a 100%);
+  --chg-sidebar-border: rgba(255, 255, 255, 0.06);
+
+  --chg-sidebar-btn-bg: linear-gradient(
+    180deg,
+    rgba(14, 51, 90, 0.96),
+    rgba(9, 39, 72, 0.98)
+  );
+  --chg-sidebar-btn-text: #eef4ff;
+  --chg-sidebar-btn-hover: linear-gradient(
+    180deg,
+    rgba(19, 67, 116, 0.98),
+    rgba(10, 49, 90, 1)
+  );
+  --chg-sidebar-btn-hover-border: rgba(120, 180, 255, 0.14);
+
+  --chg-sidebar-btn-active-bg: linear-gradient(180deg, #2267a8 0%, #16528b 100%);
+  --chg-sidebar-btn-active-border: rgba(133, 195, 255, 0.28);
+  --chg-sidebar-btn-active-text: #ffffff;
+}
+
+/* =========================================================
+   Shared KioskSidebar styling (exact like Changement)
+   ========================================================= */
+.kiosk-sidebar {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 260px !important;
+  height: 100vh !important;
+  padding: 24px 18px !important;
+  box-sizing: border-box !important;
+  overflow-y: auto !important;
+
+  z-index: 100 !important;
+
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+
+  background: var(--chg-sidebar-bg) !important;
+  border-right: 1px solid var(--chg-sidebar-border) !important;
+  box-shadow: var(--chg-sidebar-shadow) !important;
+  border-radius: 0 !important;
+}
+
+.kiosk-navTop,
+.kiosk-navBottom {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 14px !important;
+}
+
+/* Ensure "bottom group" doesn't pick up kiosk.css separation styles */
+.kiosk-navBottom {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+  border-top: none !important;
+  background: none !important;
+}
+
+.kiosk-btn {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 16px 18px !important;
+  border-radius: 14px !important;
+
+  background: var(--chg-sidebar-btn-bg) !important;
+  color: var(--chg-sidebar-btn-text) !important;
+  text-decoration: none !important;
+  font-weight: 600 !important;
+  font-size: 15px !important;
+  border: 1px solid var(--chg-sidebar-border) !important;
+
+  transition: all 0.2s ease !important;
+  width: 100% !important;
+  box-shadow: none !important;
+}
+
+.kiosk-btn:hover {
+  background: var(--chg-sidebar-btn-hover) !important;
+  border-color: var(--chg-sidebar-btn-hover-border) !important;
+  transform: translateY(-1px) !important;
+}
+
+.kiosk-btn.active {
+  background: var(--chg-sidebar-btn-active-bg) !important;
+  border-color: var(--chg-sidebar-btn-active-border) !important;
+  color: var(--chg-sidebar-btn-active-text) !important;
+  box-shadow: none !important;
+}
+
+.kiosk-sidebar .kiosk-btn.disabled {
+  opacity: var(--chg-sidebar-disabled) !important;
+  cursor: not-allowed !important;
+  pointer-events: auto !important;
+  filter: saturate(0.7) !important;
+}
+
+/* Override `globals.css` grayscale/disabled styling so disabled buttons
+   keep the same sidebar color palette as Changement. */
+.kiosk-sidebar.kiosk-sidebar .kiosk-btn.disabled,
+.kiosk-sidebar.kiosk-sidebar a.kiosk-btn[aria-disabled="true"] {
+  opacity: var(--chg-sidebar-disabled) !important;
+  pointer-events: auto !important;
+  cursor: not-allowed !important;
+  filter: saturate(0.7) !important;
+  background: var(--chg-sidebar-btn-bg) !important;
+  border-color: var(--chg-sidebar-border) !important;
+}
+
+.lockBadge {
+  margin-left: auto !important;
+  font-size: 12px !important;
+  opacity: 0.8 !important;
+}
+
+@media (max-width: 900px) {
+  .kiosk-sidebar {
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--chg-sidebar-border) !important;
+    overflow-y: visible !important;
+    box-shadow: none !important;
+  }
+}
+
+/* Kiosk (punch) page: keep sidebar in the kiosk grid layout (not fixed). */
+@media (min-width: 901px) {
+  .kiosk-shell .kiosk-sidebar {
+    position: static !important;
+    top: auto !important;
+    left: auto !important;
+    height: 100% !important;
+    overflow-y: auto !important;
+  }
+}
+

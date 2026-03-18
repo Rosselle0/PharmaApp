@@ -611,6 +611,16 @@
     flex-direction: column;
   }
 
+  .settingsScope .kiosk-sidebar {
+    position: static;
+    width: 100%;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--settings-sidebar-border);
+    overflow-y: visible;
+    box-shadow: none;
+  }
+
   .settingsScope .settingsPage {
   background: transparent;
   color: var(--settings-text-color);
