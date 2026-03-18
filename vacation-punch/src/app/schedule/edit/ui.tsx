@@ -2,6 +2,7 @@
 import "../schedule.css";
 import "./edit.css";
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 type Department = "FLOOR" | "CASH" | "LAB";
 
@@ -87,7 +88,16 @@ export default function ScheduleEditorClient(props: {
     employees: Employee[];
     shifts: Shift[];
     availability: AvailabilityRule[];
+    section: "CAISSE_LAB" | "FLOOR";
 }) {
+    const router = useRouter();
+
+    function goSection(next: "CAISSE_LAB" | "FLOOR") {
+        router.push(
+            `/schedule/edit?week=${encodeURIComponent(props.weekStartYMD)}&section=${encodeURIComponent(next)}`
+        );
+    }
+
     const weekStart = new Date(props.weekStartYMD + "T12:00:00");
     const days = props.daysYMD.map((d) => new Date(d + "T12:00:00"));
 
@@ -317,29 +327,80 @@ export default function ScheduleEditorClient(props: {
                     <div>
                         <h1 className="h1">Création Horaire</h1>
                         <p className="p">Clique une case vide → ajoute une plage (08:00–21:00). Total se calcule tout seul.</p>
+
+                        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 }}>
+                            <button
+                                type="button"
+                                className="btn"
+                                onClick={() => goSection("CAISSE_LAB")}
+                                style={
+                                    props.section === "CAISSE_LAB"
+                                        ? {
+                                              background: "linear-gradient(135deg, #3b82f6, #2563eb)",
+                                              color: "white",
+                                              border: "1px solid rgba(37, 99, 235, 0.35)",
+                                          }
+                                        : undefined
+                                }
+                            >
+                                HORAIRE CAISSE/LAB
+                            </button>
+
+                            <button
+                                type="button"
+                                className="btn"
+                                onClick={() => goSection("FLOOR")}
+                                style={
+                                    props.section === "FLOOR"
+                                        ? {
+                                              background: "linear-gradient(135deg, #3b82f6, #2563eb)",
+                                              color: "white",
+                                              border: "1px solid rgba(37, 99, 235, 0.35)",
+                                          }
+                                        : undefined
+                                }
+                            >
+                                HORAIRE PLANCHER
+                            </button>
+                        </div>
                     </div>
 
-                    <div className="row">
-                        <a className="btn" href={`/schedule/edit?week=${encodeURIComponent(prevWeek)}`}>
+                    <div
+                        className="row"
+                        style={{
+                            display: "flex",
+                            justifyContent: "flex-end",
+                            gap: 10,
+                            flexWrap: "wrap",
+                        }}
+                    >
+                        <a
+                            className="btn"
+                            href={`/schedule/edit?week=${encodeURIComponent(prevWeek)}&section=${encodeURIComponent(props.section)}`}
+                        >
                             ← Semaine précédente
                         </a>
 
-                        <a className="btn" href={`/schedule/edit?week=${encodeURIComponent(nextWeek)}`}>
+                        <a
+                            className="btn"
+                            href={`/schedule/edit?week=${encodeURIComponent(nextWeek)}&section=${encodeURIComponent(props.section)}`}
+                        >
                             Semaine suivante →
                         </a>
 
                         <a className="btn" href="/admin/dashboard">
                             Retour
                         </a>
-
                     </div>
 
                 </div>
 
-                <div className="card">
-                    <div className="cardTop">
-                        <div className="title">Semaine du {weekStart.toLocaleDateString("fr-CA")}</div>
-                        <div className="sub">Admin editor</div>
+                <div className="section">
+                    <div className="sectionTop">
+                        <div className="sectionTitle">
+                            Semaine du {weekStart.toLocaleDateString("fr-CA")}
+                        </div>
+                        <div className="meta">Admin editor</div>
                     </div>
 
                     <div className="tableWrap">

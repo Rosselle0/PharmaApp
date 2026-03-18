@@ -293,6 +293,10 @@ function drawWeekTable(
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const week = String(url.searchParams.get("week") ?? "").trim();
+  const sectionParam = String(url.searchParams.get("section") ?? "CAISSE_LAB").toUpperCase();
+  const section: "CAISSE_LAB" | "FLOOR" =
+    sectionParam.includes("FLOOR") ? "FLOOR" : "CAISSE_LAB";
+  const departments = section === "FLOOR" ? ["FLOOR"] : ["CASH", "LAB"];
 
   const base = week ? new Date(`${week}T12:00:00`) : new Date();
   const week1 = startOfWeek(base);
@@ -303,7 +307,7 @@ export async function GET(req: NextRequest) {
   const companyId = company.id;
 
   const employees = await prisma.employee.findMany({
-    where: { companyId, isActive: true },
+    where: { companyId, isActive: true, department: { in: departments } },
     orderBy: [{ department: "asc" }, { lastName: "asc" }, { firstName: "asc" }],
     select: { id: true, firstName: true, lastName: true },
   });
@@ -311,7 +315,7 @@ export async function GET(req: NextRequest) {
   const shifts = await prisma.shift.findMany({
     where: {
       status: "PLANNED",
-      employee: { is: { companyId } },
+      employee: { is: { companyId, department: { in: departments } } },
       AND: [{ startTime: { lt: end } }, { endTime: { gt: week1 } }],
     },
     orderBy: [{ startTime: "asc" }],

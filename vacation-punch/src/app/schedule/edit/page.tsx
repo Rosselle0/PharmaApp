@@ -196,7 +196,7 @@ async function getDefaultCompany() {
 export default async function ScheduleEditPage({
   searchParams,
 }: {
-  searchParams: Promise<{ week?: string }>;
+  searchParams: Promise<{ week?: string; section?: string }>;
 }) {
   noStore();
 
@@ -208,6 +208,8 @@ export default async function ScheduleEditPage({
   const companyId = company.id;
 
   const sp = await searchParams;
+  const sectionParam = String(sp.section ?? "CAISSE_LAB").toUpperCase();
+  const section: "CAISSE_LAB" | "FLOOR" = sectionParam.includes("FLOOR") ? "FLOOR" : "CAISSE_LAB";
   const base = sp.week ? new Date(sp.week + "T12:00:00") : new Date();
 
   const weekStart = startOfWeekSunday(base);
@@ -228,15 +230,22 @@ export default async function ScheduleEditPage({
   await applyRecurringFillMissing(companyId, weekStart, weekEnd, availabilityRules);
 
   const employees = await prisma.employee.findMany({
-    where: { companyId, isActive: true },
+    where: {
+      companyId,
+      isActive: true,
+      department: section === "FLOOR" ? "FLOOR" : { in: ["CASH", "LAB"] },
+    },
     orderBy: [{ department: "asc" }, { lastName: "asc" }, { firstName: "asc" }],
     select: { id: true, firstName: true, lastName: true, department: true },
   });
+
+  const employeeIds = employees.map((e) => e.id);
 
   const shifts = await prisma.shift.findMany({
     where: {
       status: "PLANNED",
       employee: { is: { companyId } },
+      employeeId: { in: employeeIds },
       AND: [{ startTime: { lt: weekEnd } }, { endTime: { gt: weekStart } }],
     },
     orderBy: [{ startTime: "asc" }],
@@ -251,13 +260,15 @@ export default async function ScheduleEditPage({
     note: s.note ?? null,
   }));
 
+  const employeeIdSet = new Set(employeeIds);
   return (
     <ScheduleEditorClient
       weekStartYMD={ymdLocal(weekStart)}
       daysYMD={days.map(ymdLocal)}
       employees={employees}
       shifts={shiftsForClient}
-      availability={availabilityRules}
+      availability={availabilityRules.filter((r) => employeeIdSet.has(r.employeeId))}
+      section={section}
     />
   );
 }

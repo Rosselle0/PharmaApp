@@ -47,12 +47,15 @@ export default async function SchedulePage({
   searchParams,
 }: {
   searchParams?:
-  | Promise<{ week?: string; code?: string }>
-  | { week?: string; code?: string };
+  | Promise<{ week?: string; code?: string; section?: string }>
+  | { week?: string; code?: string; section?: string };
 }) {
   const sp =
     (searchParams instanceof Promise ? await searchParams : searchParams) ?? {};
   const code = String(sp.code ?? "").trim();
+  const sectionParam = String(sp.section ?? "CAISSE_LAB").toUpperCase();
+  const section: "CAISSE_LAB" | "FLOOR" =
+    sectionParam.includes("FLOOR") ? "FLOOR" : "CAISSE_LAB";
 
   async function getDefaultCompany() {
     const companyName = process.env.DEFAULT_COMPANY_NAME ?? "RxPlanning";
@@ -104,10 +107,18 @@ export default async function SchedulePage({
     select: { id: true, firstName: true, lastName: true, department: true },
   });
 
+  const viewEmployees =
+    section === "FLOOR"
+      ? employees.filter((e) => e.department === "FLOOR")
+      : employees.filter((e) => e.department === "CASH" || e.department === "LAB");
+
+  const viewEmployeeIds = viewEmployees.map((e) => e.id);
+
   const shifts = await prisma.shift.findMany({
     where: {
       status: "PLANNED",
       employee: { is: { companyId } },
+      employeeId: { in: viewEmployeeIds },
       AND: [{ startTime: { lt: weekEnd } }, { endTime: { gt: weekStart } }],
     },
     orderBy: [{ startTime: "asc" }],
@@ -138,9 +149,10 @@ export default async function SchedulePage({
   const prevWeek = ymdLocal(addDays(weekStart, -7));
   const nextWeek = ymdLocal(addDays(weekStart, 7));
   const codeQS = code ? `&code=${encodeURIComponent(code)}` : "";
+  const sectionQS = `&section=${encodeURIComponent(section)}`;
   const exportHref = `/api/schedule/export?week=${encodeURIComponent(
     ymdLocal(weekStart)
-  )}`;
+  )}${sectionQS}`;
 
   return (
     <div className="scheduleScope">
@@ -155,22 +167,52 @@ export default async function SchedulePage({
           <div className="head">
             <div>
               <h1 className="h1">Horaire</h1>
-              <p className="p">
-                Deux sections: <b>Caisse/Lab</b> et <b>Plancher</b>.
-              </p>
+              <p className="p">Choisis la section à afficher :</p>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 }}>
+                <Link
+                  className="btn"
+                  href={`/schedule?week=${encodeURIComponent(ymdLocal(weekStart))}${codeQS}&section=CAISSE_LAB`}
+                  style={
+                    section === "CAISSE_LAB"
+                      ? {
+                          background: "linear-gradient(135deg, #3b82f6, #2563eb)",
+                          color: "white",
+                          border: "1px solid rgba(37, 99, 235, 0.35)",
+                        }
+                      : undefined
+                  }
+                >
+                  HORAIRE CAISSE/LAB
+                </Link>
+                <Link
+                  className="btn"
+                  href={`/schedule?week=${encodeURIComponent(ymdLocal(weekStart))}${codeQS}&section=FLOOR`}
+                  style={
+                    section === "FLOOR"
+                      ? {
+                          background: "linear-gradient(135deg, #3b82f6, #2563eb)",
+                          color: "white",
+                          border: "1px solid rgba(37, 99, 235, 0.35)",
+                        }
+                      : undefined
+                  }
+                >
+                  HORAIRE PLANCHER
+                </Link>
+              </div>
             </div>
 
             <div className="row">
               <Link
                 className="btn"
-                href={`/schedule?week=${encodeURIComponent(prevWeek)}${codeQS}`}
+                href={`/schedule?week=${encodeURIComponent(prevWeek)}${codeQS}${sectionQS}`}
               >
                 ← Semaine précédente
               </Link>
 
               <Link
                 className="btn"
-                href={`/schedule?week=${encodeURIComponent(nextWeek)}${codeQS}`}
+                href={`/schedule?week=${encodeURIComponent(nextWeek)}${codeQS}${sectionQS}`}
               >
                 Semaine suivante →
               </Link>
@@ -208,7 +250,7 @@ export default async function SchedulePage({
               </div>
             </div>
 
-            {employees.length === 0 ? (
+            {viewEmployees.length === 0 ? (
               <div className="empty">Aucun employé.</div>
             ) : (
               <div className="tableWrap">
@@ -230,7 +272,7 @@ export default async function SchedulePage({
                   </thead>
 
                   <tbody>
-                    {employees.map((u) => {
+                    {viewEmployees.map((u) => {
                       let totalMinutes = 0;
 
                       const cells = days.map((d) => {
