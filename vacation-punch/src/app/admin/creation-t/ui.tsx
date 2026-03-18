@@ -232,6 +232,63 @@ export default function CreationTClient() {
   }, [tmplSelected, templatesVisible]);
 
   // -------------------
+  // EDIT EXISTING ASSIGNMENT (ASSIGN SIDE)
+  // -------------------
+  // When the boss selects an employee for a date, prefill the custom editor
+  // with any existing task assignment so they can modify it instead of re-creating.
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadExisting() {
+      if (!employeeId) return;
+      if (!dateYMD) return;
+      if (loadingWorking) return;
+      if (!workingEmployees.length) return;
+
+      const w = workingEmployees.find((e) => e.id === employeeId);
+      if (!w?.employeeCode) return;
+
+      try {
+        const res = await fetch(
+          `/api/tasks/my?code=${encodeURIComponent(w.employeeCode)}&date=${encodeURIComponent(dateYMD)}`,
+          { cache: "no-store" }
+        );
+        if (!res.ok) return;
+
+        const data: any = await res.json().catch(() => null);
+        if (cancelled) return;
+
+        const first = Array.isArray(data?.assignments) ? data.assignments[0] : null;
+        if (!first) {
+          setTab("custom");
+          setCustomTitle("");
+          setAssignNotes("");
+          setCustomLines([{ text: "", required: true }]);
+          return;
+        }
+
+        const existingTasks = Array.isArray(first.tasks) ? first.tasks : [];
+
+        setTab("custom");
+        setCustomTitle(String(first.title ?? "Tâches"));
+        setAssignNotes(String(first.notes ?? ""));
+        setCustomLines(
+          existingTasks.length
+            ? existingTasks.map((t: any) => ({ text: String(t.text ?? ""), required: !!t.required }))
+            : [{ text: "", required: true }]
+        );
+      } catch {
+        // Keep current editor state if fetch fails.
+      }
+    }
+
+    loadExisting();
+    return () => {
+      cancelled = true;
+    };
+  }, [employeeId, dateYMD, loadingWorking, workingEmployees]);
+
+  // -------------------
   // HELPERS: CUSTOM LINES
   // -------------------
   function addCustomLine() {

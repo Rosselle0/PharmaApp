@@ -5,6 +5,18 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireEmployeeFromKioskOrCode } from "@/lib/shiftChange/auth";
 
+function startOfDayUTC(ymd: string) {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0));
+}
+function nextDayUTC(ymd: string) {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + 1, 0, 0, 0, 0));
+}
+function ymdUTC(d: Date) {
+  return d.toISOString().slice(0, 10);
+}
+
 export async function GET(req: Request) {
   const auth = await requireEmployeeFromKioskOrCode(req);
   if (!auth.ok) return NextResponse.json({ ok: false, error: auth.error }, { status: 401 });
@@ -225,7 +237,66 @@ export async function PATCH(req: Request) {
         data: { employeeId: reqRow.candidateEmployeeId },
       });
 
-      // 3) Cancel all other pending requests for that shift
+      // 3) Transfer task assignments from requester -> candidate for that exact day.
+      //    This makes the task list "follow" the employee after the switch.
+      const dayYmd = ymdUTC(shift.startTime);
+      const dayStart = startOfDayUTC(dayYmd);
+      const dayEnd = nextDayUTC(dayYmd);
+
+      // Load all assignments for requester on that day (with items)
+      const requesterAssignments = await tx.taskAssignment.findMany({
+        where: {
+          companyId: reqRow.companyId,
+          employeeId: reqRow.requesterEmployeeId,
+          date: { gte: dayStart, lt: dayEnd },
+        },
+        include: {
+          items: { orderBy: { order: "asc" } },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      // Remove candidate existing assignments on that day, then copy from requester.
+      await tx.taskAssignment.deleteMany({
+        where: {
+          companyId: reqRow.companyId,
+          employeeId: reqRow.candidateEmployeeId,
+          date: { gte: dayStart, lt: dayEnd },
+        },
+      });
+
+      for (const a of requesterAssignments) {
+        await tx.taskAssignment.create({
+          data: {
+            companyId: reqRow.companyId,
+            employeeId: reqRow.candidateEmployeeId,
+            date: dayStart,
+            title: a.title,
+            notes: a.notes,
+            items: {
+              create: a.items.map((it) => ({
+                order: it.order,
+                text: it.text,
+                required: it.required,
+                // When transferring, reset completion so the new employee starts fresh.
+                done: false,
+                doneAt: null,
+              })),
+            },
+          },
+        });
+      }
+
+      // Finally, remove assignments from requester so the task list "moves".
+      await tx.taskAssignment.deleteMany({
+        where: {
+          companyId: reqRow.companyId,
+          employeeId: reqRow.requesterEmployeeId,
+          date: { gte: dayStart, lt: dayEnd },
+        },
+      });
+
+      // 4) Cancel all other pending requests for that shift
       await tx.shiftChangeRequest.updateMany({
         where: {
           shiftId: shift.id,
