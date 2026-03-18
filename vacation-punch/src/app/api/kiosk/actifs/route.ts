@@ -97,7 +97,7 @@ export async function GET(req: Request) {
   const rawCode = String(url.searchParams.get("code") ?? "");
   const code = rawCode.replace(/\D/g, "").slice(0, 10);
 
-  const since = new Date(Date.now() - 72 * 60 * 60 * 1000); // last 72 hours
+  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // last 7 days
 
   // Avoid relation filters in `where` to prevent Prisma runtime validation issues on Vercel.
   const employees =
