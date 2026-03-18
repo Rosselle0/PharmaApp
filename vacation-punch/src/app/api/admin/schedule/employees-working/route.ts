@@ -31,6 +31,16 @@ export async function GET(req: Request) {
         startTime: { lt: dayEnd },
         endTime: { gt: dayStart },
         status: { in: ["PLANNED", "COMPLETED"] },
+        // Exclude vacation shifts from "employees working" lists.
+        // We treat any note containing "VAC" as vacation.
+        AND: [
+          {
+            OR: [
+              { note: null },
+              { note: { not: { contains: "VAC" } } },
+            ],
+          },
+        ],
         employee: { isActive: true },
       },
       select: {

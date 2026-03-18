@@ -56,6 +56,26 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Employee not found for this company" }, { status: 404 });
     }
 
+    // Guardrail: never create task assignments for vacation shifts.
+    // If shift.note contains "VAC" (case-insensitive) for that employee on that day, refuse.
+    const vacationShift = await prisma.shift.findFirst({
+      where: {
+        employeeId,
+        startTime: { lt: dayEnd },
+        endTime: { gt: dayStart },
+        status: { in: ["PLANNED", "COMPLETED"] },
+        note: { contains: "VAC" },
+      },
+      select: { id: true },
+    });
+
+    if (vacationShift) {
+      return NextResponse.json(
+        { error: "Cannot assign tasks: employee is on VAC for that day" },
+        { status: 400 }
+      );
+    }
+
     // Build title + items
     let title = "";
     let items: { order: number; text: string; required: boolean }[] = [];
