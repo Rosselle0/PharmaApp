@@ -47,7 +47,14 @@ if (process.env.NODE_ENV === "production") {
 }
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
-const effectiveDbUrl = process.env.DATABASE_URL;
+
+// If you have a direct (non-pooled) connection string in Vercel env vars,
+// prefer it to avoid pooler "session mode" connection exhaustion.
+// Common env var names: DIRECT_URL or DATABASE_URL_DIRECT.
+const effectiveDbUrl =
+  process.env.DATABASE_URL_DIRECT ??
+  process.env.DIRECT_URL ??
+  process.env.DATABASE_URL;
 
 // Cache PrismaClient on the global object in *all* environments.
 // On Vercel, this avoids creating multiple Prisma instances/connection pools
