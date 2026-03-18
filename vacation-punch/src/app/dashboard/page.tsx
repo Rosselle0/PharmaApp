@@ -29,9 +29,9 @@ if (!me) redirect("/login");
     <main className="dashboard">
       <header className="dashboard-header">
         <div className="header-left">
-          <h1>Dashboard</h1>
+          <h1>Tableau de bord</h1>
           <p>
-            Welcome back, <strong>{data.user.email}</strong>
+            Bon retour, <strong>{data.user.email}</strong>
           </p>
         </div>
 
@@ -40,7 +40,7 @@ if (!me) redirect("/login");
 
           <form action={signOut}>
             <button className="signout-btn" type="submit">
-              Sign out
+              Déconnexion
             </button>
           </form>
         </div>
@@ -49,36 +49,36 @@ if (!me) redirect("/login");
       <section className="dashboard-grid">
         <div className="card disabled">
           <div className="card-icon">⏱</div>
-          <h2>Punch</h2>
-          <p>Clock in, clock out, track your working time.</p>
-          <span className="coming">Coming soon</span>
+          <h2>Pointages</h2>
+          <p>Entrée, sortie et suivi du temps de travail.</p>
+          <span className="coming">Bientôt disponible</span>
         </div>
 
 
         <a href="/vacation" className="card">
           <div className="card-icon">🌴</div>
-          <h2>Vacation</h2>
-          <p>Request vacation and follow approval status.</p>
+          <h2>Vacances</h2>
+          <p>Demandez des vacances et suivez leur statut d’approbation.</p>
         </a>
 
         <Link href="/punch" className="card">
             <div className="card-icon">📅</div>
-            <h2>Schedule</h2>
-            <p>View assigned shifts and upcoming workdays.</p>
+            <h2>Horaire</h2>
+            <p>Voir vos quarts assignés et les prochains jours de travail.</p>
         </Link>
 
         <Link href="/settings" className="card">
             <div className="card-icon">⚙️</div>
-            <h2>Settings</h2>
-            <p>Manage your account settings and preferences.</p>
+            <h2>Paramètres</h2>
+            <p>Gérer vos paramètres de compte et vos préférences.</p>
         </Link>
         
 
         <div className="card disabled">
           <div className="card-icon">👤</div>
-          <h2>Profile</h2>
-          <p>Manage your account and preferences.</p>
-          <span className="coming">Coming soon</span>
+          <h2>Profil</h2>
+          <p>Gérer votre compte et vos préférences.</p>
+          <span className="coming">Bientôt disponible</span>
         </div>
       </section>
     </main>

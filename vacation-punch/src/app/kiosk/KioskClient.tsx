@@ -177,15 +177,14 @@ export default function KioskClient({
   async function loadActifs() {
     try {
       setActifsErr(null);
-      const params = new URLSearchParams(window.location.search);
-      const urlCode = (params.get("code") ?? "").trim();
-      const url = urlCode
-        ? `/api/kiosk/actifs?code=${encodeURIComponent(urlCode)}`
-        : `/api/kiosk/actifs`;
+      // IMPORTANT:
+      // Some navigation/hover actions keep a `?code=...` query in the URL.
+      // If we forward it, `/api/kiosk/actifs` filters to only that employee,
+      // making the list look like it "disappears". We always want the full list.
+      const url = `/api/kiosk/actifs`;
       const res = await fetch(url, { cache: "no-store" });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.ok) {
-        setActifs([]);
         setActifsErr(data?.error ?? `Erreur (${res.status})`);
         return;
       }
@@ -195,9 +194,9 @@ export default function KioskClient({
         status: mapStateToUi(r.state),
         time: fmtMinutes(Number(r.minutes ?? 0)),
       }));
-      setActifs(uiRows);
+      // If API temporarily returns empty, keep last successful values so the list doesn't "disappear".
+      setActifs((prev) => (uiRows.length === 0 && prev.length > 0 ? prev : uiRows));
     } catch {
-      setActifs([]);
       setActifsErr("Erreur réseau (actifs).");
     }
   }
@@ -488,7 +487,7 @@ export default function KioskClient({
     state === "ON_BREAK"
       ? "En pause"
       : state === "ON_LUNCH"
-      ? "En lunch"
+      ? "En repas"
       : state === "IN"
       ? "Temps travaillé"
       : "Temps";
@@ -505,14 +504,14 @@ export default function KioskClient({
   }[] = [
     {
       key: "IN",
-      label: "IN",
+      label: "Entrée",
       action: "CLOCK_IN",
       disabled: state !== "OUT",
       danger: false,
     },
     {
       key: "BREAK",
-      label: state === "ON_BREAK" ? "Back" : "Break",
+      label: state === "ON_BREAK" ? "Retour" : "Pause",
       action: state === "ON_BREAK" ? "BREAK_END" : "BREAK_START",
       disabled:
         state === "OUT" ||
@@ -523,7 +522,7 @@ export default function KioskClient({
     },
     {
       key: "LUNCH",
-      label: state === "ON_LUNCH" ? "Back" : "Lunch",
+      label: state === "ON_LUNCH" ? "Retour" : "Repas",
       action: state === "ON_LUNCH" ? "LUNCH_END" : "LUNCH_START",
       disabled:
         state === "OUT" ||
@@ -534,7 +533,7 @@ export default function KioskClient({
     },
     {
       key: "OUT",
-      label: "OUT",
+      label: "Sortie",
       action: "CLOCK_OUT",
       disabled: state !== "IN",
       danger: true,
@@ -544,7 +543,7 @@ export default function KioskClient({
   return (
     <main className="kiosk-shell">
       <div className="kiosk-frame">
-        <Suspense fallback={<div>Loading menu…</div>}>
+        <Suspense fallback={<div>Chargement du menu…</div>}>
           <KioskSidebar
             isPrivilegedLogged={isPrivilegedLogged}
             employeeLogged={employeeLogged}
@@ -589,7 +588,7 @@ export default function KioskClient({
               ].join(" ")}
             >
               <div className="pinTitle">Entrez votre pin</div>
-              <div className="pinBoxes" role="group" aria-label="PIN">
+              <div className="pinBoxes" role="group" aria-label="Code">
                 {maskedPinBoxes(employeeCode).map((ch, idx) => (
                   <div key={idx} className="pinBox">
                     <span className="pinStar">{ch ? "•" : ""}</span>
@@ -798,9 +797,9 @@ export default function KioskClient({
               </button>
             </div>
 
-            <p className="modal-sub">Connexion admin (email + mot de passe).</p>
+              <p className="modal-sub">Connexion admin (courriel + mot de passe).</p>
 
-            <label>Email</label>
+            <label>Courriel</label>
             <input
               value={adminEmail}
               onChange={(e) => setAdminEmail(e.target.value)}

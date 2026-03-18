@@ -5,6 +5,22 @@ import { requireKioskManagerOrAdmin } from "@/lib/kioskAuth";
 import VacationFormClient from "./VacationFormClient";
 import KioskSidebar from "@/components/KioskSidebar";
 
+function statusLabel(status: any) {
+  const s = String(status ?? "");
+  switch (s) {
+    case "PENDING":
+      return "En attente";
+    case "APPROVED":
+      return "Approuvé";
+    case "REJECTED":
+      return "Rejeté";
+    case "CANCELLED":
+      return "Annulé";
+    default:
+      return s;
+  }
+}
+
 
 function fmt(d: Date) {
   return d.toLocaleDateString("fr-CA");
@@ -145,7 +161,7 @@ export default async function VacationPage({
                                     r.status
                                   ).toLowerCase()}`}
                                 >
-                                  {r.status}
+                                  {statusLabel(r.status)}
                                 </span>
                               </td>
 

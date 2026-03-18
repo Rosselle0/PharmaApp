@@ -11,6 +11,21 @@ function fmt(d: Date) {
   return d.toLocaleDateString("fr-CA");
 }
 
+function statusLabel(status: VacationStatus) {
+  switch (status) {
+    case VacationStatus.PENDING:
+      return "En attente";
+    case VacationStatus.APPROVED:
+      return "Approuvé";
+    case VacationStatus.REJECTED:
+      return "Rejeté";
+    case VacationStatus.CANCELLED:
+      return "Annulé";
+    default:
+      return String(status);
+  }
+}
+
 export default async function AdminRequestsPage() {
   const { companyIds } = await getPrivilegedContextOrRedirect();
 
@@ -140,7 +155,7 @@ export default async function AdminRequestsPage() {
                         {fmt(r.startDate)} → {fmt(r.endDate)}
                       </td>
                       <td>
-                        <span className={`tag ${r.status.toLowerCase()}`}>{r.status}</span>
+                        <span className={`tag ${r.status.toLowerCase()}`}>{statusLabel(r.status)}</span>
 
                       </td>
                       <td style={{ textAlign: "right" }}>

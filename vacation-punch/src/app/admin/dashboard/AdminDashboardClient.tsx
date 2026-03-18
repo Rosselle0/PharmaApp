@@ -42,14 +42,14 @@ export default function AdminDashboardClient({ role }: { role: Role }) {
       roles: ["ADMIN", "MANAGER"],
     },
     {
-      title: "Requests",
+      title: "Demandes",
       desc: "Approuver/refuser les demandes (vacances pour l’instant).",
       href: "/admin/requests",
       roles: ["ADMIN", "MANAGER"],
     },
 
     {
-      title: "Logs",
+      title: "Journaux",
       desc: "Consulter l’historique des actions.",
       href: "/admin/logs",
       roles: ["ADMIN", "MANAGER"],
@@ -62,7 +62,7 @@ export default function AdminDashboardClient({ role }: { role: Role }) {
     <main className="adminDash">
       <header className="adminDashHeader">
         <div>
-          <h1 className="adminDashTitle">Dashboard Admin</h1>
+          <h1 className="adminDashTitle">Tableau de bord admin</h1>
           <p className="adminDashSub">Outils de gestion (rôle: {role})</p>
         </div>
 

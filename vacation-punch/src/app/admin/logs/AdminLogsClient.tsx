@@ -105,6 +105,53 @@ function minutesToHuman(min: number) {
 
 const DAY_LABELS = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
 
+function punchTypeLabel(t: PunchType) {
+  switch (t) {
+    case "CLOCK_IN":
+      return "Entrée";
+    case "CLOCK_OUT":
+      return "Sortie";
+    case "BREAK_START":
+      return "Début pause";
+    case "BREAK_END":
+      return "Fin pause";
+    case "LUNCH_START":
+      return "Début repas";
+    case "LUNCH_END":
+      return "Fin repas";
+    default:
+      return t;
+  }
+}
+
+function punchSourceLabel(s: PunchSource) {
+  switch (s) {
+    case "MOBILE":
+      return "Mobile";
+    case "WEB":
+      return "Web";
+    case "ADMIN":
+      return "Admin";
+    default:
+      return s;
+  }
+}
+
+function shiftChangeStatusLabel(status: string) {
+  switch (status) {
+    case "ACCEPTED":
+      return "Accepté";
+    case "REJECTED":
+      return "Rejeté";
+    case "CANCELLED":
+      return "Annulé";
+    case "PENDING":
+      return "En attente";
+    default:
+      return status;
+  }
+}
+
 export default function AdminLogsClient() {
   const today = useMemo(() => new Date(), []);
   const defaultFrom = useMemo(() => {
@@ -117,7 +164,6 @@ export default function AdminLogsClient() {
   const [from, setFrom] = useState(defaultFrom);
   const [to, setTo] = useState(defaultTo);
   const [tab, setTab] = useState<"punch" | "changes" | "tasks" | "availability">("punch");
-  const [hoverEmployeeId, setHoverEmployeeId] = useState<string | null>(null);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
   const [expandedShiftId, setExpandedShiftId] = useState<string | null>(null);
 
@@ -223,8 +269,8 @@ export default function AdminLogsClient() {
     <main className="adminLogs">
       <header className="adminLogsHeader">
         <div>
-          <h1 className="adminLogsTitle">Punch Logs & Planning Overview</h1>
-          <p className="adminLogsSub">Vue admin: punches, retards, overtime, disponibilités et changements.</p>
+          <h1 className="adminLogsTitle">Journal des pointages & vue planning</h1>
+          <p className="adminLogsSub">Administration : pointages, retards, heures sup, disponibilités et changements.</p>
         </div>
 
         <div className="adminLogsControls">
@@ -240,8 +286,12 @@ export default function AdminLogsClient() {
           </div>
 
           <div className="adminLogsTabs">
-            <button type="button" className={`adminLogsTab ${tab === "punch" ? "on" : ""}`} onClick={() => setTab("punch")}>
-              Punch
+            <button
+              type="button"
+              className={`adminLogsTab ${tab === "punch" ? "on" : ""}`}
+              onClick={() => setTab("punch")}
+            >
+              Pointages
             </button>
             <button type="button" className={`adminLogsTab ${tab === "availability" ? "on" : ""}`} onClick={() => setTab("availability")}>
               Disponibilités
@@ -260,7 +310,6 @@ export default function AdminLogsClient() {
         <aside className="adminLogsSide">
           <div className="adminLogsSideHead">
             <div className="adminLogsSideTitle">Employés</div>
-            <div className="adminLogsSideHint">Survol = dispo</div>
           </div>
 
           <div className="adminLogsEmployeeList" role="list">
@@ -274,8 +323,6 @@ export default function AdminLogsClient() {
                 <div
                   key={e.id}
                   className={`adminLogsEmployee ${isSelected ? "selected" : ""}`}
-                  onMouseEnter={() => setHoverEmployeeId(e.id)}
-                  onMouseLeave={() => setHoverEmployeeId((prev) => (prev === e.id ? null : prev))}
                   onClick={() => setSelectedEmployeeId(e.id)}
                   role="listitem"
                   tabIndex={0}
@@ -288,9 +335,9 @@ export default function AdminLogsClient() {
                   </div>
 
                   <div className="adminLogsEmployeeStats">
-                    <span className="stat">{sCount} shifts</span>
-                    <span className={`badge ${lateCount ? "warn" : ""}`}>{lateCount} late</span>
-                    <span className={`badge ${otCount ? "ok" : ""}`}>{otCount} OT</span>
+                    <span className="stat">{sCount} quarts</span>
+                    <span className={`badge ${lateCount ? "warn" : ""}`}>{lateCount} retards</span>
+                    <span className={`badge ${otCount ? "ok" : ""}`}>{otCount} heures sup</span>
                   </div>
                 </div>
               );
@@ -310,17 +357,25 @@ export default function AdminLogsClient() {
               {tab === "punch" && (
                 <div className="adminLogsPanel">
                   <div className="adminLogsKpis">
-                    <div className="kpi">Shifts: <b>{punchKpis?.shifts ?? 0}</b></div>
-                    <div className="kpi">Punches: <b>{punchKpis?.punches ?? 0}</b></div>
-                    <div className="kpi warn">Late: <b>{punchKpis?.late ?? 0}</b></div>
-                    <div className="kpi ok">Overtime: <b>{punchKpis?.overtime ?? 0}</b></div>
+                    <div className="kpi">
+                      Quarts : <b>{punchKpis?.shifts ?? 0}</b>
+                    </div>
+                    <div className="kpi">
+                      Pointages : <b>{punchKpis?.punches ?? 0}</b>
+                    </div>
+                    <div className="kpi warn">
+                      Retards : <b>{punchKpis?.late ?? 0}</b>
+                    </div>
+                    <div className="kpi ok">
+                      Heures sup : <b>{punchKpis?.overtime ?? 0}</b>
+                    </div>
                   </div>
 
                   <div className="adminLogsDetailsHead">
                     <div className="adminLogsDetailsTitle">
                       {selectedEmployee ? `${selectedEmployee.firstName} ${selectedEmployee.lastName}` : "—"}
                     </div>
-                    <div className="adminLogsDetailsSub">Clique un shift pour ouvrir le détail des punches.</div>
+                    <div className="adminLogsDetailsSub">Cliquez un quart pour ouvrir le détail des pointages.</div>
                   </div>
 
                   <div className="adminLogsTableWrap">
@@ -330,7 +385,7 @@ export default function AdminLogsClient() {
                           <th>Date</th>
                           <th>Heures</th>
                           <th>Retard</th>
-                          <th>Overtime</th>
+                          <th>Heures sup</th>
                           <th></th>
                         </tr>
                       </thead>
@@ -359,7 +414,7 @@ export default function AdminLogsClient() {
                                   </td>
                                   <td>
                                     {s.missingClockIn ? (
-                                      <span className="tag danger">IN missing</span>
+                                      <span className="tag danger">Entrée manquante</span>
                                     ) : s.lateMinutes && s.lateMinutes > 0 ? (
                                       <span className="tag warn">{minutesToHuman(s.lateMinutes)}</span>
                                     ) : (
@@ -368,7 +423,7 @@ export default function AdminLogsClient() {
                                   </td>
                                   <td>
                                     {s.missingClockOut ? (
-                                      <span className="tag danger">OUT missing</span>
+                                      <span className="tag danger">Sortie manquante</span>
                                     ) : s.overtimeMinutes && s.overtimeMinutes > 0 ? (
                                       <span className="tag ok">{minutesToHuman(s.overtimeMinutes)}</span>
                                     ) : (
@@ -384,14 +439,14 @@ export default function AdminLogsClient() {
                                     <td colSpan={5}>
                                       <div className="expandGrid">
                                         <div>
-                                          <div className="expandTitle">PUNCH EVENTS</div>
+                                          <div className="expandTitle">Événements de pointage</div>
                                           <div className="expandList">
                                             {s.punches.length === 0 ? (
                                               <div className="muted">Aucun punch lié au shift.</div>
                                             ) : (
                                               s.punches.map((p) => (
                                                 <div key={p.id} className="punchItem">
-                                                  <span className={`punchType type-${p.type}`}>{p.type}</span>
+                                                  <span className={`punchType type-${p.type}`}>{punchTypeLabel(p.type)}</span>
                                                   <span className="punchAt">
                                                     {new Date(p.at).toLocaleTimeString("fr-CA", {
                                                       hour: "2-digit",
@@ -399,7 +454,7 @@ export default function AdminLogsClient() {
                                                       hour12: false,
                                                     })}
                                                   </span>
-                                                  <span className="punchSrc">{p.source}</span>
+                                                  <span className="punchSrc">{punchSourceLabel(p.source)}</span>
                                                 </div>
                                               ))
                                             )}
@@ -407,7 +462,7 @@ export default function AdminLogsClient() {
                                         </div>
 
                                         <div>
-                                          <div className="expandTitle">ACTIONS</div>
+                                          <div className="expandTitle">Actions</div>
                                           <div className="expandActions">
                                             <button
                                               type="button"
@@ -418,7 +473,7 @@ export default function AdminLogsClient() {
                                                 reviewShift(s.id, "LATE");
                                               }}
                                             >
-                                              Mark late reviewed
+                                              Retard vérifié
                                             </button>
                                             <button
                                               type="button"
@@ -429,11 +484,11 @@ export default function AdminLogsClient() {
                                                 reviewShift(s.id, "OVERTIME");
                                               }}
                                             >
-                                              Mark OT reviewed
+                                              Heures sup vérifiées
                                             </button>
                                           </div>
                                           <div className="muted" style={{ marginTop: 10 }}>
-                                            Retard/Ot calculés sur {selectedEmployee ? `${selectedEmployee.firstName}` : ""} pour ce shift.
+                                            Retard / heures sup calculés pour ce quart.
                                           </div>
                                         </div>
                                       </div>
@@ -454,7 +509,7 @@ export default function AdminLogsClient() {
                 <div className="adminLogsPanel">
                   <div className="adminLogsDetailsHead">
                     <div className="adminLogsDetailsTitle">Disponibilités</div>
-                    <div className="adminLogsDetailsSub">Survolez un employé (ou sélectionnez-en un) pour voir les règles.</div>
+                    <div className="adminLogsDetailsSub">Sélectionnez un employé pour voir ses règles.</div>
                   </div>
 
                   <div className="adminLogsAvailabilityGrid">
@@ -474,7 +529,7 @@ export default function AdminLogsClient() {
                                 <div key={day} className={`dayCell ${available ? "yes" : "no"}`}>
                                   <div className="dayLabel">{label}</div>
                                   <div className="dayValue">
-                                    {available ? `${r?.startHHMM}–${r?.endHHMM}` : "Indispo"}
+                                    {available ? `${r?.startHHMM}–${r?.endHHMM}` : "Indisponible"}
                                   </div>
                                   {r?.note ? <div className="dayNote">{r.note}</div> : null}
                                 </div>
@@ -529,7 +584,7 @@ export default function AdminLogsClient() {
                               </td>
                               <td>
                                 <span className={`tag ${r.status === "ACCEPTED" ? "ok" : r.status === "REJECTED" ? "danger" : "muted"}`}>
-                                  {r.status}
+                                  {shiftChangeStatusLabel(r.status)}
                                 </span>
                               </td>
                             </tr>
@@ -545,7 +600,7 @@ export default function AdminLogsClient() {
                 <div className="adminLogsPanel">
                   <div className="adminLogsDetailsHead">
                     <div className="adminLogsDetailsTitle">Tâches</div>
-                    <div className="adminLogsDetailsSub">Assignments (title + items) sur la période.</div>
+                    <div className="adminLogsDetailsSub">Affectations (titre + items) sur la période.</div>
                   </div>
 
                   <div className="adminLogsTasks">
@@ -564,7 +619,7 @@ export default function AdminLogsClient() {
                               <div key={it.id} className="taskItem">
                                 <span className={`taskCheck ${it.done ? "done" : ""}`}>{it.done ? "✓" : "•"}</span>
                                 <span className="taskText">{it.text}</span>
-                                <span className="taskReq">{it.required ? "(REQ)" : "(OPT)"}</span>
+                                <span className="taskReq">{it.required ? "(Oblig.)" : "(Optionnel)"}</span>
                               </div>
                             ))}
                             {a.items.length > 8 ? <div className="muted">+{a.items.length - 8} items…</div> : null}
@@ -581,38 +636,6 @@ export default function AdminLogsClient() {
             </>
           )}
         </div>
-
-        {/* Hover tooltip for availability */}
-        {hoverEmployeeId && tab !== "availability" ? (
-          <div className="adminLogsHover">
-            {(() => {
-              const emp = data?.employees.find((e) => e.id === hoverEmployeeId);
-              if (!emp) return null;
-              const rules = availabilityByEmployee.get(emp.id) ?? [];
-              return (
-                <div className="hoverCard">
-                  <div className="hoverTop">
-                    <div className="hoverName">{emp.firstName} {emp.lastName}</div>
-                    <span className={`deptPill dept-${emp.department}`}>{emp.department}</span>
-                  </div>
-                  <div className="hoverDays">
-                    {DAY_LABELS.map((label, day) => {
-                      const r = rules.find((x) => x.dayOfWeek === day);
-                      return (
-                        <div key={day} className={`hoverDay ${r?.available ? "yes" : "no"}`}>
-                          <div className="hoverDayLabel">{label}</div>
-                          <div className="hoverDayVal">
-                            {r?.available ? `${r.startHHMM}–${r.endHHMM}` : "—"}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })()}
-          </div>
-        ) : null}
       </section>
     </main>
   );
