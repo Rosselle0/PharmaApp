@@ -93,6 +93,17 @@ function toUiState(state: PunchState): UiState {
 }
 
 export async function GET(req: Request) {
+  // Vercel-side memory cache (per instance) to reduce DB load.
+  // Kiosk UI polls frequently; caching prevents connection storms.
+  const g = globalThis as unknown as {
+    __actifsCache?: { ts: number; data: any };
+  };
+  const nowMs = Date.now();
+  const TTL_MS = 8000;
+  if (g.__actifsCache && nowMs - g.__actifsCache.ts < TTL_MS) {
+    return NextResponse.json(g.__actifsCache.data);
+  }
+
   const url = new URL(req.url);
   const rawCode = String(url.searchParams.get("code") ?? "");
   const code = rawCode.replace(/\D/g, "").slice(0, 10);
@@ -115,7 +126,8 @@ export async function GET(req: Request) {
   const employeeIds = employees.map((e) => e.id);
   if (employeeIds.length === 0) return NextResponse.json({ ok: true, actifs: [] });
 
-  const rows = await prisma.punchEvent.findMany({
+  try {
+    const rows = await prisma.punchEvent.findMany({
     where: {
       at: { gte: since },
       employeeId: { in: employeeIds },
@@ -133,7 +145,7 @@ export async function GET(req: Request) {
         },
       },
     },
-  });
+    });
 
   const byEmployee = new Map<string, { name: string; events: Array<{ type: PunchType; at: Date }> }>();
 
@@ -170,5 +182,17 @@ export async function GET(req: Request) {
     .filter((row) => row.state !== "LEFT")
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  return NextResponse.json({ ok: true, actifs });
+    const result = { ok: true, actifs };
+    g.__actifsCache = { ts: nowMs, data: result };
+    return NextResponse.json(result);
+  } catch (e: any) {
+    // If DB is temporarily overloaded, serve last cached value if available.
+    if (g.__actifsCache?.data) {
+      return NextResponse.json(g.__actifsCache.data);
+    }
+    return NextResponse.json(
+      { ok: false, error: e?.message ?? "Erreur actives" },
+      { status: 500 }
+    );
+  }
 }

@@ -5,14 +5,44 @@ import { PrismaClient } from "@prisma/client";
 if (process.env.NODE_ENV === "production") {
   const dbUrl = process.env.DATABASE_URL;
   if (dbUrl) {
-    const hasPgBouncer = dbUrl.toLowerCase().includes("pgbouncer=true");
-    if (!hasPgBouncer) {
-      const sep = dbUrl.includes("?") ? "&" : "?";
-      const hasConnLimit = /connection_limit=\d+/i.test(dbUrl);
-      process.env.DATABASE_URL = `${dbUrl}${sep}pgbouncer=true${
-        hasConnLimit ? "" : "&connection_limit=1"
-      }`;
+    let nextUrl = dbUrl;
+
+    // Neon pooled connection strings typically use a `-pooler` hostname.
+    // Example:
+    //   ep-xxx.us-east-2.aws.neon.tech
+    // becomes:
+    //   ep-xxx-pooler.us-east-2.aws.neon.tech
+    try {
+      const u = new URL(dbUrl);
+      const host = u.hostname;
+      const lowerHost = host.toLowerCase();
+      if (lowerHost.includes(".neon.tech") && !lowerHost.includes("-pooler.")) {
+        const parts = host.split(".");
+        if (parts.length >= 3) {
+          const first = parts[0];
+          const rest = parts.slice(1).join(".");
+          u.hostname = `${first}-pooler.${rest}`;
+          nextUrl = u.toString();
+        }
+      }
+    } catch {
+      // ignore URL parsing issues; fall back to query param rewrite below
     }
+
+    const hasPgBouncer = nextUrl.toLowerCase().includes("pgbouncer=true");
+    const hasConnLimit = /connection_limit=\d+/i.test(nextUrl);
+    const sep = nextUrl.includes("?") ? "&" : "?";
+
+    // Ensure Prisma is in a mode compatible with external pooling and keep pool size tiny.
+    const ensureParams: string[] = [];
+    if (!hasPgBouncer) ensureParams.push("pgbouncer=true");
+    if (!hasConnLimit) ensureParams.push("connection_limit=1");
+
+    if (ensureParams.length > 0) {
+      nextUrl = `${nextUrl}${sep}${ensureParams.join("&")}`;
+    }
+
+    process.env.DATABASE_URL = nextUrl;
   }
 }
 
