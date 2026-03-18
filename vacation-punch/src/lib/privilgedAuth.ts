@@ -67,74 +67,82 @@ export async function requirePrivilegedOrRedirect(): Promise<{
   const defaultCompanyId = await getOrCreateDefaultCompanyId();
 
   // 1) Try Supabase (web/admin)
-  const supabase = await supabaseServer();
-  const { data, error } = await supabase.auth.getUser();
+  try {
+    // If Supabase is not configured (or temporarily unreachable on Vercel),
+    // we still want kiosk-session auth to work.
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      const supabase = await supabaseServer();
+      const { data, error } = await supabase.auth.getUser();
 
-  if (!error && data?.user) {
-    const authUser = data.user;
-    const email = authUser.email;
-    if (!email) redirect("/kiosk?reason=no_email");
+      if (!error && data?.user) {
+        const authUser = data.user;
+        const email = authUser.email;
+        if (!email) redirect("/kiosk?reason=no_email");
 
-    const name =
-      (authUser.user_metadata as any)?.name ??
-      (authUser.user_metadata as any)?.full_name ??
-      null;
+        const name =
+          (authUser.user_metadata as any)?.name ??
+          (authUser.user_metadata as any)?.full_name ??
+          null;
 
-    let me = await prisma.user.findUnique({
-      where: { authUserId: authUser.id },
-      select: { id: true, role: true, companyId: true, name: true, email: true },
-    });
-
-    if (!me) {
-      const byEmail = await prisma.user.findUnique({
-        where: { email },
-        select: { id: true },
-      });
-
-      if (byEmail) {
-        me = await prisma.user.update({
-          where: { id: byEmail.id },
-          data: { authUserId: authUser.id },
+        let me = await prisma.user.findUnique({
+          where: { authUserId: authUser.id },
           select: { id: true, role: true, companyId: true, name: true, email: true },
         });
+
+        if (!me) {
+          const byEmail = await prisma.user.findUnique({
+            where: { email },
+            select: { id: true },
+          });
+
+          if (byEmail) {
+            me = await prisma.user.update({
+              where: { id: byEmail.id },
+              data: { authUserId: authUser.id },
+              select: { id: true, role: true, companyId: true, name: true, email: true },
+            });
+          }
+        }
+
+        if (!me) {
+          me = await prisma.user.create({
+            data: {
+              authUserId: authUser.id,
+              email,
+              name,
+              role: FORCE_SUPABASE_ROLE,
+              department: "FLOOR",
+              companyId: defaultCompanyId,
+            },
+            select: { id: true, role: true, companyId: true, name: true, email: true },
+          });
+        } else {
+          me = await prisma.user.update({
+            where: { id: me.id },
+            data: {
+              role: FORCE_SUPABASE_ROLE,
+              companyId: me.companyId ?? defaultCompanyId,
+              name: me.name ?? name,
+            },
+            select: { id: true, role: true, companyId: true, name: true, email: true },
+          });
+        }
+
+        if (me.role !== PrismaRole.ADMIN && me.role !== PrismaRole.MANAGER) {
+          redirect("/kiosk?reason=role_denied");
+        }
+
+        return {
+          ok: true,
+          role: me.role as PrivRole,
+          userId: me.id,
+          companyId: me.companyId,
+          name: me.name ?? null,
+        };
       }
     }
-
-    if (!me) {
-      me = await prisma.user.create({
-        data: {
-          authUserId: authUser.id,
-          email,
-          name,
-          role: FORCE_SUPABASE_ROLE,
-          department: "FLOOR",
-          companyId: defaultCompanyId,
-        },
-        select: { id: true, role: true, companyId: true, name: true, email: true },
-      });
-    } else {
-      me = await prisma.user.update({
-        where: { id: me.id },
-        data: {
-          role: FORCE_SUPABASE_ROLE,
-          companyId: me.companyId ?? defaultCompanyId,
-          name: me.name ?? name,
-        },
-        select: { id: true, role: true, companyId: true, name: true, email: true },
-      });
-    }
-
-    if (me.role !== PrismaRole.ADMIN && me.role !== PrismaRole.MANAGER) {
-      redirect("/kiosk?reason=role_denied");
-    }
-
-    return {
-      ok: true,
-      role: me.role as PrivRole,
-      userId: me.id,
-      companyId: me.companyId,
-      name: me.name ?? null,
-    };
+  } catch {
+    // swallow Supabase connectivity/env errors and fallback to kiosk session
   }
 
   // 2) Fallback: kiosk session (manager/admin from Employee table)

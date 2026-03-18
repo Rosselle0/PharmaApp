@@ -140,6 +140,7 @@ export default function AdminLogsClient() {
       try {
         const res = await fetch(`/api/admin/logs?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, {
           cache: "no-store",
+          credentials: "include",
         });
         const json = (await res.json().catch(() => null)) as AdminLogsResponse | { error: string };
 
@@ -205,9 +206,10 @@ export default function AdminLogsClient() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ shiftId, kind }),
+        credentials: "include",
       });
       // fire and forget: just refresh to reflect any audit list later
-      const res = await fetch(`/api/admin/logs?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, { cache: "no-store" });
+      const res = await fetch(`/api/admin/logs?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, { cache: "no-store", credentials: "include" });
       const json = (await res.json().catch(() => null)) as AdminLogsResponse | { error: string };
       if ("ok" in json) setData(json as AdminLogsResponse);
     } catch {
