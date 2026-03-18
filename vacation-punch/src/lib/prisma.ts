@@ -1,5 +1,18 @@
 import { PrismaClient } from "@prisma/client";
 
+// Vercel/Serverless: avoid exhausting Postgres connection limits.
+// If your DATABASE_URL is backed by PgBouncer, Prisma should use `pgbouncer=true`
+// to switch to transaction pooling (prevents "MaxClientsInSessionMode ... max clients reached").
+const dbUrl = process.env.DATABASE_URL;
+if (dbUrl) {
+  const hasPgBouncer = dbUrl.toLowerCase().includes("pgbouncer=true");
+  if (!hasPgBouncer) {
+    const sep = dbUrl.includes("?") ? "&" : "?";
+    const hasConnLimit = /connection_limit=\d+/i.test(dbUrl);
+    process.env.DATABASE_URL = `${dbUrl}${sep}pgbouncer=true${hasConnLimit ? "" : "&connection_limit=1"}`;
+  }
+}
+
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
 export const prisma =
