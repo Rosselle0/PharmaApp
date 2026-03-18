@@ -55,8 +55,19 @@ export async function requireKioskManagerOrAdmin(): Promise<KioskAuthResult> {
   }
 
   // 2) Kiosk employee-code session (Employee table)
-  const kiosk = await readKioskPrivilege();
-  if (kiosk) return { ok: true, role: kiosk.role, via: "kiosk", employeeId: kiosk.employeeId, companyId: kiosk.companyId };
+  try {
+    const kiosk = await readKioskPrivilege();
+    if (kiosk)
+      return {
+        ok: true,
+        role: kiosk.role,
+        via: "kiosk",
+        employeeId: kiosk.employeeId,
+        companyId: kiosk.companyId,
+      };
+  } catch {
+    // ignore kiosk auth errors
+  }
 
   return { ok: false };
 }

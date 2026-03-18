@@ -64,7 +64,13 @@ export async function requirePrivilegedOrRedirect(): Promise<{
   companyId: string;
   name: string | null;
 }> {
-  const defaultCompanyId = await getOrCreateDefaultCompanyId();
+  let defaultCompanyId: string;
+  try {
+    defaultCompanyId = await getOrCreateDefaultCompanyId();
+  } catch {
+    // If DB is unreachable / misconfigured, don't crash the entire app.
+    redirect("/kiosk?reason=auth_db_error");
+  }
 
   // 1) Try Supabase (web/admin)
   try {
@@ -146,8 +152,12 @@ export async function requirePrivilegedOrRedirect(): Promise<{
   }
 
   // 2) Fallback: kiosk session (manager/admin from Employee table)
-  const kiosk = await getPrivFromKioskSession(defaultCompanyId);
-  if (kiosk) return kiosk;
+  try {
+    const kiosk = await getPrivFromKioskSession(defaultCompanyId);
+    if (kiosk) return kiosk;
+  } catch {
+    // Ignore kiosk auth errors and fall through to redirect.
+  }
 
   // 3) Neither auth method worked
   redirect("/kiosk?reason=no_auth");
