@@ -92,8 +92,20 @@ function toUiState(state: PunchState): UiState {
   return "LEFT";
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const rawCode = String(url.searchParams.get("code") ?? "");
+  const code = rawCode.replace(/\D/g, "").slice(0, 10);
+
+  const since = new Date(Date.now() - 72 * 60 * 60 * 1000); // last 72 hours
+
   const rows = await prisma.punchEvent.findMany({
+    // Vercel-safe: only recent punches are needed to compute current punch state.
+    // Default: last 72h (covers overnight shifts + small delays).
+    where: {
+      at: { gte: since },
+      employee: code && code.length >= 4 ? { isActive: true, employeeCode: code } : { isActive: true },
+    },
     orderBy: { at: "asc" },
     select: {
       employeeId: true,

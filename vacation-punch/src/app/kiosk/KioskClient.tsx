@@ -231,7 +231,7 @@ export default function KioskClient({
 
   useEffect(() => {
     loadActifs();
-    const t = window.setInterval(loadActifs, 5000);
+    const t = window.setInterval(loadActifs, 10000); // reduce DB load on Vercel
     return () => window.clearInterval(t);
   }, []);
 

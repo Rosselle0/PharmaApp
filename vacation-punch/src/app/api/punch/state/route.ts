@@ -115,8 +115,9 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, error: "Employé introuvable" }, { status: 404 });
   }
 
+  const since = new Date(Date.now() - 72 * 60 * 60 * 1000); // last 72 hours
   const history = await prisma.punchEvent.findMany({
-    where: { employeeId: auth.employeeId },
+    where: { employeeId: auth.employeeId, at: { gte: since } },
     orderBy: { at: "asc" },
     select: { type: true, at: true },
   });
