@@ -1,6 +1,7 @@
 // src/app/api/schedule/export/route.ts
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { Department, ShiftStatus } from "@prisma/client";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -296,7 +297,7 @@ export async function GET(req: NextRequest) {
   const sectionParam = String(url.searchParams.get("section") ?? "CAISSE_LAB").toUpperCase();
   const section: "CAISSE_LAB" | "FLOOR" =
     sectionParam.includes("FLOOR") ? "FLOOR" : "CAISSE_LAB";
-  const departments = section === "FLOOR" ? ["FLOOR"] : ["CASH", "LAB"];
+  const departments: Department[] = section === "FLOOR" ? [Department.FLOOR] : [Department.CASH, Department.LAB];
 
   const base = week ? new Date(`${week}T12:00:00`) : new Date();
   const week1 = startOfWeek(base);
@@ -314,7 +315,7 @@ export async function GET(req: NextRequest) {
 
   const shifts = await prisma.shift.findMany({
     where: {
-      status: "PLANNED",
+      status: ShiftStatus.PLANNED,
       employee: { is: { companyId, department: { in: departments } } },
       AND: [{ startTime: { lt: end } }, { endTime: { gt: week1 } }],
     },
