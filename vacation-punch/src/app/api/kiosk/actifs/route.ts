@@ -99,12 +99,26 @@ export async function GET(req: Request) {
 
   const since = new Date(Date.now() - 72 * 60 * 60 * 1000); // last 72 hours
 
+  // Avoid relation filters in `where` to prevent Prisma runtime validation issues on Vercel.
+  const employees =
+    code && code.length >= 4
+      ? await prisma.employee.findMany({
+          where: { employeeCode: code, isActive: true },
+          select: { id: true, firstName: true, lastName: true },
+          take: 1,
+        })
+      : await prisma.employee.findMany({
+          where: { isActive: true },
+          select: { id: true, firstName: true, lastName: true },
+        });
+
+  const employeeIds = employees.map((e) => e.id);
+  if (employeeIds.length === 0) return NextResponse.json({ ok: true, actifs: [] });
+
   const rows = await prisma.punchEvent.findMany({
-    // Vercel-safe: only recent punches are needed to compute current punch state.
-    // Default: last 72h (covers overnight shifts + small delays).
     where: {
       at: { gte: since },
-      employee: code && code.length >= 4 ? { isActive: true, employeeCode: code } : { isActive: true },
+      employeeId: { in: employeeIds },
     },
     orderBy: { at: "asc" },
     select: {
@@ -124,7 +138,6 @@ export async function GET(req: Request) {
   const byEmployee = new Map<string, { name: string; events: Array<{ type: PunchType; at: Date }> }>();
 
   for (const row of rows) {
-    if (!row.employee.isActive) continue;
     const current = byEmployee.get(row.employeeId) ?? {
       name: `${row.employee.firstName} ${row.employee.lastName}`.trim(),
       events: [],

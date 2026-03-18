@@ -14,10 +14,12 @@ if (dbUrl) {
 }
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+const effectiveDbUrl = process.env.DATABASE_URL;
 
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({   
+    datasources: effectiveDbUrl ? { db: { url: effectiveDbUrl } } : undefined,
     log: ["error", "warn"],
   });
 
