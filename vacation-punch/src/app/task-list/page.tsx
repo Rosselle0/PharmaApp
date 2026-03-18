@@ -15,7 +15,7 @@ type Assignment = {
   tasks: Task[];
 };
 
-const PIN_LEN = 8;
+const PIN_LEN = 4;
 
 // ---------- Helpers ----------
 function readEmployeeCodeFromUrlOrStorage(): string | null {

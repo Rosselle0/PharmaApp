@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
-import { useMemo } from "react";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 type KioskSidebarProps = {
   isPrivilegedLogged: boolean;
@@ -9,12 +9,22 @@ type KioskSidebarProps = {
   employeeCode?: string | null;
 };
 
+function normalizeEmployeeCode(value: string | null | undefined): string | null {
+  const clean = String(value ?? "").replace(/\D/g, "");
+  return clean.length >= 4 ? clean : null;
+}
+
 function readStoredEmployeeCode(): string | null {
   if (typeof window === "undefined") return null;
+  return normalizeEmployeeCode(
+    window.localStorage.getItem("kiosk_employee_code") ?? ""
+  );
+}
 
-  const raw = window.localStorage.getItem("kiosk_employee_code") ?? "";
-  const clean = raw.replace(/\D/g, "");
-  return clean.length >= 4 ? clean : null;
+function readEmployeeCodeFromUrl(): string | null {
+  if (typeof window === "undefined") return null;
+  const params = new URLSearchParams(window.location.search);
+  return normalizeEmployeeCode(params.get("code"));
 }
 
 export default function KioskSidebar({
@@ -23,17 +33,18 @@ export default function KioskSidebar({
   employeeCode,
 }: KioskSidebarProps) {
   const path = usePathname();
-  const searchParams = useSearchParams();
+  const [effectiveEmployeeCode, setEffectiveEmployeeCode] = useState<string | null>(
+    normalizeEmployeeCode(employeeCode)
+  );
 
-  const effectiveEmployeeCode = useMemo(() => {
-    const propCode = (employeeCode ?? "").replace(/\D/g, "");
-    if (propCode.length >= 4) return propCode;
+  useEffect(() => {
+    const nextCode =
+      normalizeEmployeeCode(employeeCode) ??
+      readEmployeeCodeFromUrl() ??
+      readStoredEmployeeCode();
 
-    const urlCode = (searchParams.get("code") ?? "").replace(/\D/g, "");
-    if (urlCode.length >= 4) return urlCode;
-
-    return readStoredEmployeeCode();
-  }, [employeeCode, searchParams]);
+    setEffectiveEmployeeCode(nextCode);
+  }, [employeeCode]);
 
   const qs = effectiveEmployeeCode
     ? `?code=${encodeURIComponent(effectiveEmployeeCode)}`

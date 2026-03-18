@@ -23,7 +23,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
     const body = await req.json().catch(() => null);
     const nextDone = Boolean(body?.done);
     const code = String(body?.code ?? "").replace(/\D/g, "");
-    if (!/^\d{8}$/.test(code)) return NextResponse.json({ error: "Invalid code" }, { status: 400 });
+    if (!/^\d{4}$/.test(code)) return NextResponse.json({ error: "Invalid code" }, { status: 400 });
 
     const employee = await prisma.employee.findUnique({
       where: { employeeCode: code },

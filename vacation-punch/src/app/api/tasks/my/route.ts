@@ -24,8 +24,8 @@ export async function GET(req: Request) {
     if (!code) {
       return NextResponse.json({ error: "Missing code" }, { status: 400 });
     }
-    if (!/^\d{8}$/.test(code)) {
-      return NextResponse.json({ error: "Invalid code (expected 8 digits)" }, { status: 400 });
+    if (!/^\d{4}$/.test(code)) {
+      return NextResponse.json({ error: "Invalid code (expected 4 digits)" }, { status: 400 });
     }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) {
       return NextResponse.json({ error: "Missing/invalid date" }, { status: 400 });
