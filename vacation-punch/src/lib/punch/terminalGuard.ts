@@ -33,6 +33,16 @@ function getClientIP(req: Request) {
   return "unknown";
 }
 
+export function getTerminalIpCheck(req: Request) {
+  const ip = getClientIP(req);
+  const allowed = ip !== "unknown" && ALLOWED_TERMINAL_IPS.has(ip);
+  return {
+    ip,
+    allowed,
+    allowedIpsCount: ALLOWED_TERMINAL_IPS.size,
+  };
+}
+
 export async function requireTerminalOrDev(req: Request) {
   const url = new URL(req.url);
   const isDevBypass =
