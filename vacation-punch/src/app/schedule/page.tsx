@@ -104,7 +104,7 @@ export default async function SchedulePage({
   const employees = await prisma.employee.findMany({
     where: { companyId, isActive: true },
     orderBy: [{ department: "asc" }, { lastName: "asc" }, { firstName: "asc" }],
-    select: { id: true, firstName: true, lastName: true, department: true },
+    select: { id: true, firstName: true, lastName: true, department: true, paidBreak30: true },
   });
 
   const viewEmployees =
@@ -274,13 +274,11 @@ export default async function SchedulePage({
 
                         for (const sh of list) {
                           if (sh.note === "VAC") continue;
-                          totalMinutes += Math.max(
-                            0,
-                            Math.floor(
-                              (+new Date(sh.endTime) - +new Date(sh.startTime)) /
-                              60000
-                            )
+                          const durationMinutes = Math.floor(
+                            (+new Date(sh.endTime) - +new Date(sh.startTime)) / 60000
                           );
+                          const deductionMinutes = u.paidBreak30 ? 0 : 30;
+                          totalMinutes += Math.max(0, durationMinutes - deductionMinutes);
                         }
 
                         return (

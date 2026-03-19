@@ -236,7 +236,7 @@ export default async function ScheduleEditPage({
       department: section === "FLOOR" ? "FLOOR" : { in: ["CASH", "LAB"] },
     },
     orderBy: [{ department: "asc" }, { lastName: "asc" }, { firstName: "asc" }],
-    select: { id: true, firstName: true, lastName: true, department: true },
+    select: { id: true, firstName: true, lastName: true, department: true, paidBreak30: true },
   });
 
   const employeeIds = employees.map((e) => e.id);

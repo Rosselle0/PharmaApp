@@ -101,6 +101,7 @@ type EmployeeLite = {
   id: string;
   firstName: string;
   lastName: string;
+  paidBreak30: boolean;
 };
 
 function buildShiftMap(shifts: ShiftLite[]) {
@@ -264,7 +265,9 @@ function drawWeekTable(
       const text = list
         .map((sh) => {
           if (sh.note === "VAC") return "VAC";
-          weeklyTotal += hoursBetween(new Date(sh.startTime), new Date(sh.endTime));
+          const rawHours = hoursBetween(new Date(sh.startTime), new Date(sh.endTime));
+          const deductionHours = emp.paidBreak30 ? 0 : 0.5; // 30 min unpaid break
+          weeklyTotal += Math.max(0, rawHours - deductionHours);
           return formatShiftRange(new Date(sh.startTime), new Date(sh.endTime));
         })
         .join(" / ");
@@ -310,7 +313,7 @@ export async function GET(req: NextRequest) {
   const employees = await prisma.employee.findMany({
     where: { companyId, isActive: true, department: { in: departments } },
     orderBy: [{ department: "asc" }, { lastName: "asc" }, { firstName: "asc" }],
-    select: { id: true, firstName: true, lastName: true },
+    select: { id: true, firstName: true, lastName: true, paidBreak30: true },
   });
 
   const shifts = await prisma.shift.findMany({

@@ -11,6 +11,7 @@ export type Employee = {
     firstName: string;
     lastName: string;
     department: Department;
+    paidBreak30: boolean;
 };
 export type AvailabilityRule = {
     employeeId: string;
@@ -141,13 +142,24 @@ export default function ScheduleEditorClient(props: {
         []
     );
 
+    const paidBreak30ByEmpId = useMemo(() => {
+        const map = new Map<string, boolean>();
+        for (const e of props.employees) {
+            map.set(e.id, !!e.paidBreak30);
+        }
+        return map;
+    }, [props.employees]);
+
     function calcTotalHours(employeeId: string) {
         let mins = 0;
+        const paidBreak30 = paidBreak30ByEmpId.get(employeeId) ?? true;
         for (const s of shifts) {
             if (s.employeeId !== employeeId) continue;
             const a = new Date(s.startTime).getTime();
             const b = new Date(s.endTime).getTime();
-            mins += Math.max(0, Math.floor((b - a) / 60000));
+            const rawMinutes = Math.floor((b - a) / 60000);
+            const deductionMinutes = paidBreak30 ? 0 : 30;
+            mins += Math.max(0, rawMinutes - deductionMinutes);
         }
         return mins / 60;
     }
