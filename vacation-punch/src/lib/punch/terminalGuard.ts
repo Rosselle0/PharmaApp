@@ -29,6 +29,9 @@ const ALLOWED_TERMINAL_IPS = new Set(
     .filter((x): x is string => Boolean(x))
 );
 
+const TERMINAL_SESSION_REQUIRED =
+  String(process.env.TERMINAL_SESSION_REQUIRED ?? "true").toLowerCase() !== "false";
+
 function getClientIP(req: Request) {
   const xf = req.headers.get("x-forwarded-for");
   if (xf) return normalizeIP(xf);
@@ -47,6 +50,7 @@ export function getTerminalIpCheck(req: Request) {
     allowed,
     allowedIpsCount: ALLOWED_TERMINAL_IPS.size,
     allowedIps: Array.from(ALLOWED_TERMINAL_IPS.values()),
+    terminalSessionRequired: TERMINAL_SESSION_REQUIRED,
   };
 }
 
@@ -68,6 +72,16 @@ export async function requireTerminalOrDev(req: Request) {
 
   if (!ip || !ALLOWED_TERMINAL_IPS.has(ip)) {
     return { ok: false as const, error: "IP non autorisée" };
+  }
+
+  // Pure IP mode: if the request IP is allowlisted, we don't require the
+  // `terminal_session` cookie (so it won't expire yearly/monthly).
+  if (!TERMINAL_SESSION_REQUIRED) {
+    return {
+      ok: true as const,
+      terminalCompanyId: null as string | null,
+      dev: false as const,
+    };
   }
 
   const jar = await cookies();
