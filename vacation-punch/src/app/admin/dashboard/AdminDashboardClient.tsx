@@ -65,10 +65,6 @@ export default function AdminDashboardClient({ role }: { role: Role }) {
           <h1 className="adminDashTitle">Tableau de bord admin</h1>
           <p className="adminDashSub">Outils de gestion (rôle: {role})</p>
         </div>
-
-        <button className="adminDashBack" type="button" onClick={() => router.push("/kiosk")}>
-          Retour Kiosk
-        </button>
       </header>
 
       <section className="adminGrid">

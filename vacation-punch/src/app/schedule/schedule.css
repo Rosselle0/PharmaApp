@@ -492,14 +492,33 @@
     color: #e6e6e6;
   }
 
+  /* ===== Header panels (less depressing) ===== */
+  .scheduleScope .head {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 18px;
+    padding: 14px 16px;
+    backdrop-filter: blur(10px);
+  }
+
+  .scheduleScope .sectionTop {
+    background: rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .scheduleScope .tableWrap {
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    background: rgba(255, 255, 255, 0.02);
+  }
+
   .scheduleScope .th,
   .scheduleScope .td {
     border-color: rgba(255, 255, 255, 0.06);
   }
 
   .scheduleScope .th {
-    background: rgba(255, 255, 255, 0.05);
-    color: #f1f5f9;
+    background: rgba(255, 255, 255, 0.085);
+    color: #f8fafc;
   }
 
   .scheduleScope tbody tr:hover td {

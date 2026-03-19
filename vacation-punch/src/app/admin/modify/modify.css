@@ -23,6 +23,16 @@
   --speed:180ms;
 }
 
+[data-theme="dark"]{
+  --bg:#0b0d10;
+  --card:#0f131b;
+  --card2:#0f131b;
+  --text:#e6ebf3;
+  --muted:rgba(230,235,243,0.70);
+  --border:rgba(255,255,255,.12);
+  --shadow:0 20px 70px rgba(0,0,0,.25);
+}
+
 /* Page */
 html, body { height: 100%; }
 body{
@@ -80,6 +90,14 @@ body{
   transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease, background 140ms ease;
 }
 
+[data-theme="dark"] .m-btn {
+  background: rgba(255,255,255,0.06);
+}
+
+[data-theme="dark"] .m-btn.ghost {
+  background: transparent;
+}
+
 .m-btn:hover {
   transform: translateY(-1px);
   box-shadow: 0 12px 24px rgba(2,6,23,.10);
@@ -133,6 +151,10 @@ body{
   color: var(--text);
   outline: none;
   transition: border-color var(--speed) ease, box-shadow var(--speed) ease;
+}
+
+[data-theme="dark"] .m-search {
+  background: rgba(255,255,255,0.06);
 }
 
 .m-search:focus{
@@ -200,6 +222,10 @@ body{
 }
 .m-rail::-webkit-scrollbar-track { background: transparent; }
 
+[data-theme="dark"] .m-rail::-webkit-scrollbar-thumb {
+  background: rgba(230, 235, 243, 0.18);
+}
+
 .m-emptyRail {
   color: var(--muted);
   padding: 16px 8px;
@@ -221,6 +247,11 @@ body{
   transition: transform var(--speed) ease, border-color var(--speed) ease, box-shadow var(--speed) ease;
   animation: popIn 220ms ease;
   box-shadow: 0 10px 24px rgba(2,6,23,.06);
+}
+
+[data-theme="dark"] .m-card {
+  background: rgba(255,255,255,0.06);
+  box-shadow: 0 10px 24px rgba(0,0,0,.20);
 }
 
 @keyframes popIn {
@@ -284,6 +315,11 @@ body{
   color: var(--text);
 }
 
+[data-theme="dark"] .m-pill {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.10);
+}
+
 .m-cardBottom {
   display: flex;
   gap: 8px;
@@ -298,6 +334,11 @@ body{
   border: 1px solid rgba(15,23,42,0.10);
   background: rgba(15,23,42,0.05);
   color: var(--text);
+}
+
+[data-theme="dark"] .m-tag {
+  border-color: rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.05);
 }
 
 .m-tag.soft {
@@ -381,6 +422,11 @@ body{
   padding: 10px 12px;
   outline: none;
   transition: border-color var(--speed) ease, box-shadow var(--speed) ease;
+}
+
+[data-theme="dark"] .m-field input,
+[data-theme="dark"] .m-field select {
+  background: rgba(255,255,255,0.06);
 }
 
 .m-field input:focus,

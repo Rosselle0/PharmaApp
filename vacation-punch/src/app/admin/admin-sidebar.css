@@ -1,0 +1,308 @@
+:root {
+  --admin-sidebar-width: 300px;
+  --admin-ink: #0a1020;
+  --admin-muted: rgba(10, 16, 32, 0.62);
+  --admin-bg: #f6fbff;
+  --admin-bg-bottom: #eef6ff;
+  --admin-panel: rgba(255, 255, 255, 0.72);
+  --admin-panel-strong: rgba(255, 255, 255, 0.86);
+  --admin-border: rgba(20, 40, 80, 0.14);
+  --admin-border-soft: rgba(20, 40, 80, 0.10);
+  --admin-shadow: 0 14px 40px rgba(9, 30, 66, 0.10);
+  --admin-link: rgba(26, 115, 232, 0.92);
+  --admin-link-soft: rgba(26, 115, 232, 0.10);
+  --admin-accent: #2563eb;
+  --admin-accent-soft: rgba(37, 99, 235, 0.14);
+  --admin-danger: #dc2626;
+  --admin-danger-soft: rgba(220, 38, 38, 0.10);
+}
+
+[data-theme="dark"] {
+  --admin-ink: #e6ebf3;
+  --admin-muted: rgba(230, 235, 243, 0.7);
+  --admin-bg: #0b1220;
+  --admin-bg-bottom: #060915;
+  --admin-panel: rgba(10, 16, 32, 0.72);
+  --admin-panel-strong: rgba(10, 16, 32, 0.86);
+  --admin-border: rgba(255, 255, 255, 0.12);
+  --admin-border-soft: rgba(255, 255, 255, 0.08);
+  --admin-shadow: 0 20px 70px rgba(0, 0, 0, 0.35);
+  --admin-link: #93c5fd;
+  --admin-link-soft: rgba(147, 197, 253, 0.12);
+  --admin-accent: #3b82f6;
+  --admin-accent-soft: rgba(59, 130, 246, 0.20);
+}
+
+.adminLayout {
+  min-height: 100vh;
+  display: flex;
+  background: radial-gradient(1200px 700px at 18% 12%, rgba(54, 209, 227, 0.12), transparent 55%), radial-gradient(900px 600px at 85% 18%, rgba(76, 141, 255, 0.16), transparent 60%),
+    linear-gradient(180deg, var(--admin-bg), var(--admin-bg-bottom));
+  color: var(--admin-ink);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+}
+
+.adminLayoutMain {
+  flex: 1;
+  min-width: 0;
+  padding: 18px;
+  overflow-y: auto;
+  max-height: 100vh;
+  overflow-x: hidden;
+  color: var(--admin-ink);
+}
+
+/* Make admin pages sit nicely inside the layout */
+.adminLayoutMain .adminDash,
+.adminLayoutMain .adminLogs,
+.adminLayoutMain .ctPage,
+.adminLayoutMain .m-page {
+  padding: 0 !important;
+  min-height: auto !important;
+  background: transparent !important;
+}
+
+.adminLayoutMain .requestsScope.page {
+  padding: 0 !important;
+  min-height: auto !important;
+  background: transparent !important;
+}
+
+/* Admin creation/modify pages (className="page") should not force min-height:100vh */
+.adminLayoutMain .page:not(.scheduleScope) {
+  padding: 0 !important;
+  min-height: auto !important;
+  background: transparent !important;
+}
+
+[data-theme="dark"] .adminLayoutMain .adminDash {
+  color: var(--admin-ink) !important;
+}
+
+[data-theme="dark"] .adminLayoutMain .adminDashSub {
+  color: var(--admin-muted) !important;
+}
+
+[data-theme="dark"] .adminLayoutMain .adminDashTitle {
+  color: var(--admin-ink) !important;
+}
+
+[data-theme="dark"] .adminLayoutMain .adminDashBack {
+  background: rgba(10, 16, 32, 0.45) !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  color: var(--admin-ink) !important;
+}
+
+/* Sidebar - desktop */
+.adminSidebarDesktop {
+  width: var(--admin-sidebar-width);
+  flex: 0 0 auto;
+  padding: 18px 14px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.adminSidebarDesktop::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--admin-panel);
+  border-right: 1px solid var(--admin-border);
+  box-shadow: var(--admin-shadow);
+  backdrop-filter: blur(10px);
+}
+
+.adminSidebarDesktop {
+  position: relative;
+}
+
+.adminSidebarTop,
+.adminSidebarNav,
+.adminSidebarBottom {
+  position: relative;
+  z-index: 1;
+}
+
+.adminSidebarBrand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.adminSidebarLogo {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  font-weight: 950;
+  color: #fff;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  box-shadow: 0 16px 36px rgba(37, 99, 235, 0.22);
+}
+
+.adminSidebarBrandName {
+  font-weight: 950;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+
+.adminSidebarBrandSub {
+  margin-top: 3px;
+  color: var(--admin-muted);
+  font-weight: 800;
+  font-size: 12px;
+}
+
+.adminSidebarGroupTitle {
+  color: var(--admin-muted);
+  font-weight: 950;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin: 0 10px 10px;
+}
+
+.adminSidebarNav {
+  padding-right: 4px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.adminSidebarLink {
+  height: 46px;
+  padding: 0 12px;
+  border-radius: 14px;
+  border: 1px solid var(--admin-border-soft);
+  background: transparent;
+  color: var(--admin-ink);
+  cursor: pointer;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 950;
+  transition: transform 140ms ease, background 140ms ease, border-color 140ms ease;
+}
+
+.adminSidebarLink:hover {
+  transform: translateY(-1px);
+  background: var(--admin-link-soft);
+  border-color: rgba(37, 99, 235, 0.35);
+}
+
+.adminSidebarLink.active {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  border-color: rgba(37, 99, 235, 0.55);
+  color: #fff;
+}
+
+.adminSidebarLinkIcon {
+  display: grid;
+  place-items: center;
+  color: currentColor;
+}
+
+.adminSidebarBottom {
+  margin-top: auto;
+}
+
+.adminSidebarReturn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 46px;
+  border-radius: 14px;
+  border: 1px solid var(--admin-border-soft);
+  background: var(--admin-panel-strong);
+  color: var(--admin-ink);
+  text-decoration: none;
+  font-weight: 950;
+  box-shadow: 0 14px 40px rgba(9, 30, 66, 0.08);
+}
+
+.adminSidebarReturn:hover {
+  background: var(--admin-panel-strong);
+  border-color: rgba(37, 99, 235, 0.35);
+}
+
+/* Mobile */
+.adminSidebarMobileToggle {
+  display: none;
+}
+
+@media (max-width: 980px) {
+  .adminSidebarDesktop {
+    display: none;
+  }
+  .adminSidebarMobileToggle {
+    display: inline-flex;
+    position: sticky;
+    top: 14px;
+    margin-left: 14px;
+    z-index: 50;
+    height: 46px;
+    padding: 0 14px;
+    border-radius: 14px;
+    border: 1px solid var(--admin-border-soft);
+    background: var(--admin-panel);
+    color: var(--admin-ink);
+    font-weight: 950;
+    cursor: pointer;
+    align-items: center;
+    gap: 10px;
+    backdrop-filter: blur(10px);
+  }
+
+  .adminLayoutMain {
+    padding: 14px;
+  }
+}
+
+.adminSidebarMobileOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+}
+
+.adminSidebarMobileBackdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(6px);
+  z-index: 0;
+}
+
+.adminSidebarMobilePanel {
+  position: relative;
+  height: 100%;
+  width: min(330px, 90vw);
+  background: var(--admin-panel-strong);
+  border-right: 1px solid var(--admin-border);
+  padding: 18px 14px;
+  overflow: auto;
+  z-index: 1;
+}
+
+.adminSidebarMobileClose {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  height: 42px;
+  width: 42px;
+  border-radius: 14px;
+  border: 1px solid var(--admin-border-soft);
+  background: var(--admin-panel);
+  color: var(--admin-ink);
+  cursor: pointer;
+  font-weight: 950;
+}
+

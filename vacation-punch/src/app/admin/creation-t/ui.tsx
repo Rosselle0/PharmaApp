@@ -575,10 +575,6 @@ export default function CreationTClient() {
           </div>
 
           <div className="ctTopActions">
-            <a className="ctBtn" href="/admin/dashboard">
-              Retour
-            </a>
-
             <button className="ctBtn" type="button" onClick={reloadTemplates} disabled={loadingTemplates}>
               {loadingTemplates ? "..." : "Rafraîchir templates"}
             </button>

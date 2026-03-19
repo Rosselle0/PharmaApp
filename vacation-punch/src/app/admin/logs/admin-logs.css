@@ -1,22 +1,55 @@
 :root {
-  --log-bg: #0b1220;
-  --log-surface: rgba(255, 255, 255, 0.08);
-  --log-border: rgba(255, 255, 255, 0.12);
-  --log-ink: #e6ebf3;
-  --log-muted: rgba(230, 235, 243, 0.7);
+  --log-bg: #f7fafc;
+  --log-surface: rgba(2, 6, 23, 0.04);
+  --log-surface-hover: rgba(2, 6, 23, 0.06);
+  --log-border: rgba(2, 6, 23, 0.12);
+  --log-ink: #0b1220;
+  --log-muted: rgba(15, 23, 42, 0.62);
+
   --log-primary: #2563eb;
   --log-ok: #15c39a;
   --log-warn: #f59e0b;
   --log-danger: #ff4d5e;
+
+  --admin-page-bg-top: #f6f8fc;
+  --admin-page-bg-bottom: #ffffff;
+  --admin-page-glow-1: rgba(54, 209, 227, 0.12);
+  --admin-page-glow-2: rgba(76, 141, 255, 0.14);
+
+  --admin-table-head-bg: rgba(255, 255, 255, 0.75);
+  --admin-row-border: rgba(2, 6, 23, 0.08);
+  --admin-expand-bg: rgba(2, 6, 23, 0.06);
+  --admin-shadow-soft: 0 20px 70px rgba(2, 6, 23, 0.12);
+  --admin-link: #1d4ed8;
+}
+
+[data-theme="dark"] {
+  --log-bg: #0b1220;
+  --log-surface: rgba(255, 255, 255, 0.06);
+  --log-surface-hover: rgba(255, 255, 255, 0.08);
+  --log-border: rgba(255, 255, 255, 0.12);
+  --log-ink: #e6ebf3;
+  --log-muted: rgba(230, 235, 243, 0.7);
+
+  --admin-page-bg-top: #0b1220;
+  --admin-page-bg-bottom: #0f172a;
+  --admin-page-glow-1: rgba(54, 209, 227, 0.12);
+  --admin-page-glow-2: rgba(76, 141, 255, 0.16);
+
+  --admin-table-head-bg: rgba(10, 16, 32, 0.6);
+  --admin-row-border: rgba(255, 255, 255, 0.08);
+  --admin-expand-bg: rgba(0, 0, 0, 0.15);
+  --admin-shadow-soft: 0 20px 70px rgba(0, 0, 0, 0.25);
+  --admin-link: #93c5fd;
 }
 
 .adminLogs {
   min-height: 100vh;
   padding: 18px;
   background:
-    radial-gradient(1200px 700px at 18% 12%, rgba(54, 209, 227, 0.12), transparent 55%),
-    radial-gradient(900px 600px at 85% 18%, rgba(76, 141, 255, 0.16), transparent 60%),
-    linear-gradient(180deg, #0b1220, #0f172a);
+    radial-gradient(1200px 700px at 18% 12%, var(--admin-page-glow-1), transparent 55%),
+    radial-gradient(900px 600px at 85% 18%, var(--admin-page-glow-2), transparent 60%),
+    linear-gradient(180deg, var(--admin-page-bg-top), var(--admin-page-bg-bottom));
   color: var(--log-ink);
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
 }
@@ -71,8 +104,8 @@
   height: 40px;
   padding: 0 12px;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--log-border);
+  background: var(--log-surface);
   color: var(--log-ink);
   outline: none;
 }
@@ -123,11 +156,14 @@
 }
 
 .adminLogsSide {
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--log-border);
+  background: var(--log-surface);
   border-radius: 18px;
   padding: 12px;
-  box-shadow: 0 20px 70px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--admin-shadow-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
 .adminLogsSideHead {
@@ -150,7 +186,8 @@
 }
 
 .adminLogsEmployeeList {
-  max-height: 70vh;
+  flex: 1;
+  max-height: calc(100vh - 260px);
   overflow: auto;
   display: grid;
   gap: 10px;
@@ -159,8 +196,8 @@
 .adminLogsEmployee {
   padding: 12px 12px;
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--log-border);
+  background: var(--log-surface);
   cursor: pointer;
   transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
 }
@@ -168,12 +205,91 @@
 .adminLogsEmployee:hover {
   transform: translateY(-2px);
   border-color: rgba(37, 99, 235, 0.35);
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--log-surface-hover);
 }
 
 .adminLogsEmployee.selected {
   border-color: rgba(37, 99, 235, 0.6);
   background: rgba(37, 99, 235, 0.14);
+}
+
+.adminLogsNavSection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.adminLogsNavTitle {
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--log-muted);
+  padding: 0 6px;
+}
+
+.adminLogsNav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.adminLogsNavBtn {
+  height: 42px;
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid var(--log-border);
+  background: var(--log-surface);
+  color: var(--log-ink);
+  cursor: pointer;
+  font-weight: 950;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  transition: transform 140ms ease, background 140ms ease, border-color 140ms ease;
+}
+
+.adminLogsNavBtn:hover {
+  transform: translateY(-1px);
+  background: var(--log-surface-hover);
+  border-color: rgba(37, 99, 235, 0.35);
+}
+
+.adminLogsNavBtn.on {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  border-color: rgba(37, 99, 235, 0.55);
+  color: #ffffff;
+}
+
+.adminLogsNavDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.95);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+  flex: 0 0 auto;
+}
+
+.adminLogsNavBtn.on .adminLogsNavDot {
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: none;
+}
+
+.dot-availability {
+  background: rgba(21, 195, 154, 0.95);
+  box-shadow: 0 0 0 3px rgba(21, 195, 154, 0.14);
+}
+
+.dot-changes {
+  background: rgba(245, 158, 11, 0.95);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.14);
+}
+
+.dot-tasks {
+  background: rgba(147, 197, 253, 0.95);
+  box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.14);
 }
 
 .adminLogsEmployeeTop {
@@ -198,7 +314,7 @@
 
 .stat {
   font-size: 12px;
-  color: rgba(230, 235, 243, 0.75);
+  color: var(--log-muted);
   font-weight: 800;
 }
 
@@ -207,9 +323,9 @@
   font-weight: 950;
   padding: 6px 10px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(230, 235, 243, 0.92);
+  border: 1px solid var(--log-border);
+  background: var(--log-surface);
+  color: var(--log-ink);
 }
 
 .badge.warn {
@@ -228,8 +344,9 @@
   font-weight: 950;
   padding: 6px 10px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--log-border);
+  background: var(--log-surface);
+  color: var(--log-ink);
 }
 
 .dept-FLOOR {
@@ -254,11 +371,11 @@
 }
 
 .adminLogsPanel {
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--log-border);
+  background: var(--log-surface);
   border-radius: 18px;
   padding: 14px;
-  box-shadow: 0 20px 70px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--admin-shadow-soft);
 }
 
 .adminLogsKpis {
@@ -269,8 +386,8 @@
 }
 .kpi {
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--log-border);
+  background: var(--log-surface);
   padding: 10px 12px;
   font-weight: 950;
 }
@@ -312,20 +429,20 @@
   position: sticky;
   top: 0;
   z-index: 1;
-  background: rgba(10, 16, 32, 0.6);
+  background: var(--admin-table-head-bg);
   backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  border-bottom: 1px solid var(--log-border);
   text-align: left;
   font-size: 12px;
   padding: 12px 10px;
-  color: rgba(230, 235, 243, 0.8);
+  color: var(--log-muted);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
 .adminLogsTable td {
   padding: 12px 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--admin-row-border);
   vertical-align: top;
   font-weight: 800;
 }
@@ -343,7 +460,7 @@
 .link { color: #93c5fd; font-weight: 950; }
 
 .adminLogsExpand td {
-  background: rgba(0, 0, 0, 0.15);
+  background: var(--admin-expand-bg);
 }
 
 .expandGrid {
@@ -369,8 +486,8 @@
   gap: 10px;
   padding: 10px 12px;
   border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--log-border);
+  background: var(--log-surface);
 }
 
 .punchType {
@@ -378,8 +495,8 @@
   font-size: 12px;
   padding: 6px 10px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--log-border);
+  background: var(--log-surface);
 }
 .type-CLOCK_IN { border-color: rgba(37, 99, 235, 0.35); background: rgba(37, 99, 235, 0.12); color: #bfdbfe; }
 .type-CLOCK_OUT { border-color: rgba(21, 195, 154, 0.35); background: rgba(21, 195, 154, 0.12); color: #86efac; }
@@ -396,9 +513,9 @@
 .btnSmall {
   height: 40px;
   border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(230, 235, 243, 0.94);
+  border: 1px solid var(--log-border);
+  background: var(--log-surface);
+  color: var(--log-ink);
   font-weight: 950;
   cursor: pointer;
 }
@@ -414,8 +531,8 @@
   padding: 6px 10px;
   font-size: 12px;
   font-weight: 950;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--log-border);
+  background: var(--log-surface);
 }
 .tag.ok { border-color: rgba(21, 195, 154, 0.35); background: rgba(21, 195, 154, 0.12); color: #86efac; }
 .tag.warn { border-color: rgba(245, 158, 11, 0.35); background: rgba(245, 158, 11, 0.12); color: #ffe9b7; }
@@ -424,8 +541,8 @@
 .adminLogsEmpty {
   padding: 18px;
   border-radius: 18px;
-  border: 1px dashed rgba(255, 255, 255, 0.18);
-  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed var(--log-border);
+  background: var(--log-surface);
   color: var(--log-muted);
   font-weight: 900;
 }
@@ -438,7 +555,7 @@
 .adminLogsHover {
   position: fixed;
   top: 86px;
-  left: 340px;
+  left: calc(var(--admin-sidebar-width, 300px) + 40px);
   z-index: 200;
   pointer-events: none;
 }
@@ -446,8 +563,8 @@
 .hoverCard {
   width: 360px;
   border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(10, 16, 32, 0.78);
+  border: 1px solid var(--log-border);
+  background: var(--admin-table-head-bg);
   backdrop-filter: blur(12px);
   box-shadow: 0 30px 90px rgba(0, 0, 0, 0.6);
   padding: 12px;
@@ -471,14 +588,14 @@
   font-weight: 950;
   padding: 6px 10px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid var(--log-border);
 }
 
 .availabilityCard,
 .taskCard {
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--log-border);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--log-surface);
   padding: 14px;
 }
 
@@ -491,11 +608,11 @@
 .hoverDay {
   padding: 10px;
   border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--log-border);
+  background: var(--log-surface);
 }
 .hoverDay.yes { border-color: rgba(21, 195, 154, 0.35); background: rgba(21, 195, 154, 0.08); }
-.hoverDay.no { border-color: rgba(255, 255, 255, 0.12); }
+.hoverDay.no { border-color: var(--log-border); }
 .hoverDayLabel { font-size: 12px; color: var(--log-muted); font-weight: 950; }
 .hoverDayVal { margin-top: 6px; font-weight: 950; }
 
@@ -523,8 +640,8 @@
 
 .dayCell {
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--log-border);
+  background: var(--log-surface);
   padding: 12px 10px;
 }
 .dayCell.yes { border-color: rgba(21, 195, 154, 0.35); background: rgba(21, 195, 154, 0.08); }

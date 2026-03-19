@@ -73,17 +73,6 @@ export default function CreateAccountPage() {
 
   return (
     <main className="page">
-      <header className="topbar">
-        <div className="topbarActions">
-          <button className="btn" type="button" onClick={() => router.push(" /admin/dashboard")}>
-            Retour
-          </button>
-          <button className="btn" type="button" onClick={() => router.push("/admin/modify")}>
-            Modifier comptes
-          </button>
-        </div>
-      </header>
-
       <section className="content">
         <div className="card">
           <div className="cardHead">

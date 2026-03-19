@@ -1,21 +1,42 @@
 .adminDash {
   min-height: 100vh;
   padding: 18px;
-  background:
-    radial-gradient(1200px 700px at 18% 12%, rgba(17, 181, 201, .16), transparent 55%),
-    radial-gradient(900px 600px at 85% 18%, rgba(26, 115, 232, .16), transparent 60%),
-    linear-gradient(180deg, #f6fbff, #eef6ff);
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-  color: #0a1020;
+  color: var(--admin-ink, #0a1020);
+  /* layout.tsx (admin sidebar) forces background transparent, so keep this minimal */
+  background: transparent;
 }
 
 .adminDashHeader {
   max-width: 1100px;
   margin: 0 auto 14px;
   display: flex;
-  align-items: end;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+/* Make header feel like a premium panel */
+.adminDashHeader {
+  border-radius: 18px;
+  padding: 14px 16px;
+  border: 1px solid var(--admin-border, rgba(20,40,80,.14));
+  background: var(--admin-panel, rgba(255,255,255,.72));
+  box-shadow: var(--admin-shadow, 0 14px 40px rgba(9,30,66,.10));
+  backdrop-filter: blur(10px);
+}
+
+.adminDashHeader::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(700px 220px at 20% 0%, rgba(37, 99, 235, 0.22), transparent 60%);
+  opacity: 0.9;
+}
+
+.adminDashHeader {
+  position: relative;
 }
 
 .adminDashTitle {
@@ -28,16 +49,20 @@
 .adminDashSub {
   margin: 6px 0 0;
   font-weight: 800;
-  color: rgba(10,16,32,.62);
+  color: var(--admin-muted, rgba(10,16,32,.62));
+}
+
+[data-theme="dark"] .adminDashHeader {
+  background: var(--admin-panel, rgba(10,16,32,.72));
 }
 
 .adminDashBack {
   height: 42px;
   padding: 0 14px;
   border-radius: 14px;
-  border: 1px solid rgba(20,40,80,.14);
-  background: rgba(255,255,255,.72);
-  box-shadow: 0 14px 36px rgba(9,30,66,.10);
+  border: 1px solid var(--admin-border, rgba(20,40,80,.14));
+  background: var(--admin-panel, rgba(255,255,255,.72));
+  box-shadow: var(--admin-shadow, 0 14px 36px rgba(9,30,66,.10));
   font-weight: 900;
   cursor: pointer;
   transition: transform .15s ease, filter .15s ease;
@@ -56,16 +81,40 @@
 
 .adminCard {
   text-align: left;
-  border: 1px solid rgba(20,40,80,.14);
-  background: rgba(255,255,255,.78);
+  border: 1px solid var(--admin-border, rgba(20,40,80,.14));
+  background: var(--admin-panel, rgba(255,255,255,.78));
   border-radius: 18px;
   padding: 16px;
-  box-shadow: 0 14px 40px rgba(9,30,66,.10);
+  box-shadow: var(--admin-shadow, 0 14px 40px rgba(9,30,66,.10));
   cursor: pointer;
-  transition: transform .15s ease, filter .15s ease;
+  transition: transform .15s ease, filter .15s ease, border-color .15s ease, background .15s ease;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
 }
 
-.adminCard:hover { transform: translateY(-2px); filter: brightness(1.01); }
+.adminCard::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  background:
+    radial-gradient(600px 200px at 10% 0%, rgba(59, 130, 246, 0.24), transparent 55%),
+    radial-gradient(520px 240px at 95% 10%, rgba(15, 195, 154, 0.16), transparent 55%);
+  opacity: 0.12;
+  transition: opacity .18s ease, transform .18s ease;
+  pointer-events: none;
+}
+
+.adminCard:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.01);
+  border-color: rgba(37, 99, 235, 0.45);
+}
+
+.adminCard:hover::before {
+  opacity: 1;
+  transform: translateY(-1px);
+}
 .adminCard:active { transform: translateY(0); }
 
 .adminCardTitle {
@@ -77,7 +126,7 @@
 .adminCardDesc {
   font-weight: 800;
   font-size: 13px;
-  color: rgba(10,16,32,.62);
+  color: var(--admin-muted, rgba(10,16,32,.62));
   line-height: 1.35;
   min-height: 34px;
 }
@@ -85,7 +134,15 @@
 .adminCardGo {
   margin-top: 10px;
   font-weight: 950;
-  color: rgba(26,115,232,.92);
+  color: var(--admin-link, rgba(26,115,232,.92));
+}
+
+.adminCardGo {
+  display: inline-block;
+  background: linear-gradient(135deg, rgba(59,130,246,1), rgba(15,195,154,0.95));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .adminDashCard {
@@ -93,7 +150,27 @@
   margin: 80px auto 0;
   padding: 16px;
   border-radius: 18px;
-  border: 1px solid rgba(20,40,80,.14);
-  background: rgba(255,255,255,.78);
-  box-shadow: 0 14px 40px rgba(9,30,66,.10);
+  border: 1px solid var(--admin-border, rgba(20,40,80,.14));
+  background: var(--admin-panel, rgba(255,255,255,.78));
+  box-shadow: var(--admin-shadow, 0 14px 40px rgba(9,30,66,.10));
+}
+
+/* Extra dark-mode polish: ensure card text doesn't turn dark */
+[data-theme="dark"] .adminCard,
+[data-theme="dark"] .adminDashBack,
+[data-theme="dark"] .adminDashCard {
+  color: var(--admin-ink, #e6ebf3);
+}
+
+[data-theme="dark"] .adminCardGo {
+  color: var(--admin-link, #93c5fd);
+}
+
+[data-theme="dark"] .adminCardDesc {
+  color: rgba(230, 235, 243, 0.66) !important;
+}
+
+[data-theme="dark"] .adminCard {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  background: rgba(10, 16, 32, 0.55) !important;
 }

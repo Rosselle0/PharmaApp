@@ -323,30 +323,65 @@ export default function AdminLogsClient() {
               <input className="adminLogsInput" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
             </label>
           </div>
-
-          <div className="adminLogsTabs">
-            <button
-              type="button"
-              className={`adminLogsTab ${tab === "punch" ? "on" : ""}`}
-              onClick={() => setTab("punch")}
-            >
-              Pointages
-            </button>
-            <button type="button" className={`adminLogsTab ${tab === "availability" ? "on" : ""}`} onClick={() => setTab("availability")}>
-              Disponibilités
-            </button>
-            <button type="button" className={`adminLogsTab ${tab === "changes" ? "on" : ""}`} onClick={() => setTab("changes")}>
-              Changement
-            </button>
-            <button type="button" className={`adminLogsTab ${tab === "tasks" ? "on" : ""}`} onClick={() => setTab("tasks")}>
-              Tâches
-            </button>
-          </div>
         </div>
       </header>
 
       <section className="adminLogsGrid">
         <aside className="adminLogsSide">
+          <div className="adminLogsNavSection">
+            <div className="adminLogsNavTitle">Catégories</div>
+            <nav className="adminLogsNav" aria-label="Navigation journal">
+              <button
+                type="button"
+                className={`adminLogsNavBtn ${tab === "punch" ? "on" : ""}`}
+                aria-current={tab === "punch" ? "page" : undefined}
+                onClick={() => {
+                  setExpandedShiftId(null);
+                  setTab("punch");
+                }}
+              >
+                <span className="adminLogsNavDot dot-punch" aria-hidden="true" />
+                Pointages
+              </button>
+              <button
+                type="button"
+                className={`adminLogsNavBtn ${tab === "availability" ? "on" : ""}`}
+                aria-current={tab === "availability" ? "page" : undefined}
+                onClick={() => {
+                  setExpandedShiftId(null);
+                  setTab("availability");
+                }}
+              >
+                <span className="adminLogsNavDot dot-availability" aria-hidden="true" />
+                Disponibilités
+              </button>
+              <button
+                type="button"
+                className={`adminLogsNavBtn ${tab === "changes" ? "on" : ""}`}
+                aria-current={tab === "changes" ? "page" : undefined}
+                onClick={() => {
+                  setExpandedShiftId(null);
+                  setTab("changes");
+                }}
+              >
+                <span className="adminLogsNavDot dot-changes" aria-hidden="true" />
+                Changement
+              </button>
+              <button
+                type="button"
+                className={`adminLogsNavBtn ${tab === "tasks" ? "on" : ""}`}
+                aria-current={tab === "tasks" ? "page" : undefined}
+                onClick={() => {
+                  setExpandedShiftId(null);
+                  setTab("tasks");
+                }}
+              >
+                <span className="adminLogsNavDot dot-tasks" aria-hidden="true" />
+                Tâches
+              </button>
+            </nav>
+          </div>
+
           <div className="adminLogsSideHead">
             <div className="adminLogsSideTitle">Employés</div>
           </div>

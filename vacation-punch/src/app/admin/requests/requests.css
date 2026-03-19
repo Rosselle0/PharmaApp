@@ -28,6 +28,63 @@
   --ap-danger-bg: rgba(180, 35, 24, 0.10);
 
   --ap-row-hover: rgba(26, 86, 219, 0.05);
+
+  --ap-btn-bg: rgba(255, 255, 255, 0.65);
+  --ap-btn-border: rgba(10, 16, 32, 0.14);
+  --ap-btn-hover-bg: rgba(255, 255, 255, 0.9);
+  --ap-btn-hover-border: rgba(10, 16, 32, 0.22);
+  --ap-btn-shadow: 0 1px 0 rgba(10, 16, 32, 0.04);
+  --ap-btn-hover-shadow: 0 10px 20px rgba(10, 16, 32, 0.08);
+
+  --ap-table-bg: rgba(255, 255, 255, 0.7);
+  --ap-table-head-bg: rgba(246, 251, 255, 0.95);
+  --ap-table-head-ink: rgba(10, 16, 32, 0.75);
+  --ap-table-head-border: rgba(10, 16, 32, 0.10);
+  --ap-table-row-border: rgba(10, 16, 32, 0.08);
+
+  --ap-tag-bg: rgba(255, 255, 255, 0.65);
+  --ap-tag-border: rgba(10, 16, 32, 0.14);
+  --ap-tag-ink: rgba(10, 16, 32, 0.75);
+
+  --ap-empty-bg: rgba(255, 255, 255, 0.55);
+  --ap-empty-border: rgba(10, 16, 32, 0.18);
+}
+
+[data-theme="dark"] {
+  --ap-ink: #e6ebf3;
+  --ap-muted: rgba(230, 235, 243, 0.7);
+
+  --ap-bg-0: #0b1220;
+  --ap-bg-1: #0f172a;
+
+  --ap-card: rgba(10, 16, 32, 0.72);
+  --ap-border: rgba(255, 255, 255, 0.12);
+  --ap-shadow: 0 20px 70px rgba(0, 0, 0, 0.25);
+  --ap-shadow-sm: 0 20px 70px rgba(0, 0, 0, 0.25);
+
+  --ap-primary-bg: rgba(37, 99, 235, 0.16);
+  --ap-danger-bg: rgba(255, 77, 94, 0.12);
+  --ap-row-hover: rgba(37, 99, 235, 0.14);
+
+  --ap-btn-bg: rgba(255, 255, 255, 0.06);
+  --ap-btn-border: rgba(255, 255, 255, 0.14);
+  --ap-btn-hover-bg: rgba(255, 255, 255, 0.10);
+  --ap-btn-hover-border: rgba(255, 255, 255, 0.22);
+  --ap-btn-shadow: 0 1px 0 rgba(255, 255, 255, 0.04);
+  --ap-btn-hover-shadow: 0 10px 20px rgba(255, 255, 255, 0.06);
+
+  --ap-table-bg: rgba(10, 16, 32, 0.72);
+  --ap-table-head-bg: rgba(10, 16, 32, 0.6);
+  --ap-table-head-ink: rgba(230, 235, 243, 0.8);
+  --ap-table-head-border: rgba(255, 255, 255, 0.12);
+  --ap-table-row-border: rgba(255, 255, 255, 0.08);
+
+  --ap-tag-bg: rgba(255, 255, 255, 0.06);
+  --ap-tag-border: rgba(255, 255, 255, 0.14);
+  --ap-tag-ink: rgba(230, 235, 243, 0.85);
+
+  --ap-empty-bg: rgba(255, 255, 255, 0.04);
+  --ap-empty-border: rgba(255, 255, 255, 0.18);
 }
 
 .requestsScope.page {
@@ -93,22 +150,22 @@
 /* Buttons */
 .requestsScope .btn {
   padding: 10px 12px;
-  border: 1px solid rgba(10, 16, 32, 0.14);
+  border: 1px solid var(--ap-btn-border);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.65);
+  background: var(--ap-btn-bg);
   color: var(--ap-ink);
   cursor: pointer;
   transition: transform 120ms ease, background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
-  box-shadow: 0 1px 0 rgba(10, 16, 32, 0.04);
+  box-shadow: var(--ap-btn-shadow);
   min-width: 118px; /* makes your side buttons equal length */
   text-align: center;
   user-select: none;
 }
 
 .requestsScope .btn:hover {
-  background: rgba(255, 255, 255, 0.9);
-  border-color: rgba(10, 16, 32, 0.22);
-  box-shadow: 0 10px 20px rgba(10, 16, 32, 0.08);
+  background: var(--ap-btn-hover-bg);
+  border-color: var(--ap-btn-hover-border);
+  box-shadow: var(--ap-btn-hover-shadow);
   transform: translateY(-1px);
 }
 
@@ -136,7 +193,7 @@
   border: 1px solid var(--ap-border);
   border-radius: var(--ap-radius-sm);
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.7);
+  background: var(--ap-table-bg);
 }
 
 .requestsScope .table {
@@ -148,19 +205,19 @@
 .requestsScope .table thead th {
   position: sticky;
   top: 0;
-  background: rgba(246, 251, 255, 0.95);
+  background: var(--ap-table-head-bg);
   backdrop-filter: blur(8px);
-  color: rgba(10, 16, 32, 0.75);
+  color: var(--ap-table-head-ink);
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   padding: 12px 12px;
-  border-bottom: 1px solid rgba(10, 16, 32, 0.10);
+  border-bottom: 1px solid var(--ap-table-head-border);
 }
 
 .requestsScope .table td {
   padding: 12px 12px;
-  border-top: 1px solid rgba(10, 16, 32, 0.08);
+  border-top: 1px solid var(--ap-table-row-border);
   vertical-align: top;
 }
 
@@ -192,11 +249,11 @@
   align-items: center;
   gap: 6px;
   padding: 6px 10px;
-  border: 1px solid rgba(10, 16, 32, 0.14);
+  border: 1px solid var(--ap-tag-border);
   border-radius: 999px;
   font-size: 12px;
-  background: rgba(255, 255, 255, 0.65);
-  color: rgba(10, 16, 32, 0.75);
+  background: var(--ap-tag-bg);
+  color: var(--ap-tag-ink);
 }
 
 .requestsScope .tag.approved {
@@ -221,9 +278,9 @@
 /* Empty state */
 .requestsScope .empty {
   padding: 14px;
-  border: 1px dashed rgba(10, 16, 32, 0.18);
+  border: 1px dashed var(--ap-empty-border);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.55);
+  background: var(--ap-empty-bg);
   color: var(--ap-muted);
 }
 

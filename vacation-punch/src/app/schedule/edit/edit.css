@@ -1,6 +1,6 @@
 /* Edit-only styles layered on top of schedule.css */
 
-.modalBack {
+.scheduleScope .modalBack {
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,.55);
@@ -10,7 +10,7 @@
   z-index: 50;
 }
 
-.modal {
+.scheduleScope .modal {
   width: min(760px, 95vw);
   background: radial-gradient(120% 120% at 50% 0%, #15171c, #0b0c10);
   border-radius: 16px;
@@ -19,7 +19,7 @@
 }
 
 
-.modalHead{
+.scheduleScope .modalHead{
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -28,13 +28,13 @@
   border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 
-.modalTitle{
+.scheduleScope .modalTitle{
   font-size: 16px;
   font-weight: 800;
   color: #fff;
 }
 
-.mutedSmall{
+.scheduleScope .mutedSmall{
   margin-top: 4px;
   font-size: 12px;
   color: rgba(255,255,255,0.62);
@@ -56,19 +56,19 @@
   border-color: rgba(255,255,255,0.18);
 } */
 
-.form{
+.scheduleScope .form{
   padding: 14px 16px 16px;
   display: grid;
   gap: 12px;
 }
 
-.grid2{
+.scheduleScope .grid2{
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
 
-.field label{
+.scheduleScope .field label{
   display:block;
   margin-bottom: 6px;
   font-size: 12px;
@@ -76,16 +76,16 @@
   font-weight: 700;
 }
 
-.field input{
+.scheduleScope .field input{
   transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
 }
 
-.field input:hover{
+.scheduleScope .field input:hover{
   border-color: rgba(255,255,255,0.22);
   transform: translateY(-1px);
 }
 
-.field input:focus{
+.scheduleScope .field input:focus{
   transform: translateY(-1px);
 }
 
@@ -129,7 +129,7 @@
 }
  */
 
-.msg{
+.scheduleScope .msg{
   padding: 12px;
   border-radius: 14px;
   border: 1px solid rgba(255,255,255,0.12);
@@ -137,7 +137,7 @@
   color: rgba(255,255,255,0.90);
 }
 
-.actions{
+.scheduleScope .actions{
   display:flex;
   justify-content: flex-end;
   gap: 10px;
@@ -146,29 +146,29 @@
 }
 
 @media (max-width: 720px){
-  .grid2{ grid-template-columns: 1fr; }
-  .quick{ grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .scheduleScope .grid2{ grid-template-columns: 1fr; }
+  .scheduleScope .quick{ grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }
 
 /* ===== Day hover system (Editor) ===== */
 
-.dayTh{
+.scheduleScope .dayTh{
   transition: background 160ms ease, box-shadow 160ms ease;
 }
 
-.dayHead{
+.scheduleScope .dayHead{
   display: grid;
   gap: 4px;
 }
 
-.dayTop{
+.scheduleScope .dayTop{
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
 }
 
-.dayEditTag{
+.scheduleScope .dayEditTag{
   font-size: 11px;
   font-weight: 900;
   padding: 4px 8px;
@@ -180,37 +180,37 @@
   transition: opacity 160ms ease, transform 160ms ease;
 }
 
-.dayHover .dayEditTag{
+.scheduleScope .dayHover .dayEditTag{
   opacity: 1;
   transform: translateY(0);
 }
 
-.dayHover{
+.scheduleScope .dayHover{
   background: rgba(120,190,255,0.10) !important;
   box-shadow: inset 0 -2px 0 rgba(120,190,255,0.35);
 }
 
-.dayHoverCell{
+.scheduleScope .dayHoverCell{
   background: rgba(120,190,255,0.07);
 }
 
-.td.cell{
+.scheduleScope .td.cell{
   transition: background 160ms ease, box-shadow 160ms ease, transform 120ms ease;
 }
 
-.td.cell.empty:hover{
+.scheduleScope .td.cell.empty:hover{
   background: rgba(120,190,255,0.10);
   box-shadow: inset 0 0 0 1px rgba(120,190,255,0.28);
   transform: translateY(-1px);
 }
 
-.td.cell.filled:hover{
+.scheduleScope .td.cell.filled:hover{
   background: rgba(255,255,255,0.06);
   box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
 }
 
 /* Better modal close button (since you're now using .modalClose) */
-.modalClose{
+.scheduleScope .modalClose{
   border: 1px solid rgba(255,255,255,0.12);
   background: rgba(255,255,255,0.06);
   color: rgba(255,255,255,0.9);
@@ -220,7 +220,7 @@
   cursor: pointer;
   transition: transform 140ms ease, background 140ms ease, border-color 140ms ease;
 }
-.modalClose:hover{
+.scheduleScope .modalClose:hover{
   transform: translateY(-1px);
   background: rgba(255,255,255,0.10);
   border-color: rgba(255,255,255,0.18);
@@ -233,10 +233,10 @@
   flex-wrap: wrap;               
 } */
 
-.pillTime{ font-weight: 900; }
-.pillDash{ opacity: 0.65; }
+.scheduleScope .pillTime{ font-weight: 900; }
+.scheduleScope .pillDash{ opacity: 0.65; }
 
-.pillNote{
+.scheduleScope .pillNote{
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -251,17 +251,17 @@
   max-width: 100%;
 }
 
-.pillNoteDot{
+.scheduleScope .pillNoteDot{
   opacity: 0.7;
 }
-.quick{
+.scheduleScope .quick{
   margin-top: 10px;
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
 }
 
-.chip{
+.scheduleScope .chip{
   border: 1px solid rgba(255,255,255,0.12);
   background: rgba(255,255,255,0.06);
   color: rgba(255,255,255,0.92);
@@ -274,43 +274,43 @@
   transition: transform 140ms ease, background 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
 }
 
-.chip:hover{
+.scheduleScope .chip:hover{
   transform: translateY(-1px);
   background: rgba(255,255,255,0.10);
   border-color: rgba(120,190,255,0.45);
   box-shadow: 0 10px 24px rgba(0,0,0,.35);
 }
 
-.chipActive{
+.scheduleScope .chipActive{
   border-color: rgba(21,195,154,0.55);
   background: rgba(21,195,154,0.14);
   box-shadow: 0 0 0 2px rgba(21,195,154,0.10);
 }
-.checkRow{
+.scheduleScope .checkRow{
   display: flex;
   gap: 10px;
   align-items: center;
   font-size: 14px;
   opacity: 0.95;
 }
-.checkRow input{
+.scheduleScope .checkRow input{
   width: 16px;
   height: 16px;
 }
 
-.td.cell.unavailable {
+.scheduleScope .td.cell.unavailable {
   background: rgba(239, 68, 68, 0.08);
   box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.18);
   cursor: not-allowed;
 }
 
-.td.cell.unavailable:hover {
+.scheduleScope .td.cell.unavailable:hover {
   transform: none;
   background: rgba(239, 68, 68, 0.10);
   box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.22);
 }
 
-.cellBadge {
+.scheduleScope .cellBadge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -320,14 +320,13 @@
   font-weight: 800;
 }
 
-.unavailableBadge {
+.scheduleScope .unavailableBadge {
   color: #991b1b;
   background: rgba(254, 226, 226, 0.95);
   border: 1px solid rgba(239, 68, 68, 0.28);
 }
 
-html.dark .unavailableBadge,
-body.dark .unavailableBadge {
+[data-theme="dark"] .scheduleScope .unavailableBadge {
   color: #fecaca;
   background: rgba(127, 29, 29, 0.45);
   border-color: rgba(248, 113, 113, 0.32);

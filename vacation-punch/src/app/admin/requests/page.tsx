@@ -61,12 +61,7 @@ export default async function AdminRequestsPage() {
             <p className="p">Centre d’approbation (vacances pour l’instant).</p>
           </div>
 
-          <div className="actions">
-            <Link className="btn" href="/admin/dashboard">
-              Retour
-            </Link>
-
-          </div>
+          <div className="actions" />
         </div>
 
         <section className="card">
