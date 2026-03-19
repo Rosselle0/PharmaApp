@@ -6,6 +6,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { requireKioskManagerOrAdmin } from "@/lib/kioskAuth";
 import KioskSidebar from "@/components/KioskSidebar";
+import { getKioskEmployeeFromSession } from "@/lib/kioskEmployeeAuth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -52,10 +53,10 @@ export default async function SchedulePage({
 }) {
   const sp =
     (searchParams instanceof Promise ? await searchParams : searchParams) ?? {};
-  const code = String(sp.code ?? "").trim();
   const sectionParam = String(sp.section ?? "CAISSE_LAB").toUpperCase();
   const section: "CAISSE_LAB" | "FLOOR" =
     sectionParam.includes("FLOOR") ? "FLOOR" : "CAISSE_LAB";
+  const kioskEmployee = await getKioskEmployeeFromSession();
 
   async function getDefaultCompany() {
     const companyName = process.env.DEFAULT_COMPANY_NAME ?? "RxPlanning";
@@ -86,15 +87,14 @@ export default async function SchedulePage({
     } else {
       companyId = me.companyId;
     }
-  } else if (code) {
-    const company = await getDefaultCompany();
-    companyId = company.id;
+  } else if (kioskEmployee) {
+    companyId = kioskEmployee.companyId;
   } else {
     redirect("/kiosk");
   }
 
-  const employeeLogged = !!code;
-  const employeeCode = code || null;
+  const employeeLogged = Boolean(kioskEmployee);
+  const employeeCode = kioskEmployee?.employeeCode ?? null;
 
   const base = sp.week ? new Date(String(sp.week) + "T12:00:00") : new Date();
   const weekStart = startOfWeek(base);
@@ -148,7 +148,8 @@ export default async function SchedulePage({
 
   const prevWeek = ymdLocal(addDays(weekStart, -7));
   const nextWeek = ymdLocal(addDays(weekStart, 7));
-  const codeQS = code ? `&code=${encodeURIComponent(code)}` : "";
+  // SECURITY: do not use `?code=` in URLs.
+  const codeQS = "";
   const sectionQS = `&section=${encodeURIComponent(section)}`;
   const exportHref = `/api/schedule/export?week=${encodeURIComponent(
     ymdLocal(weekStart)

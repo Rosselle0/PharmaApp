@@ -5,6 +5,7 @@ import KioskSidebar from "@/components/KioskSidebar";
 import InboundRequestsClient from "./InBoundRequestClient";
 import { Suspense } from "react";
 import { headers } from "next/headers";
+import { getKioskEmployeeFromSession } from "@/lib/kioskEmployeeAuth";
 
 const TZ = process.env.APP_TZ || "America/Toronto";
 
@@ -151,7 +152,9 @@ export default async function ChangementIndexPage({
   const resolvedSearchParams =
     searchParams instanceof Promise ? await searchParams : searchParams;
 
-  const code = String(resolvedSearchParams?.code ?? "").trim();
+  const codeFromUrl = String(resolvedSearchParams?.code ?? "").trim();
+  const kioskEmployee = await getKioskEmployeeFromSession();
+  const code = kioskEmployee?.employeeCode ?? (codeFromUrl || "");
 
   const data = await getMyShifts(code || undefined);
   const inboundData = await getInbound(code || undefined);
@@ -173,8 +176,8 @@ export default async function ChangementIndexPage({
     a[0].localeCompare(b[0])
   );
 
-  const employeeCode = code || null;
-  const employeeLogged = !!code;
+  const employeeCode = kioskEmployee?.employeeCode ?? (codeFromUrl || null);
+  const employeeLogged = Boolean(kioskEmployee);
 const auth = await requireKioskManagerOrAdmin();
 const isPrivilegedLogged = auth.ok;
 
@@ -235,9 +238,7 @@ const isPrivilegedLogged = auth.ok;
 
                   const first = sorted[0];
 
-                  const href = code
-                    ? `/changement/${encodeURIComponent(first.id)}?code=${encodeURIComponent(code)}`
-                    : `/changement/${encodeURIComponent(first.id)}`;
+                  const href = `/changement/${encodeURIComponent(first.id)}`;
 
                   return (
                     <div key={dayKey} className="row">

@@ -51,3 +51,12 @@ export async function requireEmployeeFromKioskOrCode(req: Request): Promise<Empl
 
   return { ok: true, employeeId: emp.id, companyId: emp.companyId };
 }
+
+export async function requireEmployeeFromKioskOrCodeValue(code?: string): Promise<EmployeeAuth> {
+  const emp = (await getEmployeeFromKioskSession()) ?? (code ? await getEmployeeFromCode(code) : null);
+  if (!emp) {
+    return { ok: false, error: code ? "Code invalide" : "Non connecté" };
+  }
+
+  return { ok: true, employeeId: emp.id, companyId: emp.companyId };
+}

@@ -152,9 +152,12 @@ export default function KioskClient({
 
     try {
       setPunchStateErr(null);
-      const url = new URL("/api/punch/state", window.location.origin);
-      url.searchParams.set("code", effectivePunchCode);
-      const res = await fetch(url.toString(), { cache: "no-store" });
+      const res = await fetch("/api/punch/state", {
+        method: "POST",
+        cache: "no-store",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ code: effectivePunchCode }),
+      });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.ok) {
         setPunchStatus(null);
@@ -218,13 +221,10 @@ export default function KioskClient({
         showToast("Code requis pour punch.");
         return;
       }
-      const url = new URL("/api/punch", window.location.origin);
-      url.searchParams.set("code", code);
-      url.searchParams.set("dev", "1");
-      const res = await fetch(url.toString(), {
+      const res = await fetch("/api/punch", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ type }),
+        body: JSON.stringify({ type, code }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.ok) {
@@ -375,7 +375,7 @@ export default function KioskClient({
       setEmployeeName(displayName);
       saveEmployeeSession(clean, displayName, roleFromApi);
       setKioskRole(roleFromApi);
-      router.replace(`/kiosk?code=${encodeURIComponent(clean)}`);
+      router.replace("/kiosk");
     }, 650);
   }
 

@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireEmployeeFromKioskOrCode } from "@/lib/shiftChange/auth";
+import { requireEmployeeFromKioskOrCode, requireEmployeeFromKioskOrCodeValue } from "@/lib/shiftChange/auth";
 
 const PunchTypes = [
   "CLOCK_IN",
@@ -129,7 +129,44 @@ export async function GET(req: Request) {
     employee: {
       id: employee.id,
       name: `${employee.firstName} ${employee.lastName}`.trim(),
-      code: employee.employeeCode,
+    },
+    ...status,
+    fetchedAt: new Date().toISOString(),
+  });
+}
+
+export async function POST(req: Request) {
+  const body = await req.json().catch(() => null);
+  const code = String(body?.code ?? "").replace(/\D/g, "").slice(0, 10);
+
+  const auth = await requireEmployeeFromKioskOrCodeValue(code);
+  if (!auth.ok) {
+    return NextResponse.json({ ok: false, error: auth.error }, { status: 401 });
+  }
+
+  const employee = await prisma.employee.findUnique({
+    where: { id: auth.employeeId },
+    select: { id: true, firstName: true, lastName: true, employeeCode: true },
+  });
+
+  if (!employee) {
+    return NextResponse.json({ ok: false, error: "Employé introuvable" }, { status: 404 });
+  }
+
+  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // last 7 days
+  const history = await prisma.punchEvent.findMany({
+    where: { employeeId: auth.employeeId, at: { gte: since } },
+    orderBy: { at: "asc" },
+    select: { type: true, at: true },
+  });
+
+  const status = getShiftStatus(history as Array<{ type: PunchType; at: Date }>);
+
+  return NextResponse.json({
+    ok: true,
+    employee: {
+      id: employee.id,
+      name: `${employee.firstName} ${employee.lastName}`.trim(),
     },
     ...status,
     fetchedAt: new Date().toISOString(),

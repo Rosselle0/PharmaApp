@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import CandidatesClient from "./CandidatesClient";
 import { requireKioskManagerOrAdmin } from "@/lib/kioskAuth";
 import KioskSidebar from "@/components/KioskSidebar";
+import { getKioskEmployeeFromSession } from "@/lib/kioskEmployeeAuth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -107,21 +108,18 @@ export default async function ChangementShiftPage({
     searchParams instanceof Promise ? await searchParams : searchParams;
 
   const shiftId = String(resolvedParams.shiftId);
-  const code = String(resolvedSearchParams?.code ?? "").trim();
+  const codeFromUrl = String(resolvedSearchParams?.code ?? "").trim();
+  const kioskEmployee = await getKioskEmployeeFromSession();
+  const code = kioskEmployee?.employeeCode ?? codeFromUrl;
 
   const data = await getCandidates(shiftId, code || undefined);
   const sent = await getSentForShift(shiftId, code || undefined);
 
-  const backHref = code
-    ? `/changement?code=${encodeURIComponent(code)}`
-    : "/changement";
+  const backHref = "/changement";
+  const dashHref = "/kiosk";
 
-  const dashHref = code
-    ? `/kiosk?code=${encodeURIComponent(code)}`
-    : "/kiosk";
-
-  const employeeCode = code || null;
-  const employeeLogged = !!code;
+  const employeeCode = kioskEmployee?.employeeCode ?? (codeFromUrl || null);
+  const employeeLogged = Boolean(kioskEmployee) || Boolean(codeFromUrl);
 
   if (!data.ok) {
     return (

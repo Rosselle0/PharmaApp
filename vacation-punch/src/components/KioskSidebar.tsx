@@ -82,9 +82,8 @@ export default function KioskSidebar({
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  const qs = effectiveEmployeeCode
-    ? `?code=${encodeURIComponent(effectiveEmployeeCode)}`
-    : "";
+  // SECURITY: do not append `?code=...` to the URL.
+  const qs = "";
 
   const isActive = (href: string) => path.startsWith(href);
   const isKioskHome = path === "/kiosk";

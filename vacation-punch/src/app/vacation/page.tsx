@@ -4,6 +4,7 @@ import { enterEmployeeCode, cancelPendingRequest } from "./actions";
 import { requireKioskManagerOrAdmin } from "@/lib/kioskAuth";
 import VacationFormClient from "./VacationFormClient";
 import KioskSidebar from "@/components/KioskSidebar";
+import { getKioskEmployeeFromSession } from "@/lib/kioskEmployeeAuth";
 
 function statusLabel(status: any) {
   const s = String(status ?? "");
@@ -42,18 +43,29 @@ export default async function VacationPage({
   const theme =
     sp.theme === "dark" || sp.theme === "light" ? (sp.theme as "dark" | "light") : undefined;
 
-  const employee = code
-    ? await prisma.employee.findUnique({
-      where: { employeeCode: code },
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        employeeCode: true,
-        isActive: true,
-      },
-    })
-    : null;
+  const kioskEmployee = await getKioskEmployeeFromSession();
+
+  const employee =
+    kioskEmployee
+      ? {
+          id: kioskEmployee.id,
+          firstName: kioskEmployee.firstName,
+          lastName: kioskEmployee.lastName,
+          employeeCode: kioskEmployee.employeeCode,
+          isActive: kioskEmployee.isActive,
+        }
+      : code
+        ? await prisma.employee.findUnique({
+            where: { employeeCode: code },
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              employeeCode: true,
+              isActive: true,
+            },
+          })
+        : null;
 
   const requests = employee
     ? await prisma.vacationRequest.findMany({

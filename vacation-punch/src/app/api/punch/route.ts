@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireEmployeeFromKioskOrCode } from "@/lib/shiftChange/auth";
+import { requireEmployeeFromKioskOrCode, requireEmployeeFromKioskOrCodeValue } from "@/lib/shiftChange/auth";
 import { requireTerminalOrDev } from "@/lib/punch/terminalGuard";
 
 const PunchTypes = [
@@ -106,16 +106,19 @@ function getShiftStatus(events: Array<{ type: PunchType; at: Date }>, now = new 
 }
 
 export async function POST(req: Request) {
-  const auth = await requireEmployeeFromKioskOrCode(req);
-  if (!auth.ok) {
-    return NextResponse.json({ ok: false, error: auth.error }, { status: 401 });
-  }
-
   const terminal = await requireTerminalOrDev(req);
   if (!terminal.ok) return NextResponse.json({ ok: false, error: terminal.error }, { status: 401 });
 
   const body = await req.json().catch(() => null);
   const type = body?.type;
+  const code = String(body?.code ?? "").replace(/\D/g, "").slice(0, 10);
+
+  const auth =
+    code.length > 0 ? await requireEmployeeFromKioskOrCodeValue(code) : await requireEmployeeFromKioskOrCode(req);
+
+  if (!auth.ok) {
+    return NextResponse.json({ ok: false, error: auth.error }, { status: 401 });
+  }
 
   if (!isPunchType(type)) {
     return NextResponse.json({ ok: false, error: "Type de punch invalide" }, { status: 400 });
