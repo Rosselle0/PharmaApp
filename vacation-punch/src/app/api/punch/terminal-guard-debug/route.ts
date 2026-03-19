@@ -8,7 +8,7 @@ import { getTerminalIpCheck, requireTerminalOrDev } from "@/lib/punch/terminalGu
 export async function GET(req: Request) {
   const check = getTerminalIpCheck(req);
 
-  const jar = cookies();
+  const jar = await cookies();
   const sid = jar.get("terminal_session")?.value ?? "";
 
   const guard = await requireTerminalOrDev(req);
