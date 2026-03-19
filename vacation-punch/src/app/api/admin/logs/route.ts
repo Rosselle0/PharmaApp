@@ -88,6 +88,25 @@ export async function GET(req: Request) {
 
     const shiftIds = shifts.map((s) => s.id);
 
+    // If a shift was transferred via "changement" and accepted,
+    // the effective scheduled employee for logs becomes the accepted candidate.
+    // This ensures pointages don't show the old requester as working anymore.
+    const acceptedShiftCandidateRows = shiftIds.length
+      ? await prisma.shiftChangeRequest.findMany({
+          where: { companyId, shiftId: { in: shiftIds }, status: "ACCEPTED" },
+          select: { shiftId: true, candidateEmployeeId: true },
+        })
+      : [];
+    const acceptedEmployeeByShiftId = new Map<string, string>();
+    for (const r of acceptedShiftCandidateRows) {
+      acceptedEmployeeByShiftId.set(r.shiftId, r.candidateEmployeeId);
+    }
+
+    const scheduledEmployeeByShiftId = new Map<string, string>();
+    for (const sh of shifts) {
+      scheduledEmployeeByShiftId.set(sh.id, acceptedEmployeeByShiftId.get(sh.id) ?? sh.employeeId);
+    }
+
     const relevantAuditActions = [
       "LATE_ACCEPTED",
       "LATE_REJECTED",
@@ -161,14 +180,19 @@ export async function GET(req: Request) {
 
       const shiftsByEmployee = new Map<string, typeof shifts>();
       for (const sh of shifts) {
-        const arr = shiftsByEmployee.get(sh.employeeId) ?? [];
+        const scheduledEmployeeId = acceptedEmployeeByShiftId.get(sh.id) ?? sh.employeeId;
+        const arr = shiftsByEmployee.get(scheduledEmployeeId) ?? [];
         arr.push(sh);
-        shiftsByEmployee.set(sh.employeeId, arr);
+        shiftsByEmployee.set(scheduledEmployeeId, arr);
       }
 
       function eventToShiftId(p: PunchEventRow) {
         // If punch already has a shiftId, trust it (fast path).
-        if (p.shiftId && shiftIdsSet.has(p.shiftId)) return p.shiftId;
+        if (p.shiftId && shiftIdsSet.has(p.shiftId)) {
+          const scheduledEmployeeId = scheduledEmployeeByShiftId.get(p.shiftId);
+          if (scheduledEmployeeId && scheduledEmployeeId === p.employeeId) return p.shiftId;
+          return null;
+        }
 
         const empShifts = shiftsByEmployee.get(p.employeeId) ?? [];
         if (!empShifts.length) return null;
@@ -217,6 +241,7 @@ export async function GET(req: Request) {
     }
 
     const computedShifts = shifts.map((s) => {
+      const scheduledEmployeeId = acceptedEmployeeByShiftId.get(s.id) ?? s.employeeId;
       const punches = punchesByShift.get(s.id) ?? [];
 
       const inEvents = punches.filter((p) => p.type === "CLOCK_IN");
@@ -267,7 +292,7 @@ export async function GET(req: Request) {
 
       return {
         id: s.id,
-        employeeId: s.employeeId,
+        employeeId: scheduledEmployeeId,
         startTime: s.startTime.toISOString(),
         endTime: s.endTime.toISOString(),
         note: s.note,

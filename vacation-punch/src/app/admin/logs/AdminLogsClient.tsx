@@ -234,7 +234,8 @@ export default function AdminLogsClient() {
     if (!data || !selectedEmployee) return [];
     return data.shifts
       .filter((s) => s.employeeId === selectedEmployee.id)
-      .sort((a, b) => +new Date(a.startTime) - +new Date(b.startTime));
+      // Newest shift on top.
+      .sort((a, b) => +new Date(b.startTime) - +new Date(a.startTime));
   }, [data, selectedEmployee]);
 
   const punchKpis = useMemo(() => {
@@ -511,19 +512,22 @@ export default function AdminLogsClient() {
                                             {s.punches.length === 0 ? (
                                               <div className="muted">Aucun punch lié au shift.</div>
                                             ) : (
-                                              s.punches.map((p) => (
-                                                <div key={p.id} className="punchItem">
-                                                  <span className={`punchType type-${p.type}`}>{punchTypeLabel(p.type)}</span>
-                                                  <span className="punchAt">
-                                                    {new Date(p.at).toLocaleTimeString("fr-CA", {
-                                                      hour: "2-digit",
-                                                      minute: "2-digit",
-                                                      hour12: false,
-                                                    })}
-                                                  </span>
-                                                  <span className="punchSrc">{punchSourceLabel(p.source)}</span>
-                                                </div>
-                                              ))
+                                              // Newest punch on top.
+                                              [...s.punches]
+                                                .reverse()
+                                                .map((p) => (
+                                                  <div key={p.id} className="punchItem">
+                                                    <span className={`punchType type-${p.type}`}>{punchTypeLabel(p.type)}</span>
+                                                    <span className="punchAt">
+                                                      {new Date(p.at).toLocaleTimeString("fr-CA", {
+                                                        hour: "2-digit",
+                                                        minute: "2-digit",
+                                                        hour12: false,
+                                                      })}
+                                                    </span>
+                                                    <span className="punchSrc">{punchSourceLabel(p.source)}</span>
+                                                  </div>
+                                                ))
                                             )}
                                           </div>
                                         </div>
