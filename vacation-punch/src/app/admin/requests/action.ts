@@ -14,8 +14,15 @@ function addDaysNoon(d: Date, n: number): Date {
 }
 
 function daysInclusive(start: Date, end: Date): Date[] {
+  const startNoon = new Date(start);
+  startNoon.setHours(12, 0, 0, 0);
+  const endNoon = new Date(end);
+  endNoon.setHours(12, 0, 0, 0);
+
   const out: Date[] = [];
-  for (let cur = new Date(start); cur <= end; cur = addDaysNoon(cur, 1)) out.push(new Date(cur));
+  for (let cur = new Date(startNoon); cur <= endNoon; cur = addDaysNoon(cur, 1)) {
+    out.push(new Date(cur));
+  }
   return out;
 }
 async function getDbUserIdFromAuthUserId(authUserId: string | null | undefined): Promise<string | null> {
@@ -51,11 +58,26 @@ export async function approveVacation(requestId: string) {
     const rangeEnd = new Date(req.endDate);
     rangeEnd.setHours(23, 59, 59, 999);
 
+    const autoPunchNotes = ["PUNCH_AUTO", "PUNCH_AUTO_UNAVAILABLE"];
+
+    // If someone punched during a pending vacation, the kiosk auto-creates shifts with PUNCH_AUTO*.
+    // We remove those conflicts automatically so approving vacation doesn't throw red errors.
+    await tx.shift.deleteMany({
+      where: {
+        employeeId: req.employeeId,
+        status: ShiftStatus.PLANNED,
+        note: { in: autoPunchNotes },
+        AND: [{ startTime: { lt: rangeEnd } }, { endTime: { gt: rangeStart } }],
+      },
+    });
+
     const conflict = await tx.shift.findFirst({
       where: {
         employeeId: req.employeeId,
         status: ShiftStatus.PLANNED,
         NOT: { note: "VAC" },
+        // auto-created punch shifts are no longer blocking, because we deleted them above.
+        note: { notIn: autoPunchNotes },
         AND: [{ startTime: { lt: rangeEnd } }, { endTime: { gt: rangeStart } }],
       },
       select: { id: true },

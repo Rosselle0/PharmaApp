@@ -124,19 +124,78 @@ export default async function SchedulePage({
       AND: [{ startTime: { lt: weekEnd } }, { endTime: { gt: weekStart } }],
     },
     orderBy: [{ startTime: "asc" }],
-    select: { employeeId: true, startTime: true, endTime: true, note: true },
+    select: { id: true, employeeId: true, startTime: true, endTime: true, note: true },
   });
+
+  function roundUpToNext15Minutes(mins: number) {
+    if (!Number.isFinite(mins) || mins <= 0) return 0;
+    return Math.ceil(mins / 15) * 15;
+  }
+
+  // Fetch CLOCK_IN punches in the visible window (for late->effective start display).
+  const punchWindowStart = new Date(weekStart.getTime() - 48 * 60 * 60 * 1000);
+  const punchWindowEnd = new Date(weekEnd.getTime() + 48 * 60 * 60 * 1000);
+  const punchIns = await prisma.punchEvent.findMany({
+    where: {
+      employeeId: { in: viewEmployeeIds },
+      type: "CLOCK_IN",
+      at: { gte: punchWindowStart, lt: punchWindowEnd },
+    },
+    orderBy: { at: "asc" },
+    select: { employeeId: true, shiftId: true, at: true },
+  });
+
+  const punchInByShiftId = new Map<string, Date>();
+  const punchInByEmployee = new Map<string, Date[]>();
+  for (const p of punchIns) {
+    if (p.shiftId && !punchInByShiftId.has(p.shiftId)) punchInByShiftId.set(p.shiftId, p.at);
+    const arr = punchInByEmployee.get(p.employeeId) ?? [];
+    arr.push(p.at);
+    punchInByEmployee.set(p.employeeId, arr);
+  }
+
+  const latePenaltyByShiftId = new Map<string, number>();
+  const effectiveStartByShiftId = new Map<string, Date>();
+
+  for (const s of shifts) {
+    const startMs = s.startTime.getTime();
+    let firstIn = s.id && punchInByShiftId.get(s.id);
+    if (!firstIn) {
+      const arr = punchInByEmployee.get(s.employeeId) ?? [];
+      // Late window: allow up to 12h after scheduled start, and 2h before.
+      const toleranceBeforeMs = 2 * 60 * 60 * 1000;
+      const toleranceAfterMs = 12 * 60 * 60 * 1000;
+      const candidates = arr.filter((at) => {
+        const t = at.getTime();
+        return t >= startMs - toleranceBeforeMs && t <= startMs + toleranceAfterMs;
+      });
+      firstIn = candidates.length ? candidates[0] : undefined;
+    }
+
+    if (!firstIn) continue;
+
+    const rawLateMinutes = (firstIn.getTime() - startMs) / 60000;
+    const latePenaltyMinutes = rawLateMinutes <= 5 ? 0 : roundUpToNext15Minutes(rawLateMinutes);
+    if (latePenaltyMinutes > 0) {
+      latePenaltyByShiftId.set(s.id, latePenaltyMinutes);
+      effectiveStartByShiftId.set(s.id, new Date(startMs + latePenaltyMinutes * 60 * 1000));
+    } else {
+      effectiveStartByShiftId.set(s.id, s.startTime);
+    }
+  }
 
   const byUserDay = new Map<
     string,
-    { startTime: Date; endTime: Date; note: string | null }[]
+    { id: string; startTime: Date; effectiveStartTime: Date; endTime: Date; note: string | null }[]
   >();
 
   for (const s of shifts) {
     const key = `${s.employeeId}:${ymdLocal(new Date(s.startTime))}`;
     const arr = byUserDay.get(key) ?? [];
     arr.push({
+      id: s.id,
       startTime: s.startTime,
+      effectiveStartTime: effectiveStartByShiftId.get(s.id) ?? s.startTime,
       endTime: s.endTime,
       note: s.note ?? null,
     });
@@ -277,9 +336,7 @@ export default async function SchedulePage({
 
                         for (const sh of list) {
                           if (sh.note === "VAC") continue;
-                          const durationMinutes = Math.floor(
-                            (+new Date(sh.endTime) - +new Date(sh.startTime)) / 60000
-                          );
+                          const durationMinutes = Math.floor((+new Date(sh.endTime) - +new Date(sh.effectiveStartTime)) / 60000);
                           const deductionMinutes = u.paidBreak30 ? 0 : 30;
                           totalMinutes += Math.max(0, durationMinutes - deductionMinutes);
                         }
@@ -296,7 +353,7 @@ export default async function SchedulePage({
                                   ) : (
                                     <>
                                       <span className="pillTime">
-                                        {hmLocal(new Date(sh.startTime))}
+                                        {hmLocal(new Date(sh.effectiveStartTime))}
                                       </span>
                                       <span className="pillDash">–</span>
                                       <span className="pillTime">

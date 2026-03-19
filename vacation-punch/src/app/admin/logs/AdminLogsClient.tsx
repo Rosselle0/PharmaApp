@@ -480,6 +480,15 @@ export default function AdminLogsClient() {
                                     ) : (
                                       <span className="tag ok">OK</span>
                                     )}
+                                    {s.note?.toUpperCase().includes("PUNCH_AUTO_UNAVAILABLE") ? (
+                                      <div className="muted" style={{ marginTop: 8, fontWeight: 900, fontSize: 12 }}>
+                                        Hors disponibilité
+                                      </div>
+                                    ) : s.note?.toUpperCase().includes("PUNCH_AUTO") ? (
+                                      <div className="muted" style={{ marginTop: 8, fontWeight: 900, fontSize: 12 }}>
+                                        Quart auto-créé (punch hors horaire)
+                                      </div>
+                                    ) : null}
                                   </td>
                                   <td>
                                     {s.missingClockOut ? (
