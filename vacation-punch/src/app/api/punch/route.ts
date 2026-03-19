@@ -162,6 +162,7 @@ export async function POST(req: Request) {
   if (!auth.ok) {
     return NextResponse.json({ ok: false, error: auth.error }, { status: 401 });
   }
+  const employeeId = auth.employeeId;
 
   if (!isPunchType(type)) {
     return NextResponse.json({ ok: false, error: "Type de punch invalide" }, { status: 400 });
@@ -172,7 +173,7 @@ export async function POST(req: Request) {
   const nowTime = now.getTime();
 
   const history = await prisma.punchEvent.findMany({
-    where: { employeeId: auth.employeeId },
+    where: { employeeId },
     orderBy: { at: "asc" },
     select: { type: true, at: true, shiftId: true },
   });
@@ -206,7 +207,7 @@ export async function POST(req: Request) {
     // to prevent auto-created shifts that later cause admin conflicts.
     const vacReq = await prisma.vacationRequest.findFirst({
       where: {
-        employeeId: auth.employeeId,
+        employeeId,
         status: { in: [VacationStatus.PENDING, VacationStatus.APPROVED] },
         startDate: { lte: now },
         endDate: { gte: now },
@@ -220,7 +221,7 @@ export async function POST(req: Request) {
 
     const vacShift = await prisma.shift.findFirst({
       where: {
-        employeeId: auth.employeeId,
+        employeeId,
         status: { in: [ShiftStatus.PLANNED, ShiftStatus.COMPLETED] },
         // In this codebase, vacation shifts are stored with note="VAC".
         note: { contains: "VAC" },
@@ -244,7 +245,7 @@ export async function POST(req: Request) {
 
     const candidates = await prisma.shift.findMany({
       where: {
-        employeeId: auth.employeeId,
+        employeeId,
         status: { in: [ShiftStatus.PLANNED, ShiftStatus.COMPLETED] },
         startTime: { gte: windowStart, lte: windowEnd },
         note: { not: { contains: "VAC" } },
@@ -274,7 +275,7 @@ export async function POST(req: Request) {
 
     // No planned shift: auto-create one on CLOCK_IN/CLOCK_OUT so schedule can display it.
     const availableRule = await prisma.availabilityRule.findFirst({
-      where: { employeeId: auth.employeeId, dayOfWeek: dayOfWeekInTZ(now) },
+      where: { employeeId, dayOfWeek: dayOfWeekInTZ(now) },
       select: { available: true },
     });
     const isAvailable = Boolean(availableRule?.available);
@@ -285,7 +286,7 @@ export async function POST(req: Request) {
       const shiftEnd = new Date(shiftStart.getTime() + 8 * 60 * 60 * 1000);
       const created = await prisma.shift.create({
         data: {
-          employeeId: auth.employeeId,
+          employeeId,
           startTime: shiftStart,
           endTime: shiftEnd,
           note: autoNote,
@@ -303,7 +304,7 @@ export async function POST(req: Request) {
     const shiftEnd = roundToNearest0or5(now);
     const created = await prisma.shift.create({
       data: {
-        employeeId: auth.employeeId,
+        employeeId,
         startTime: shiftStart,
         endTime: shiftEnd,
         note: autoNote,
@@ -328,7 +329,7 @@ export async function POST(req: Request) {
 
   await prisma.punchEvent.create({
     data: {
-      employeeId: auth.employeeId,
+      employeeId,
       type,
       at: now,
       source: terminal.dev ? "WEB" : "WEB",
