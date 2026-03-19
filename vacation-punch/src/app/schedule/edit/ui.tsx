@@ -31,12 +31,6 @@ type Shift = {
 const DAY_LABELS = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
 
 
-const TIME_OPTIONS = Array.from({ length: 14 }, (_, i) => {
-    const h = i + 8; // 8..21
-    return `${String(h).padStart(2, "0")}:00`;
-});
-
-
 function ymdLocal(d: Date) {
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -519,37 +513,18 @@ export default function ScheduleEditorClient(props: {
                                 <div className="field">
                                     <label>Début</label>
                                     <input value={startHHMM} onChange={(e) => setStartHHMM(e.target.value)} placeholder="08:00" />
-                                    <div className="quick">
-                                        {TIME_OPTIONS.map((t) => (
-                                            <button
-
-                                                key={t}
-                                                className={`chip ${startHHMM === t ? "chipActive" : ""}`}
-                                                type="button"
-                                                onClick={() => setStartHHMM(t)}
-                                            >
-                                                {t}
-                                            </button>
-                                        ))}
-                                    </div>
+                                        <div className="mutedSmall" style={{ marginTop: 8 }}>
+                                            Tapez l’heure (HH:MM)
+                                        </div>
 
                                 </div>
 
                                 <div className="field">
                                     <label>Fin</label>
                                     <input value={endHHMM} onChange={(e) => setEndHHMM(e.target.value)} placeholder="17:00" />
-                                    <div className="quick">
-                                        {TIME_OPTIONS.map((t) => (
-                                            <button
-                                                key={t}
-                                                className={`chip ${endHHMM === t ? "chipActive" : ""}`}
-                                                type="button"
-                                                onClick={() => setEndHHMM(t)}
-                                            >
-                                                {t}
-                                            </button>
-                                        ))}
-                                    </div>
+                                        <div className="mutedSmall" style={{ marginTop: 8 }}>
+                                            Tapez l’heure (HH:MM)
+                                        </div>
 
                                 </div>
                             </div>

@@ -854,15 +854,17 @@ export default function KioskClient({
 
               <p className="modal-sub">Connexion admin (courriel + mot de passe).</p>
 
-            <label>Courriel</label>
+            <label className="label">Courriel</label>
             <input
+              className="input"
               value={adminEmail}
               onChange={(e) => setAdminEmail(e.target.value)}
               disabled={adminLoading}
             />
 
-            <label style={{ marginTop: 10 }}>Mot de passe</label>
+            <label className="label" style={{ marginTop: 10 }}>Mot de passe</label>
             <input
+              className="input"
               value={adminPassword}
               type="password"
               onChange={(e) => setAdminPassword(e.target.value)}

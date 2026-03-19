@@ -244,6 +244,8 @@
     z-index: 1000 !important;
     border-right: 1px solid var(--chg-sidebar-border) !important;
     overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    max-height: 100dvh !important;
     box-shadow: var(--chg-sidebar-shadow) !important;
   }
 
