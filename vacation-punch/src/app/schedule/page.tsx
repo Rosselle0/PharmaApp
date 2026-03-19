@@ -165,10 +165,10 @@ export default async function SchedulePage({
       <main className="scheduleMain page">
         <div className="shell">
           <div className="head">
-            <div>
+            <div className="headTitle">
               <h1 className="h1">Horaire</h1>
               <p className="p">Choisis la section à afficher :</p>
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 }}>
+              <div className="sectionToggles">
                 <Link
                   className="btn"
                   href={`/schedule?week=${encodeURIComponent(ymdLocal(weekStart))}${codeQS}&section=CAISSE_LAB`}
@@ -202,7 +202,7 @@ export default async function SchedulePage({
               </div>
             </div>
 
-            <div className="row">
+            <div className="headNav row">
               <Link
                 className="btn"
                 href={`/schedule?week=${encodeURIComponent(prevWeek)}${codeQS}${sectionQS}`}
@@ -219,17 +219,10 @@ export default async function SchedulePage({
             </div>
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "flex-end",
-              marginTop: 12,
-              marginBottom: 14,
-            }}
-          >
+          <div className="pdfRow">
             <a
               href={exportHref}
-              className="btn"
+              className="btn pdfBtn"
               style={{
                 textDecoration: "none",
                 display: "inline-flex",
