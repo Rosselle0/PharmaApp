@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireEmployeeFromKioskOrCode } from "@/lib/shiftChange/auth";
+import { sendShiftChangeAcceptedEmail, sendShiftChangeRequestEmail } from "@/lib/mailer";
 
 function startOfDayUTC(ymd: string) {
   const [y, m, d] = ymd.split("-").map(Number);
@@ -97,7 +98,13 @@ export async function POST(req: Request) {
   // Ensure shift exists, belongs to requester, and is in same company
   const shift = await prisma.shift.findUnique({
     where: { id: shiftId },
-    select: { id: true, employeeId: true, employee: { select: { companyId: true } } },
+    select: {
+      id: true,
+      employeeId: true,
+      startTime: true,
+      endTime: true,
+      employee: { select: { companyId: true } },
+    },
   });
   if (!shift) return NextResponse.json({ ok: false, error: "Quart introuvable" }, { status: 404 });
   if (shift.employee.companyId !== auth.companyId) {
@@ -114,7 +121,7 @@ export async function POST(req: Request) {
       companyId: auth.companyId,
       isActive: true,
     },
-    select: { id: true },
+    select: { id: true, firstName: true, lastName: true, email: true },
   });
 
   const okIds = new Set(candidates.map((c) => c.id));
@@ -138,6 +145,28 @@ export async function POST(req: Request) {
     data: rows,
     skipDuplicates: true,
   });
+
+  // Notify recipients by email when they have one. Non-blocking.
+  const requester = await prisma.employee.findUnique({
+    where: { id: auth.employeeId },
+    select: { firstName: true, lastName: true },
+  });
+  const requesterName = `${requester?.firstName ?? ""} ${requester?.lastName ?? ""}`.trim() || "Un employé";
+
+  await Promise.allSettled(
+    candidates
+      .filter((c) => Boolean(c.email))
+      .map((c) =>
+        sendShiftChangeRequestEmail({
+          to: String(c.email),
+          candidateFirstName: c.firstName,
+          requesterName,
+          shiftStart: shift.startTime,
+          shiftEnd: shift.endTime,
+          note: message,
+        })
+      )
+  );
 
   return NextResponse.json({
     ok: true,
@@ -320,11 +349,36 @@ export async function PATCH(req: Request) {
         data: { status: "CANCELLED", decidedAt: new Date() },
       });
 
-      return { ok: true as const };
+      const notify = await tx.employee.findUnique({
+        where: { id: reqRow.requesterEmployeeId },
+        select: { email: true, firstName: true },
+      });
+      const candidate = await tx.employee.findUnique({
+        where: { id: reqRow.candidateEmployeeId },
+        select: { firstName: true, lastName: true },
+      });
+
+      return {
+        ok: true as const,
+        acceptedNotify:
+          notify?.email
+            ? {
+                to: notify.email,
+                requesterFirstName: notify.firstName,
+                candidateName: `${candidate?.firstName ?? ""} ${candidate?.lastName ?? ""}`.trim() || "Un employé",
+                shiftStart: shift.startTime,
+                shiftEnd: shift.endTime,
+              }
+            : null,
+      };
     });
 
     if (!result.ok) {
       return NextResponse.json({ ok: false, error: result.error }, { status: result.status });
+    }
+
+    if (result.ok && "acceptedNotify" in result && result.acceptedNotify) {
+      await sendShiftChangeAcceptedEmail(result.acceptedNotify);
     }
 
     return NextResponse.json({ ok: true });

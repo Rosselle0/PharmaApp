@@ -69,6 +69,7 @@ export async function POST(req: Request) {
       to: email,
       code: otp,
       firstName: employee.firstName,
+      purpose: "EMAIL_CHANGE",
     });
     if (!sent.ok) {
       return NextResponse.json({ ok: false, error: sent.error }, { status: 503 });

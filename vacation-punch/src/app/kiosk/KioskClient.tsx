@@ -71,6 +71,11 @@ export default function KioskClient({
 
   const [autoSubmitting, setAutoSubmitting] = useState(false);
   const [blockedCode, setBlockedCode] = useState<string | null>(null);
+  const [awaitingOtpCode, setAwaitingOtpCode] = useState<string | null>(null);
+  const [loginOtp, setLoginOtp] = useState("");
+  const [loginOtpMsg, setLoginOtpMsg] = useState<string | null>(null);
+  const [loginOtpBusy, setLoginOtpBusy] = useState(false);
+  const [otpSending, setOtpSending] = useState(false);
 
   const [pinError, setPinError] = useState(false);
   const [pinSuccess, setPinSuccess] = useState(false);
@@ -408,10 +413,10 @@ function firstWord(v: string | null | undefined) {
   useEffect(() => {
     if (isPrivilegedLogged || employeeLogged || autoSubmitting) return;
     const clean = employeeCode.replace(/\D/g, "").slice(0, PIN_LEN);
-    if (clean.length !== PIN_LEN || blockedCode === clean) return;
+    if (clean.length !== PIN_LEN || blockedCode === clean || awaitingOtpCode === clean) return;
     setAutoSubmitting(true);
     employeeConfirm(clean).finally(() => setAutoSubmitting(false));
-  }, [employeeCode, isPrivilegedLogged, employeeLogged, autoSubmitting, blockedCode]);
+  }, [employeeCode, isPrivilegedLogged, employeeLogged, autoSubmitting, blockedCode, awaitingOtpCode]);
 
   async function employeeConfirm(forcedCode?: string) {
     const clean = (forcedCode ?? employeeCode).replace(/\D/g, "").slice(0, PIN_LEN);
@@ -422,18 +427,37 @@ function firstWord(v: string | null | undefined) {
       return;
     }
 
-    const res = await fetch("/api/kiosk/unlock", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code: clean }),
-    });
+    setOtpSending(true);
+    let res: Response;
+    let data: any = null;
+    try {
+      res = await fetch("/api/kiosk/unlock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: clean }),
+      });
+      data = await res.json().catch(() => null);
+    } catch {
+      setPinError(true);
+      setLoginOtpMsg("Erreur réseau.");
+      return;
+    } finally {
+      setOtpSending(false);
+    }
+
+    if (data?.requiresOtp) {
+      setAwaitingOtpCode(clean);
+      setLoginOtp("");
+      setLoginOtpMsg(data?.message ?? "Code envoyé par email.");
+      setPinError(false);
+      return;
+    }
 
     if (!res.ok) {
       setPinError(true);
       return;
     }
 
-    const data = await res.json().catch(() => null);
     const roleFromApi = String(data?.employee?.role ?? "EMPLOYEE").toUpperCase();
     const first = data?.employee?.firstName ?? "";
     const displayName = first.trim();
@@ -447,10 +471,62 @@ function firstWord(v: string | null | undefined) {
       setEmployeeLogged(true);
       setEmployeeCodeConfirmed(clean);
       setEmployeeName(displayName);
+      setAwaitingOtpCode(null);
+      setLoginOtp("");
+      setLoginOtpMsg(null);
       saveEmployeeSession(clean, displayName, roleFromApi);
       setKioskRole(roleFromApi);
       router.replace("/kiosk");
     }, 650);
+  }
+
+  async function verifyLoginOtp() {
+    const clean = awaitingOtpCode ?? employeeCode.replace(/\D/g, "").slice(0, PIN_LEN);
+    if (clean.length !== PIN_LEN) return;
+    if (loginOtp.length !== 6) {
+      setLoginOtpMsg("Entrez le code à 6 chiffres.");
+      return;
+    }
+
+    setLoginOtpBusy(true);
+    setLoginOtpMsg(null);
+    try {
+      const res = await fetch("/api/kiosk/unlock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: clean, otp: loginOtp }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) {
+        setLoginOtpMsg(data?.error ?? "Code invalide.");
+        return;
+      }
+
+      const roleFromApi = String(data?.employee?.role ?? "EMPLOYEE").toUpperCase();
+      const first = data?.employee?.firstName ?? "";
+      const displayName = first.trim();
+
+      // Keep same premium green success animation as regular PIN login.
+      setPinError(false);
+      setPinSuccess(true);
+      setPinFlash(true);
+      setTimeout(() => setPinFlash(false), 650);
+      setTimeout(() => {
+        setEmployeeLogged(true);
+        setEmployeeCodeConfirmed(clean);
+        setEmployeeName(displayName);
+        saveEmployeeSession(clean, displayName, roleFromApi);
+        setKioskRole(roleFromApi);
+        setAwaitingOtpCode(null);
+        setLoginOtp("");
+        setLoginOtpMsg(null);
+        router.replace("/kiosk");
+      }, 650);
+    } catch {
+      setLoginOtpMsg("Erreur réseau.");
+    } finally {
+      setLoginOtpBusy(false);
+    }
   }
 
   async function employeeLogout() {
@@ -479,6 +555,9 @@ function firstWord(v: string | null | undefined) {
     setPinFlash(false);
     setAutoSubmitting(false);
     setBlockedCode(null);
+    setAwaitingOtpCode(null);
+    setLoginOtp("");
+    setLoginOtpMsg(null);
 
     await Promise.all([loadActifs(), loadPunchState()]);
     window.history.replaceState(null, "", "/kiosk");
@@ -560,6 +639,9 @@ function firstWord(v: string | null | undefined) {
     setPinFlash(false);
     setAutoSubmitting(false);
     setBlockedCode(null);
+    setAwaitingOtpCode(null);
+    setLoginOtp("");
+    setLoginOtpMsg(null);
 
     router.replace("/kiosk");
     router.refresh();
@@ -680,7 +762,18 @@ function firstWord(v: string | null | undefined) {
                 ))}
               </div>
               <div className="pinHint">
-                {pinError ? <span className="pinOops">Oops! Pin invalide</span> : <span>{"\u00A0"}</span>}
+                {pinError ? (
+                  <span className="pinOops">Oops! Pin invalide</span>
+                ) : otpSending ? (
+                  <span className="pinLoading">
+                    Envoi du code
+                    <span className="loadingDots" aria-hidden>
+                      <span>.</span><span>.</span><span>.</span>
+                    </span>
+                  </span>
+                ) : (
+                  <span>{"\u00A0"}</span>
+                )}
               </div>
             </div>
           )}
@@ -737,6 +830,9 @@ function firstWord(v: string | null | undefined) {
                     setEmployeeCodeConfirmed(null);
                     setEmployeeName(null);
                     setPinError(false);
+                    setAwaitingOtpCode(null);
+                    setLoginOtp("");
+                    setLoginOtpMsg(null);
                   }}
                 >
                   Clear
@@ -751,6 +847,36 @@ function firstWord(v: string | null | undefined) {
                 </button>
               </div>
             </>
+          )}
+
+          {!isAnyLogged && awaitingOtpCode && (
+            <div className="modal-overlay">
+              <div className="modal-card">
+                <h3 className="modal-title">Vérification email</h3>
+                <p className="modal-sub">Entre le code reçu par email pour terminer la connexion.</p>
+                <input
+                  className="input"
+                  inputMode="numeric"
+                  value={loginOtp}
+                  onChange={(e) => setLoginOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  placeholder="Code 6 chiffres"
+                />
+                {loginOtpMsg ? <div className="alert error" style={{ marginTop: 10 }}>{loginOtpMsg}</div> : null}
+                <div className="otpActions">
+                  <button className="primary" type="button" disabled={loginOtpBusy} onClick={verifyLoginOtp}>
+                    {loginOtpBusy ? "..." : "Vérifier"}
+                  </button>
+                  <button
+                    className="secondary"
+                    type="button"
+                    disabled={loginOtpBusy || otpSending}
+                    onClick={() => employeeConfirm(awaitingOtpCode)}
+                  >
+                    {otpSending ? "Envoi..." : "Renvoyer code"}
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
 
           {(employeeLogged || isPrivilegedLogged) && (
