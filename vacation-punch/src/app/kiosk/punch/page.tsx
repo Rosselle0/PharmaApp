@@ -12,7 +12,10 @@ export default async function PunchPage() {
       <main style={{ padding: 24 }}>
         <h1>Punch</h1>
         <p>Cette page est disponible uniquement sur le poste de travail.</p>
-        <Link href="/kiosk">Retour</Link>
+        <div style={{ marginTop: 12, display: "flex", gap: 12, flexWrap: "wrap" }}>
+          <Link href="/kiosk/terminal-login">Connexion terminal</Link>
+          <Link href="/kiosk">Retour</Link>
+        </div>
       </main>
     );
   }
