@@ -13,13 +13,27 @@ export async function POST(req: Request) {
     const shiftId = String(body?.shiftId ?? "").trim();
     const kindRaw = String(body?.kind ?? "").toUpperCase();
     const kind = kindRaw === "LATE" || kindRaw === "OVERTIME" ? kindRaw : null;
+    const decisionRaw = String(body?.decision ?? body?.accepted ?? "").toUpperCase();
+    const decision =
+      decisionRaw === "REJECT" || decisionRaw === "REJECTED"
+        ? "REJECT"
+        : decisionRaw === "ACCEPT" || decisionRaw === "ACCEPTED" || decisionRaw === "TRUE"
+          ? "ACCEPT"
+          : "ACCEPT"; // backward compatible: missing => accept
 
     if (!shiftId || !kind) {
       return NextResponse.json({ ok: false, error: "Invalid input" }, { status: 400 });
     }
 
     // We keep this as an audit-only action (no schema change needed).
-    const action = kind === "LATE" ? "LATE_REVIEWED" : "OVERTIME_REVIEWED";
+    const action =
+      kind === "LATE"
+        ? decision === "ACCEPT"
+          ? "LATE_ACCEPTED"
+          : "LATE_REJECTED"
+        : decision === "ACCEPT"
+          ? "OVERTIME_ACCEPTED"
+          : "OVERTIME_REJECTED";
 
     await prisma.auditLog.create({
       data: {
@@ -29,6 +43,7 @@ export async function POST(req: Request) {
         target: shiftId,
         meta: {
           kind,
+          decision,
         },
       },
     });

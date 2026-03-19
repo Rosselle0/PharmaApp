@@ -32,6 +32,9 @@ type Shift = {
   status: string;
   lateMinutes: number | null;
   overtimeMinutes: number | null;
+  lateStatus: "MISSING" | "OK" | "ACCEPTED" | "REJECTED" | "PENDING";
+  overtimeStatus: "MISSING" | "OK" | "ACCEPTED" | "REJECTED" | "ACCEPTED_BY_PHARMACIST" | "PENDING";
+  pharmacistEmployeeId: string | null;
   missingClockIn: boolean;
   missingClockOut: boolean;
   punches: PunchEvent[];
@@ -244,14 +247,18 @@ export default function AdminLogsClient() {
   }, [data]);
 
   const [reviewBusyId, setReviewBusyId] = useState<string | null>(null);
-  async function reviewShift(shiftId: string, kind: "LATE" | "OVERTIME") {
+  async function reviewShift(
+    shiftId: string,
+    kind: "LATE" | "OVERTIME",
+    decision: "ACCEPT" | "REJECT"
+  ) {
     if (reviewBusyId) return;
-    setReviewBusyId(`${kind}:${shiftId}`);
+    setReviewBusyId(`${kind}:${decision}:${shiftId}`);
     try {
       await fetch(`/api/admin/logs/review`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ shiftId, kind }),
+        body: JSON.stringify({ shiftId, kind, decision }),
         credentials: "include",
       });
       // fire and forget: just refresh to reflect any audit list later
@@ -262,6 +269,38 @@ export default function AdminLogsClient() {
       // ignore for now
     } finally {
       setReviewBusyId(null);
+    }
+  }
+
+  const [pharmacistPinsByShiftId, setPharmacistPinsByShiftId] = useState<Record<string, string>>({});
+  const [pharmacistBusyShiftId, setPharmacistBusyShiftId] = useState<string | null>(null);
+  async function pharmacistSignOvertime(shiftId: string) {
+    const pin = pharmacistPinsByShiftId[shiftId] ?? "";
+    const clean = pin.replace(/\D/g, "").slice(0, 4);
+    if (!/^\d{4}$/.test(clean)) {
+      setError("PIN pharmacien requis (4 chiffres).");
+      return;
+    }
+    if (pharmacistBusyShiftId) return;
+    setPharmacistBusyShiftId(shiftId);
+    try {
+      const res = await fetch(`/api/admin/logs/pharmacist-sign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ shiftId, pin: clean }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const t = await res.text().catch(() => "");
+        setError(t || "Signature pharmacien échouée.");
+        return;
+      }
+      const json = (await fetch(`/api/admin/logs?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, { cache: "no-store", credentials: "include" }).then((r) => r.json().catch(() => null)) ) as AdminLogsResponse | null;
+      if (json && json.ok) setData(json);
+    } catch {
+      setError("Erreur réseau (pharmacien).");
+    } finally {
+      setPharmacistBusyShiftId(null);
     }
   }
 
@@ -315,8 +354,8 @@ export default function AdminLogsClient() {
           <div className="adminLogsEmployeeList" role="list">
             {(data?.employees ?? []).map((e) => {
               const sCount = data?.shifts?.filter((s) => s.employeeId === e.id).length ?? 0;
-              const lateCount = data?.shifts?.filter((s) => s.employeeId === e.id && (s.lateMinutes ?? 0) > 0).length ?? 0;
-              const otCount = data?.shifts?.filter((s) => s.employeeId === e.id && (s.overtimeMinutes ?? 0) > 0).length ?? 0;
+              const lateCount = data?.shifts?.filter((s) => s.employeeId === e.id && s.lateStatus === "PENDING").length ?? 0;
+              const otCount = data?.shifts?.filter((s) => s.employeeId === e.id && s.overtimeStatus === "PENDING").length ?? 0;
               const isSelected = selectedEmployee?.id === e.id;
 
               return (
@@ -416,7 +455,13 @@ export default function AdminLogsClient() {
                                     {s.missingClockIn ? (
                                       <span className="tag danger">Entrée manquante</span>
                                     ) : s.lateMinutes && s.lateMinutes > 0 ? (
-                                      <span className="tag warn">{minutesToHuman(s.lateMinutes)}</span>
+                                      s.lateStatus === "ACCEPTED" ? (
+                                        <span className="tag ok">{minutesToHuman(s.lateMinutes)}</span>
+                                      ) : s.lateStatus === "REJECTED" ? (
+                                        <span className="tag danger">Rejeté</span>
+                                      ) : (
+                                        <span className="tag warn">{minutesToHuman(s.lateMinutes)}</span>
+                                      )
                                     ) : (
                                       <span className="tag ok">OK</span>
                                     )}
@@ -425,7 +470,15 @@ export default function AdminLogsClient() {
                                     {s.missingClockOut ? (
                                       <span className="tag danger">Sortie manquante</span>
                                     ) : s.overtimeMinutes && s.overtimeMinutes > 0 ? (
-                                      <span className="tag ok">{minutesToHuman(s.overtimeMinutes)}</span>
+                                      s.overtimeStatus === "ACCEPTED" ? (
+                                        <span className="tag ok">{minutesToHuman(s.overtimeMinutes)}</span>
+                                      ) : s.overtimeStatus === "ACCEPTED_BY_PHARMACIST" ? (
+                                        <span className="tag ok">{minutesToHuman(s.overtimeMinutes)} (pharmacien)</span>
+                                      ) : s.overtimeStatus === "REJECTED" ? (
+                                        <span className="tag danger">Rejeté</span>
+                                      ) : (
+                                        <span className="tag warn">{minutesToHuman(s.overtimeMinutes)}</span>
+                                      )
                                     ) : (
                                       <span className="tag">—</span>
                                     )}
@@ -467,29 +520,100 @@ export default function AdminLogsClient() {
                                             <button
                                               type="button"
                                               className="btnSmall"
-                                              disabled={reviewBusyId === `LATE:${s.id}`}
+                                              disabled={
+                                                s.lateStatus !== "PENDING" ||
+                                                reviewBusyId === `LATE:ACCEPT:${s.id}`
+                                              }
                                               onClick={(ev) => {
                                                 ev.stopPropagation();
-                                                reviewShift(s.id, "LATE");
+                                                reviewShift(s.id, "LATE", "ACCEPT");
                                               }}
                                             >
                                               Retard vérifié
                                             </button>
                                             <button
                                               type="button"
-                                              className="btnSmall okBtn"
-                                              disabled={reviewBusyId === `OVERTIME:${s.id}`}
+                                              className="btnSmall dangerBtn"
+                                              disabled={
+                                                s.lateStatus !== "PENDING" ||
+                                                reviewBusyId === `LATE:REJECT:${s.id}`
+                                              }
                                               onClick={(ev) => {
                                                 ev.stopPropagation();
-                                                reviewShift(s.id, "OVERTIME");
+                                                reviewShift(s.id, "LATE", "REJECT");
+                                              }}
+                                            >
+                                              Retard rejeté
+                                            </button>
+                                            <button
+                                              type="button"
+                                              className="btnSmall okBtn"
+                                              disabled={
+                                                s.overtimeStatus !== "PENDING" ||
+                                                reviewBusyId === `OVERTIME:ACCEPT:${s.id}`
+                                              }
+                                              onClick={(ev) => {
+                                                ev.stopPropagation();
+                                                reviewShift(s.id, "OVERTIME", "ACCEPT");
                                               }}
                                             >
                                               Heures sup vérifiées
                                             </button>
+                                            <button
+                                              type="button"
+                                              className="btnSmall dangerBtn"
+                                              disabled={
+                                                s.overtimeStatus !== "PENDING" ||
+                                                reviewBusyId === `OVERTIME:REJECT:${s.id}`
+                                              }
+                                              onClick={(ev) => {
+                                                ev.stopPropagation();
+                                                reviewShift(s.id, "OVERTIME", "REJECT");
+                                              }}
+                                            >
+                                              Heures sup rejetées
+                                            </button>
                                           </div>
-                                          <div className="muted" style={{ marginTop: 10 }}>
-                                            Retard / heures sup calculés pour ce quart.
-                                          </div>
+                                          {s.overtimeStatus === "ACCEPTED_BY_PHARMACIST" ? (
+                                            <div className="muted" style={{ marginTop: 10 }}>
+                                              Heures sup acceptées par pharmacien.
+                                            </div>
+                                          ) : s.overtimeStatus === "PENDING" && s.overtimeMinutes && s.overtimeMinutes > 0 ? (
+                                            <div style={{ marginTop: 10 }}>
+                                              <div className="muted" style={{ marginBottom: 8 }}>
+                                                Signature pharmacien (PIN 4 chiffres)
+                                              </div>
+                                              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                                                <input
+                                                  className="adminLogsInput"
+                                                  style={{ width: 140 }}
+                                                  value={pharmacistPinsByShiftId[s.id] ?? ""}
+                                                  inputMode="numeric"
+                                                  onChange={(e) => {
+                                                    const clean = e.target.value.replace(/\D/g, "").slice(0, 4);
+                                                    setPharmacistPinsByShiftId((prev) => ({ ...prev, [s.id]: clean }));
+                                                  }}
+                                                  placeholder="PIN"
+                                                  disabled={pharmacistBusyShiftId === s.id}
+                                                />
+                                                <button
+                                                  type="button"
+                                                  className="btnSmall okBtn"
+                                                  disabled={pharmacistBusyShiftId === s.id}
+                                                  onClick={(ev) => {
+                                                    ev.stopPropagation();
+                                                    pharmacistSignOvertime(s.id);
+                                                  }}
+                                                >
+                                                  Signer pharmacien
+                                                </button>
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <div className="muted" style={{ marginTop: 10 }}>
+                                              Retard / heures sup calculés pour ce quart.
+                                            </div>
+                                          )}
                                         </div>
                                       </div>
                                     </td>

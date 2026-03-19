@@ -23,6 +23,12 @@ function diffMinutes(a: Date, b: Date) {
   return Math.max(0, Math.round((a.getTime() - b.getTime()) / 60000));
 }
 
+function roundUpToNext15Minutes(mins: number) {
+  if (!Number.isFinite(mins)) return 0;
+  if (mins <= 0) return 0;
+  return Math.ceil(mins / 15) * 15;
+}
+
 function ymdUTC(d: Date) {
   const y = d.getUTCFullYear();
   const m = String(d.getUTCMonth() + 1).padStart(2, "0");
@@ -82,6 +88,51 @@ export async function GET(req: Request) {
 
     const shiftIds = shifts.map((s) => s.id);
 
+    const relevantAuditActions = [
+      "LATE_ACCEPTED",
+      "LATE_REJECTED",
+      "LATE_REVIEWED", // backward compat
+      "OVERTIME_ACCEPTED",
+      "OVERTIME_REJECTED",
+      "OVERTIME_REVIEWED", // backward compat
+      "OVERTIME_ACCEPTED_BY_PHARMACIST",
+    ];
+
+    const auditLogs = shiftIds.length
+      ? await prisma.auditLog.findMany({
+          where: {
+            companyId,
+            target: { in: shiftIds },
+            action: { in: relevantAuditActions },
+          },
+          orderBy: { createdAt: "desc" },
+          select: { target: true, action: true, meta: true },
+        })
+      : [];
+
+    const lateDecisionByShift = new Map<string, "ACCEPTED" | "REJECTED" | "PENDING">();
+    const overtimeDecisionByShift = new Map<string, "ACCEPTED" | "REJECTED" | "ACCEPTED_BY_PHARMACIST" | "PENDING">();
+    const pharmacistEmployeeIdByShift = new Map<string, string>();
+
+    for (const l of auditLogs) {
+      const sid = l.target;
+
+      const action = l.action;
+      if (!lateDecisionByShift.has(sid)) {
+        if (action === "LATE_REJECTED") lateDecisionByShift.set(sid, "REJECTED");
+        else if (action === "LATE_ACCEPTED" || action === "LATE_REVIEWED") lateDecisionByShift.set(sid, "ACCEPTED");
+      }
+
+      if (!overtimeDecisionByShift.has(sid)) {
+        if (action === "OVERTIME_ACCEPTED_BY_PHARMACIST") {
+          overtimeDecisionByShift.set(sid, "ACCEPTED_BY_PHARMACIST");
+          const pharmacistId = (l.meta as any)?.pharmacistEmployeeId;
+          if (typeof pharmacistId === "string") pharmacistEmployeeIdByShift.set(sid, pharmacistId);
+        } else if (action === "OVERTIME_REJECTED") overtimeDecisionByShift.set(sid, "REJECTED");
+        else if (action === "OVERTIME_ACCEPTED" || action === "OVERTIME_REVIEWED") overtimeDecisionByShift.set(sid, "ACCEPTED");
+      }
+    }
+
     const punchEvents = shiftIds.length
       ? await prisma.punchEvent.findMany({
           where: { shiftId: { in: shiftIds } },
@@ -110,9 +161,31 @@ export async function GET(req: Request) {
       const missingClockOut = !lastOut;
 
       const lateMinutes = firstIn
-        ? diffMinutes(firstIn, s.startTime) // if firstIn after start => a - b
+        ? roundUpToNext15Minutes((firstIn.getTime() - s.startTime.getTime()) / 60000)
         : null;
-      const overtimeMinutes = lastOut ? diffMinutes(lastOut, s.endTime) : null;
+      // Overtime: no rounding. We compute exact minutes difference to the scheduled end.
+      const overtimeMinutes =
+        lastOut && lastOut.getTime() > s.endTime.getTime()
+          ? Math.max(0, Math.floor((lastOut.getTime() - s.endTime.getTime()) / 60000))
+          : lastOut
+            ? 0
+            : null;
+
+      const lateDecision = lateMinutes && lateMinutes > 0 ? lateDecisionByShift.get(s.id) ?? "PENDING" : null;
+      const overtimeDecision = overtimeMinutes && overtimeMinutes > 0 ? overtimeDecisionByShift.get(s.id) ?? "PENDING" : null;
+
+      const lateStatus = missingClockIn
+        ? "MISSING"
+        : lateMinutes && lateMinutes > 0
+          ? lateDecision ?? "PENDING"
+          : "OK";
+
+      const pharmacistEmployeeId = pharmacistEmployeeIdByShift.get(s.id) ?? null;
+      const overtimeStatus = missingClockOut
+        ? "MISSING"
+        : overtimeMinutes && overtimeMinutes > 0
+          ? overtimeDecision ?? "PENDING"
+          : "OK";
 
       return {
         id: s.id,
@@ -125,6 +198,9 @@ export async function GET(req: Request) {
         overtimeMinutes: overtimeMinutes === 0 ? 0 : overtimeMinutes,
         missingClockIn,
         missingClockOut,
+        lateStatus,
+        overtimeStatus,
+        pharmacistEmployeeId,
         punches: punches.map((p) => ({
           id: p.id,
           employeeId: p.employeeId,
@@ -143,6 +219,9 @@ export async function GET(req: Request) {
         overtimeMinutes: number | null;
         missingClockIn: boolean;
         missingClockOut: boolean;
+        lateStatus: "MISSING" | "OK" | "ACCEPTED" | "REJECTED" | "PENDING";
+        overtimeStatus: "MISSING" | "OK" | "ACCEPTED" | "REJECTED" | "ACCEPTED_BY_PHARMACIST" | "PENDING";
+        pharmacistEmployeeId: string | null;
         punches: Array<{ id: string; employeeId: string; type: any; at: string; source: any }>;
       };
     });
@@ -207,8 +286,8 @@ export async function GET(req: Request) {
     const meta = {
       shiftsCount: computedShifts.length,
       punchesCount: punchEvents.length,
-      lateShiftsCount: computedShifts.filter((s) => (s.lateMinutes ?? 0) > 0).length,
-      overtimeShiftsCount: computedShifts.filter((s) => (s.overtimeMinutes ?? 0) > 0).length,
+      lateShiftsCount: computedShifts.filter((s) => s.lateStatus === "ACCEPTED").length,
+      overtimeShiftsCount: computedShifts.filter((s) => s.overtimeStatus === "ACCEPTED" || s.overtimeStatus === "ACCEPTED_BY_PHARMACIST").length,
     };
 
     return NextResponse.json({
