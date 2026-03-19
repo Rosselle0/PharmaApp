@@ -408,6 +408,8 @@
 .scheduleScope .shiftPill {
   display: inline-flex;
   align-items: center;
+  flex-wrap: nowrap;
+  white-space: nowrap;
   gap: 6px;
   padding: 6px 12px;
   border-radius: 999px;
@@ -422,6 +424,8 @@
 /* Time inside pill */
 .scheduleScope .pillTime {
   font-variant-numeric: tabular-nums;
+  display: inline-block;
+  white-space: nowrap;
 }
 
 .scheduleScope .pillDash {
