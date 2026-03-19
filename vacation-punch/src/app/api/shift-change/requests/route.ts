@@ -152,9 +152,9 @@ export async function PATCH(req: Request) {
 
   const body = await req.json().catch(() => null);
   const requestId = String(body?.requestId || "").trim();
-  const action = String(body?.action || "").trim(); // "accept" | "reject" | "cancel" (if you added)
+  const action = String(body?.action || "").trim(); // "accept" | "reject" | "cancel"
 
-  if (!requestId || (action !== "accept" && action !== "reject")) {
+  if (!requestId || (action !== "accept" && action !== "reject" && action !== "cancel")) {
     return NextResponse.json({ ok: false, error: "requestId + action requis" }, { status: 400 });
   }
 
@@ -177,8 +177,14 @@ export async function PATCH(req: Request) {
       if (reqRow.companyId !== auth.companyId) return { ok: false as const, status: 403, error: "Accès refusé" };
 
       // Only candidate can accept/reject
-      if (reqRow.candidateEmployeeId !== auth.employeeId)
-        return { ok: false as const, status: 403, error: "Pas pour toi" };
+      if (action === "accept" || action === "reject") {
+        if (reqRow.candidateEmployeeId !== auth.employeeId)
+          return { ok: false as const, status: 403, error: "Pas pour toi" };
+      } else if (action === "cancel") {
+        // Only requester can cancel
+        if (reqRow.requesterEmployeeId !== auth.employeeId)
+          return { ok: false as const, status: 403, error: "Pas pour toi" };
+      }
 
       if (reqRow.status !== "PENDING")
         return { ok: false as const, status: 409, error: "Déjà traitée" };
@@ -187,6 +193,14 @@ export async function PATCH(req: Request) {
         await tx.shiftChangeRequest.update({
           where: { id: reqRow.id },
           data: { status: "REJECTED", decidedAt: new Date() },
+        });
+        return { ok: true as const };
+      }
+
+      if (action === "cancel") {
+        await tx.shiftChangeRequest.update({
+          where: { id: reqRow.id },
+          data: { status: "CANCELLED", decidedAt: new Date() },
         });
         return { ok: true as const };
       }

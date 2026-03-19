@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 
 type SentReq = {
   id: string;
@@ -19,6 +20,7 @@ export default function CandidatesClient({
   eligible: { id: string; name: string }[];
   sent: SentReq[];
 }) {
+  const router = useRouter();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [message, setMessage] = useState("");
   const [toast, setToast] = useState<string | null>(null);
@@ -42,63 +44,69 @@ export default function CandidatesClient({
       return;
     }
 
-    const url = code
-      ? `/api/shift-change/requests?code=${encodeURIComponent(code)}`
-      : `/api/shift-change/requests`;
+    try {
+      const res = await fetch(`/api/shift-change/requests`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          shiftId,
+          candidateEmployeeIds: selectedIds,
+          message: message.trim() || null,
+        }),
+      });
 
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        shiftId,
-        candidateEmployeeIds: selectedIds,
-        message: message.trim() || null,
-      }),
-    });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) {
+        setToast(data?.error ?? `Erreur (${res.status})`);
+        window.setTimeout(() => setToast(null), 3500);
+        return;
+      }
 
-    const data = await res.json().catch(() => null);
-    if (!res.ok || !data?.ok) {
-      alert(data?.error ?? `Erreur (${res.status})`);
-      return;
+      const created = Number(data.created ?? 0);
+
+      setToast(
+        created > 0
+          ? `✅ Demande envoyée à ${created} employé(s).`
+          : "ℹ️ Demande déjà envoyée à ces employé(s)."
+      );
+
+      setSelectedIds([]);
+      setMessage("");
+
+      window.setTimeout(() => setToast(null), 2500);
+
+      // refresh server data (sent list)
+      router.refresh();
+    } catch {
+      setToast("Erreur réseau (demande).");
+      window.setTimeout(() => setToast(null), 3500);
     }
-
-    const created = Number(data.created ?? 0);
-
-    setToast(
-      created > 0
-        ? `✅ Demande envoyée à ${created} employé(s).`
-        : "ℹ️ Demande déjà envoyée à ces employé(s)."
-    );
-
-    setSelectedIds([]);
-    setMessage("");
-
-    window.setTimeout(() => setToast(null), 2500);
-
-    // refresh server data (sent list)
-    window.location.reload();
   }
 
   async function cancel(requestId: string) {
-    const url = code
-      ? `/api/shift-change/requests?code=${encodeURIComponent(code)}`
-      : `/api/shift-change/requests`;
+    try {
+      const res = await fetch(`/api/shift-change/requests`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ requestId, action: "cancel" }),
+      });
 
-    const res = await fetch(url, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ requestId, action: "cancel" }),
-    });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) {
+        setToast(data?.error ?? `Erreur (${res.status})`);
+        window.setTimeout(() => setToast(null), 3500);
+        return;
+      }
 
-    const data = await res.json().catch(() => null);
-    if (!res.ok || !data?.ok) {
-      alert(data?.error ?? `Erreur (${res.status})`);
-      return;
+      setToast("✅ Demande annulée.");
+      window.setTimeout(() => setToast(null), 2000);
+      router.refresh();
+    } catch {
+      setToast("Erreur réseau (annulation).");
+      window.setTimeout(() => setToast(null), 3500);
     }
-
-    setToast("✅ Demande annulée.");
-    window.setTimeout(() => setToast(null), 2000);
-    window.location.reload();
   }
 
   function labelForStatus(s: SentReq["status"]) {

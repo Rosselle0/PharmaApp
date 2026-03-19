@@ -2,6 +2,7 @@
 import "./schedule.css";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { unstable_noStore as noStore } from "next/cache";
 import { supabaseServer } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { requireKioskManagerOrAdmin } from "@/lib/kioskAuth";
@@ -51,6 +52,7 @@ export default async function SchedulePage({
   | Promise<{ week?: string; code?: string; section?: string }>
   | { week?: string; code?: string; section?: string };
 }) {
+  noStore();
   const sp =
     (searchParams instanceof Promise ? await searchParams : searchParams) ?? {};
   const sectionParam = String(sp.section ?? "CAISSE_LAB").toUpperCase();

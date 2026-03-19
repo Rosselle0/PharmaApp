@@ -299,10 +299,11 @@ body {
   justify-content: space-between;
   gap: 14px;
   padding: 14px;
-  border-radius: 16px;
+  border-radius: 18px;
   border: 1px solid var(--chg-row-border);
   background: var(--chg-row-bg);
   color: var(--chg-row-text);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.06);
 }
 
 .changementScope .cardMiniLeft {
@@ -359,6 +360,11 @@ body {
   cursor: pointer;
   font-weight: 600;
   transition: all 0.2s ease;
+}
+
+.changementScope .cardMini .btn {
+  height: 38px;
+  min-width: 94px;
 }
 
 .changementScope .btn:hover {

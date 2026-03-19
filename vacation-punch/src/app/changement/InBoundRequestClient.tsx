@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 
 type InboundReq = {
   id: string;
@@ -40,21 +41,29 @@ export default function InboundRequestsClient({
   initial: InboundReq[];
   code?: string;
 }) {
+  const router = useRouter();
   const [items, setItems] = useState<InboundReq[]>(initial);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const visible = useMemo(() => items.filter((x) => x.status === "PENDING"), [items]);
+  const acceptedCount = useMemo(
+    () => items.filter((x) => x.status === "ACCEPTED").length,
+    [items]
+  );
+  const rejectedCount = useMemo(
+    () => items.filter((x) => x.status === "REJECTED").length,
+    [items]
+  );
 
   async function act(requestId: string, action: "accept" | "reject") {
     setPendingId(requestId);
 
     try {
-      const url = code ? `/api/shift-change/requests?code=${encodeURIComponent(code)}` : `/api/shift-change/requests`;
-
-      const res = await fetch(url, {
+      const res = await fetch(`/api/shift-change/requests`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ requestId, action }),
       });
 
@@ -71,6 +80,9 @@ export default function InboundRequestsClient({
             : r
         )
       );
+
+      // Ensure server components (like schedule) pick up the updated shift assignment.
+      router.refresh();
     } finally {
       setPendingId(null);
     }
@@ -81,7 +93,10 @@ export default function InboundRequestsClient({
     return (
       <div className="emptyBlock">
         <div className="emptyTitle">Aucune demande en attente</div>
-        <div className="muted">Tu as peut-être déjà répondu à tout.</div>
+        <div className="muted">
+          Traitée: {acceptedCount + rejectedCount} • Acceptées: {acceptedCount} • Rejetées:{" "}
+          {rejectedCount}
+        </div>
       </div>
     );
   }
