@@ -27,6 +27,8 @@ type Shift = {
     startTime: string; // ISO
     endTime: string;   // ISO
     note: string | null;
+    source: "MANUAL" | "RECURRING";
+    ruleLocked: boolean;
 };
 
 const DAY_LABELS = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
@@ -110,12 +112,18 @@ export default function ScheduleEditorClient(props: {
     const [msg, setMsg] = useState<string | null>(null);
     const [repeatWeekly, setRepeatWeekly] = useState(false);
     const [locked, setLocked] = useState(false);
+    const [isEditingExistingShift, setIsEditingExistingShift] = useState(false);
+    const [initialRepeatWeekly, setInitialRepeatWeekly] = useState(false);
+    const [initialLocked, setInitialLocked] = useState(false);
 
 
     useEffect(() => {
         setShifts(props.shifts);
         setOpen(false);
         setMsg(null);
+        setIsEditingExistingShift(false);
+        setInitialRepeatWeekly(false);
+        setInitialLocked(false);
     }, [props.shifts, props.weekStartYMD]);
 
     const availabilityByEmpDay = useMemo(() => {
@@ -182,13 +190,27 @@ export default function ScheduleEditorClient(props: {
             setStartHHMM(hm(new Date(s.startTime)));
             setEndHHMM(hm(new Date(s.endTime)));
             setNote(s.note ?? "");
+
+            const isRecurring = s.source === "RECURRING";
+            const prevRepeatWeekly = isRecurring;
+            const prevLocked = isRecurring ? Boolean(s.ruleLocked) : false;
+
+            setRepeatWeekly(prevRepeatWeekly);
+            setLocked(prevLocked);
+            setIsEditingExistingShift(true);
+            setInitialRepeatWeekly(prevRepeatWeekly);
+            setInitialLocked(prevLocked);
         } else {
             setStartHHMM(availability?.startHHMM ?? "08:00");
             setEndHHMM(availability?.endHHMM ?? "17:00");
             setNote("");
+
+            setRepeatWeekly(false);
+            setLocked(false);
+            setIsEditingExistingShift(false);
+            setInitialRepeatWeekly(false);
+            setInitialLocked(false);
         }
-        setRepeatWeekly(false);
-        setLocked(false);
 
         setOpen(true);
     }
@@ -273,6 +295,8 @@ export default function ScheduleEditorClient(props: {
             const saved: Shift = data.shift;
 
             const keyDay = activeDayISO;
+            const dayOfWeek = new Date(activeDayISO + "T12:00:00").getDay();
+            const isUnlocking = initialRepeatWeekly && initialLocked && repeatWeekly && !locked;
 
             setShifts((prev) => {
                 const filtered = prev.filter(
@@ -282,7 +306,18 @@ export default function ScheduleEditorClient(props: {
                             ymdLocal(new Date(s.startTime)) === keyDay
                         )
                 );
-                return [...filtered, saved].sort((a, b) => +new Date(a.startTime) - +new Date(b.startTime));
+                const withUnlockRemoval = isUnlocking
+                    ? filtered.filter((s) => {
+                          if (s.employeeId !== activeEmployeeId) return true;
+                          if (s.source !== "RECURRING") return true;
+                          const sDow = new Date(s.startTime).getDay();
+                          if (sDow !== dayOfWeek) return true;
+                          // only remove future days (not the current keyDay)
+                          return ymdLocal(new Date(s.startTime)) <= keyDay;
+                      })
+                    : filtered;
+
+                return [...withUnlockRemoval, saved].sort((a, b) => +new Date(a.startTime) - +new Date(b.startTime));
             });
 
             setOpen(false);
@@ -558,7 +593,7 @@ export default function ScheduleEditorClient(props: {
                                         onChange={(e) => setLocked(e.target.checked)}
                                         disabled={!repeatWeekly}
                                     />
-                                    Verrouiller
+                                    {locked ? "Déverrouiller" : "Verrouiller"}
                                 </label>
                             </div>
 
@@ -566,9 +601,11 @@ export default function ScheduleEditorClient(props: {
                             {msg ? <div className="msg">{msg}</div> : null}
 
                             <div className="actions">
-                                <button className="btn danger" type="button" onClick={clearShift} disabled={saving}>
-                                    Supprimer
-                                </button>
+                                {isEditingExistingShift ? (
+                                    <button className="btn danger" type="button" onClick={clearShift} disabled={saving}>
+                                        Supprimer
+                                    </button>
+                                ) : null}
                                 <button className="btn primary" type="button" onClick={saveShift} disabled={saving}>
                                     {saving ? "..." : "Enregistrer"}
                                 </button>

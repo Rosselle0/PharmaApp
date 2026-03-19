@@ -249,7 +249,15 @@ export default async function ScheduleEditPage({
       AND: [{ startTime: { lt: weekEnd } }, { endTime: { gt: weekStart } }],
     },
     orderBy: [{ startTime: "asc" }],
-    select: { id: true, employeeId: true, startTime: true, endTime: true, note: true },
+    select: {
+      id: true,
+      employeeId: true,
+      startTime: true,
+      endTime: true,
+      note: true,
+      source: true,
+      rule: { select: { locked: true } },
+    },
   });
 
   const shiftsForClient = shifts.map((s) => ({
@@ -258,6 +266,8 @@ export default async function ScheduleEditPage({
     startTime: s.startTime.toISOString(),
     endTime: s.endTime.toISOString(),
     note: s.note ?? null,
+    source: s.source,
+    ruleLocked: s.rule?.locked ?? false,
   }));
 
   const employeeIdSet = new Set(employeeIds);

@@ -189,6 +189,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid time format" }, { status: 400 });
     }
 
+    // Unlock behavior:
+    // - If the existing recurring rule was locked and now the boss "unlocks" (locked -> false),
+    //   we deactivate the recurring rule and delete all future recurring shifts generated from it.
+    const existingRule = await prisma.recurringShiftRule.findUnique({
+      where: { employeeId_dayOfWeek: { employeeId, dayOfWeek } },
+      select: { id: true, locked: true },
+    });
+    const wasLocked = Boolean(existingRule?.locked);
+    const unlocking = wasLocked && !locked;
+
     const rule = await prisma.recurringShiftRule.upsert({
       where: { employeeId_dayOfWeek: { employeeId, dayOfWeek } },
       update: {
@@ -196,7 +206,7 @@ export async function POST(req: Request) {
         endHHMM,
         note,
         locked,
-        active: true,
+        active: unlocking ? false : true,
       },
       create: {
         employeeId,
@@ -211,6 +221,19 @@ export async function POST(req: Request) {
     });
 
     ruleId = rule.id;
+
+    if (unlocking) {
+      // Remove all future shift instances of that recurring rule.
+      await prisma.shift.deleteMany({
+        where: {
+          employeeId,
+          ruleId: rule.id,
+          source: "RECURRING",
+          status: "PLANNED",
+          startTime: { gt: startTime },
+        },
+      });
+    }
   }
 
   const dayKey = ymdInTZ(startTime);
@@ -242,12 +265,35 @@ export async function POST(req: Request) {
     ? await prisma.shift.update({
       where: { id: existing.id },
       data: shiftData,
-      select: { id: true, employeeId: true, startTime: true, endTime: true, note: true },
+      select: {
+        id: true,
+        employeeId: true,
+        startTime: true,
+        endTime: true,
+        note: true,
+        source: true,
+        rule: { select: { locked: true } },
+      },
     })
     : await prisma.shift.create({
       data: { employeeId, ...shiftData, status: "PLANNED" },
-      select: { id: true, employeeId: true, startTime: true, endTime: true, note: true },
+      select: {
+        id: true,
+        employeeId: true,
+        startTime: true,
+        endTime: true,
+        note: true,
+        source: true,
+        rule: { select: { locked: true } },
+      },
     });
 
-  return NextResponse.json({ shift });
+  const ruleLocked = Boolean((shift as any)?.rule?.locked);
+  const { rule: _rule, ...rest } = shift as any;
+  return NextResponse.json({
+    shift: {
+      ...rest,
+      ruleLocked,
+    },
+  });
 }
