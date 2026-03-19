@@ -75,6 +75,12 @@ export default function SettingsPage() {
   const [availabilityNote, setAvailabilityNote] = useState("");
   const [employeeFullName, setEmployeeFullName] = useState<string>("Profil");
   const [employeeEmail, setEmployeeEmail] = useState<string>("");
+  const [emailEditorOpen, setEmailEditorOpen] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [emailOtp, setEmailOtp] = useState("");
+  const [emailVerifyStep, setEmailVerifyStep] = useState<"edit" | "verify">("edit");
+  const [emailBusy, setEmailBusy] = useState(false);
+  const [emailMsg, setEmailMsg] = useState<string | null>(null);
 
   // KIOSK / EMPLOYEE STATES
   const [kioskRole, setKioskRole] = useState<string | null>(null);
@@ -129,6 +135,57 @@ const [employeeCode, setEmployeeCode] = useState<string | null>(null);
     document.documentElement.setAttribute("data-theme", newMode);
     localStorage.setItem("theme", newMode);
   };
+
+  async function sendEmailVerification() {
+    setEmailMsg(null);
+    setEmailBusy(true);
+    try {
+      const res = await fetch("/api/settings/email/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: newEmail, code: readEmployeeCodeFromUrlOrStorage() }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setEmailMsg(data?.error ?? "Erreur envoi email.");
+        return;
+      }
+      setEmailVerifyStep("verify");
+      setEmailMsg(data?.message ?? "Code envoye.");
+    } catch {
+      setEmailMsg("Erreur reseau.");
+    } finally {
+      setEmailBusy(false);
+    }
+  }
+
+  async function confirmEmailVerification() {
+    setEmailMsg(null);
+    setEmailBusy(true);
+    try {
+      const res = await fetch("/api/settings/email/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ otp: emailOtp, code: readEmployeeCodeFromUrlOrStorage() }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setEmailMsg(data?.error ?? "Code invalide.");
+        return;
+      }
+      const updated = String(data?.email ?? "").trim();
+      setEmployeeEmail(updated);
+      setEmailMsg("Email mis a jour.");
+      setEmailEditorOpen(false);
+      setEmailVerifyStep("edit");
+      setEmailOtp("");
+      setNewEmail("");
+    } catch {
+      setEmailMsg("Erreur reseau.");
+    } finally {
+      setEmailBusy(false);
+    }
+  }
 
   // Avatar initial
   const avatarLetter = useMemo(() => {
@@ -250,6 +307,81 @@ const [employeeCode, setEmployeeCode] = useState<string | null>(null);
                   {employeeEmail ? <div className="profile-role">{employeeEmail}</div> : null}
                 </div>
               </div>
+
+              <div className="profile-email-actions">
+                <button
+                  className="theme-toggle-btn"
+                  type="button"
+                  onClick={() => {
+                    setEmailEditorOpen((v) => !v);
+                    setEmailMsg(null);
+                    setEmailVerifyStep("edit");
+                    setEmailOtp("");
+                    setNewEmail(employeeEmail);
+                  }}
+                >
+                  {emailEditorOpen ? "Fermer email" : "Changer email"}
+                </button>
+              </div>
+
+              {emailEditorOpen && (
+                <div className="email-change-box">
+                  {emailVerifyStep === "edit" ? (
+                    <>
+                      <label className="email-change-label">Nouvel email</label>
+                      <input
+                        className="email-change-input"
+                        type="email"
+                        value={newEmail}
+                        onChange={(e) => setNewEmail(e.target.value)}
+                        placeholder="nouvel@email.com"
+                      />
+                      <button
+                        className="theme-toggle-btn"
+                        type="button"
+                        disabled={emailBusy || !newEmail.trim()}
+                        onClick={sendEmailVerification}
+                      >
+                        {emailBusy ? "..." : "Envoyer code verification"}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <label className="email-change-label">Code de verification</label>
+                      <input
+                        className="email-change-input"
+                        inputMode="numeric"
+                        value={emailOtp}
+                        onChange={(e) => setEmailOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                        placeholder="123456"
+                      />
+                      <div className="email-change-actions">
+                        <button
+                          className="theme-toggle-btn"
+                          type="button"
+                          disabled={emailBusy || emailOtp.length !== 6}
+                          onClick={confirmEmailVerification}
+                        >
+                          {emailBusy ? "..." : "Verifier et changer"}
+                        </button>
+                        <button
+                          className="settings-modal-btn ghost"
+                          type="button"
+                          disabled={emailBusy}
+                          onClick={() => {
+                            setEmailVerifyStep("edit");
+                            setEmailOtp("");
+                            setEmailMsg(null);
+                          }}
+                        >
+                          Retour
+                        </button>
+                      </div>
+                    </>
+                  )}
+                  {emailMsg ? <div className="email-change-msg">{emailMsg}</div> : null}
+                </div>
+              )}
 
               <div className="profile-summary">
                 <div className="profile-summary-title">

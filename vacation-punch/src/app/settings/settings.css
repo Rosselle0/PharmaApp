@@ -383,6 +383,62 @@
   color: var(--settings-text-color);
 }
 
+.settingsScope .profile-email-actions {
+  margin-top: 0.2rem;
+}
+
+.settingsScope .email-change-box {
+  border: 1px solid var(--settings-line);
+  border-radius: 12px;
+  padding: 0.85rem;
+  background: rgba(255, 255, 255, 0.6);
+  display: grid;
+  gap: 0.6rem;
+}
+
+[data-theme="dark"] .settingsScope .email-change-box {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.settingsScope .email-change-label {
+  font-size: 0.86rem;
+  color: var(--settings-muted-text);
+  font-weight: 700;
+}
+
+.settingsScope .email-change-input {
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid rgba(2, 6, 23, 0.12);
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--settings-text-color);
+  padding: 0 0.75rem;
+}
+
+[data-theme="dark"] .settingsScope .email-change-input {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.settingsScope .email-change-input:focus {
+  outline: none;
+  border-color: rgba(37, 99, 235, 0.62);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16);
+}
+
+.settingsScope .email-change-actions {
+  display: flex;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.settingsScope .email-change-msg {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--settings-muted-text);
+}
+
 /* =========================================================
    MODAL — fully scoped
    ========================================================= */
