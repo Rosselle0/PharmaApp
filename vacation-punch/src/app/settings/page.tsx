@@ -72,6 +72,7 @@ export default function SettingsPage() {
   const [isAvailOpen, setIsAvailOpen] = useState(false);
   const [week, setWeek] = useState<DayAvailability[]>(() => defaultWeek());
   const [availError, setAvailError] = useState<string | null>(null);
+  const [availabilityNote, setAvailabilityNote] = useState("");
   const [employeeFullName, setEmployeeFullName] = useState<string>("Profil");
 
   // KIOSK / EMPLOYEE STATES
@@ -138,8 +139,7 @@ const [employeeCode, setEmployeeCode] = useState<string | null>(null);
       .filter((d) => d.available)
       .map((d) => {
         const label = DAYS.find((x) => x.key === d.day)?.labelFR ?? d.day;
-        const note = d.note.trim() ? ` — ${d.note.trim()}` : "";
-        return `${label}: ${d.start}–${d.end}${note}`;
+        return `${label}: ${d.start}–${d.end}`;
       });
   }, [week]);
 
@@ -173,10 +173,15 @@ const [employeeCode, setEmployeeCode] = useState<string | null>(null);
       return;
     }
 
+    const normalizedWeek = week.map((d) => ({
+      ...d,
+      note: d.available ? availabilityNote.trim() : "",
+    }));
+
     const res = await fetch("/api/availability", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code, week }),
+      body: JSON.stringify({ code, week: normalizedWeek }),
     });
     const data = await res.json().catch(() => null);
 
@@ -198,6 +203,8 @@ const [employeeCode, setEmployeeCode] = useState<string | null>(null);
       const data = await res.json().catch(() => null);
       if (data?.ok && Array.isArray(data.week) && data.week.length === 7) {
         setWeek(data.week);
+        const firstNote = data.week.find((d: DayAvailability) => d.note?.trim())?.note ?? "";
+        setAvailabilityNote(firstNote);
       }
     })();
   }, []);
@@ -347,19 +354,21 @@ const [employeeCode, setEmployeeCode] = useState<string | null>(null);
                         />
                       </div>
 
-                      <input
-                        className="avail-note"
-                        type="text"
-                        placeholder="Note (optionnel)"
-                        value={item.note}
-                        disabled={!item.available}
-                        onChange={(e) =>
-                          updateDay(d.key, { note: e.target.value })
-                        }
-                      />
                     </div>
                   );
                 })}
+              </div>
+
+              <div className="avail-note-block">
+                <label className="avail-note-label">Note pour les disponibilités (visible au boss)</label>
+                <input
+                  className="avail-note-global"
+                  type="text"
+                  placeholder="Ex: Disponible de façon flexible cette semaine"
+                  value={availabilityNote}
+                  onChange={(e) => setAvailabilityNote(e.target.value)}
+                  maxLength={200}
+                />
               </div>
             </div>
 
@@ -370,6 +379,7 @@ const [employeeCode, setEmployeeCode] = useState<string | null>(null);
                 onClick={() => {
                   setAvailError(null);
                   setWeek(defaultWeek());
+                  setAvailabilityNote("");
                 }}
               >
                 Réinitialiser
@@ -379,13 +389,8 @@ const [employeeCode, setEmployeeCode] = useState<string | null>(null);
                 type="button"
                 onClick={handleSave}
               >
-                Enregistrer (local)
+                Enregistrer
               </button>
-            </div>
-
-            <div className="settings-modal-footnote">
-              *Pour l’instant, c’est juste sauvegardé localement (pas encore
-              envoyé au manager).
             </div>
           </div>
         </div>

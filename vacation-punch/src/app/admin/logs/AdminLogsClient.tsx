@@ -612,6 +612,8 @@ export default function AdminLogsClient() {
                   <div className="adminLogsAvailabilityGrid">
                     {(selectedEmployee ? [selectedEmployee] : []).map((e) => {
                       const rules = availabilityByEmployee.get(e.id) ?? [];
+                      const globalNote =
+                        rules.find((r) => (r.note ?? "").trim().length > 0)?.note ?? "";
                       return (
                         <div key={e.id} className="availabilityCard">
                           <div className="availabilityCardTop">
@@ -628,11 +630,12 @@ export default function AdminLogsClient() {
                                   <div className="dayValue">
                                     {available ? `${r?.startHHMM}–${r?.endHHMM}` : "Indisponible"}
                                   </div>
-                                  {r?.note ? <div className="dayNote">{r.note}</div> : null}
                                 </div>
                               );
                             })}
                           </div>
+
+                          {globalNote ? <div className="availabilityGlobalNote">Note: {globalNote}</div> : null}
                         </div>
                       );
                     })}
