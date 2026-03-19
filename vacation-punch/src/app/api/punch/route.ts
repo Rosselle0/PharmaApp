@@ -49,6 +49,10 @@ function roundToNearest0or5(d: Date) {
   return x;
 }
 
+function isAutoShiftNote(note: string | null | undefined) {
+  return note === "PUNCH_AUTO" || note === "PUNCH_AUTO_UNAVAILABLE";
+}
+
 const PunchTypes = [
   "CLOCK_IN",
   "CLOCK_OUT",
@@ -240,6 +244,22 @@ export async function POST(req: Request) {
   
 
   async function pickShiftForPunch(): Promise<{ shiftId: string | null; isAuto: boolean; autoNote: string | null }> {
+    // For CLOCK_OUT, always prefer the exact shift used at last CLOCK_IN.
+    // This avoids picking a duplicate/overwritten shift with a different end time.
+    if (type === "CLOCK_OUT" && lastClockInWithShiftId) {
+      const linked = await prisma.shift.findUnique({
+        where: { id: lastClockInWithShiftId },
+        select: { id: true, startTime: true, note: true },
+      });
+      if (linked && ymdInTZ(linked.startTime) === nowYmd) {
+        return {
+          shiftId: linked.id,
+          isAuto: isAutoShiftNote(linked.note),
+          autoNote: isAutoShiftNote(linked.note) ? linked.note ?? null : null,
+        };
+      }
+    }
+
     const windowStart = new Date(nowTime - 10 * 24 * 60 * 60 * 1000);
     const windowEnd = new Date(nowTime + 2 * 24 * 60 * 60 * 1000);
 
@@ -271,6 +291,17 @@ export async function POST(req: Request) {
         if (!best || score < best.score) best = { id: s.id, score };
       }
       if (best) return { shiftId: best.id, isAuto: false, autoNote: null };
+
+      // Important fallback:
+      // if a planned shift exists on the same day but is outside tolerance,
+      // still attach to the nearest same-day shift instead of auto-creating.
+      const nearestSameDay = [...sameDay]
+        .sort((a, b) => {
+          const targetA = type === "CLOCK_IN" ? a.startTime.getTime() : a.endTime.getTime();
+          const targetB = type === "CLOCK_IN" ? b.startTime.getTime() : b.endTime.getTime();
+          return Math.abs(nowTime - targetA) - Math.abs(nowTime - targetB);
+        })[0];
+      if (nearestSameDay) return { shiftId: nearestSameDay.id, isAuto: false, autoNote: null };
     }
 
     // No planned shift: auto-create one on CLOCK_IN/CLOCK_OUT so schedule can display it.

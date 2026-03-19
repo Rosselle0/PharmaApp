@@ -249,10 +249,12 @@ export default function AdminLogsClient() {
   }, [data]);
 
   const [reviewBusyId, setReviewBusyId] = useState<string | null>(null);
+  const [manualOvertimeEndByShiftId, setManualOvertimeEndByShiftId] = useState<Record<string, string>>({});
   async function reviewShift(
     shiftId: string,
     kind: "LATE" | "OVERTIME",
-    decision: "ACCEPT" | "REJECT"
+    decision: "ACCEPT" | "REJECT",
+    manualEndHHMM?: string
   ) {
     if (reviewBusyId) return;
     setReviewBusyId(`${kind}:${decision}:${shiftId}`);
@@ -260,7 +262,7 @@ export default function AdminLogsClient() {
       await fetch(`/api/admin/logs/review`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ shiftId, kind, decision }),
+        body: JSON.stringify({ shiftId, kind, decision, manualEndHHMM }),
         credentials: "include",
       });
       // fire and forget: just refresh to reflect any audit list later
@@ -546,6 +548,27 @@ export default function AdminLogsClient() {
                                           <div className="expandActions">
                                             {s.overtimeStatus === "PENDING" ? (
                                               <>
+                                                <div className="manualOvertimeRow">
+                                                  <label className="manualOvertimeLabel">Fin manuelle</label>
+                                                  <input
+                                                    className="manualOvertimeInput"
+                                                    type="time"
+                                                    value={
+                                                      manualOvertimeEndByShiftId[s.id] ??
+                                                      new Date(s.endTime).toLocaleTimeString("fr-CA", {
+                                                        hour: "2-digit",
+                                                        minute: "2-digit",
+                                                        hour12: false,
+                                                      })
+                                                    }
+                                                    onChange={(e) =>
+                                                      setManualOvertimeEndByShiftId((prev) => ({
+                                                        ...prev,
+                                                        [s.id]: e.target.value,
+                                                      }))
+                                                    }
+                                                  />
+                                                </div>
                                                 <button
                                                   type="button"
                                                   className="btnSmall okBtn"
@@ -555,7 +578,17 @@ export default function AdminLogsClient() {
                                                   }
                                                   onClick={(ev) => {
                                                     ev.stopPropagation();
-                                                    reviewShift(s.id, "OVERTIME", "ACCEPT");
+                                                    reviewShift(
+                                                      s.id,
+                                                      "OVERTIME",
+                                                      "ACCEPT",
+                                                      manualOvertimeEndByShiftId[s.id] ??
+                                                        new Date(s.endTime).toLocaleTimeString("fr-CA", {
+                                                          hour: "2-digit",
+                                                          minute: "2-digit",
+                                                          hour12: false,
+                                                        })
+                                                    );
                                                   }}
                                                 >
                                                   Heures sup vérifiées

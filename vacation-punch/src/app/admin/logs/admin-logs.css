@@ -510,6 +510,28 @@
   gap: 10px;
 }
 
+.manualOvertimeRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.manualOvertimeLabel {
+  font-size: 12px;
+  color: var(--log-muted);
+  font-weight: 900;
+}
+
+.manualOvertimeInput {
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--log-border);
+  background: var(--log-surface);
+  color: var(--log-ink);
+  padding: 0 10px;
+}
+
 .btnSmall {
   height: 40px;
   border-radius: 14px;

@@ -43,6 +43,10 @@ function hmLocal(d: Date) {
   });
 }
 
+function isAutoPunchShift(note: string | null) {
+  return note === "PUNCH_AUTO" || note === "PUNCH_AUTO_UNAVAILABLE";
+}
+
 const DAY_LABELS = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
 
 export default async function SchedulePage({
@@ -332,7 +336,32 @@ export default async function SchedulePage({
 
                       const cells = days.map((d) => {
                         const key = `${u.id}:${ymdLocal(d)}`;
-                        const list = byUserDay.get(key) ?? [];
+                        const rawList = byUserDay.get(key) ?? [];
+                        // Overwrite rule for same-day duplicates:
+                        // for the same start HH:MM, keep one shift only
+                        // (prefer non-auto shift, then latest end time).
+                        const byStart = new Map<string, typeof rawList[number]>();
+                        for (const sh of rawList) {
+                          const startKey = hmLocal(new Date(sh.effectiveStartTime));
+                          const prev = byStart.get(startKey);
+                          if (!prev) {
+                            byStart.set(startKey, sh);
+                            continue;
+                          }
+                          const prevAuto = isAutoPunchShift(prev.note);
+                          const curAuto = isAutoPunchShift(sh.note);
+                          if (prevAuto !== curAuto) {
+                            byStart.set(startKey, prevAuto ? sh : prev);
+                            continue;
+                          }
+                          if (new Date(sh.endTime).getTime() > new Date(prev.endTime).getTime()) {
+                            byStart.set(startKey, sh);
+                          }
+                        }
+                        const list = Array.from(byStart.values()).sort(
+                          (a, b) =>
+                            new Date(a.effectiveStartTime).getTime() - new Date(b.effectiveStartTime).getTime()
+                        );
 
                         for (const sh of list) {
                           if (sh.note === "VAC") continue;
