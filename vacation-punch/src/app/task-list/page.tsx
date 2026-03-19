@@ -33,6 +33,12 @@ function safeArray<T>(v: any): T[] {
   return Array.isArray(v) ? v : [];
 }
 
+function firstWord(v: string | null | undefined): string {
+  const s = String(v ?? "").trim();
+  if (!s) return "";
+  return s.split(/\s+/)[0] ?? "";
+}
+
 function normTask(raw: any): Task | null {
   const id = raw?.id ?? raw?.taskId ?? raw?.itemId;
   const text = raw?.text ?? raw?.label ?? raw?.name ?? raw?.task;
@@ -97,7 +103,7 @@ export default function TaskListPage() {
     setCode(c);
 
     const n = (localStorage.getItem("kiosk_employee_name") ?? "").trim();
-    setEmployeeName(n || null);
+    setEmployeeName(firstWord(n) || null);
 
     const role = (localStorage.getItem("kiosk_role") ?? "").toUpperCase().trim() || null;
     setKioskRole(role);

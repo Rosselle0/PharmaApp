@@ -11,6 +11,7 @@ type Account = {
   id: string;
   firstName: string;
   lastName: string;
+  email?: string | null;
   employeeCode: string;
   role: Role; // your API hardcodes EMPLOYEE if you don't have roles
   department: Department;
@@ -245,7 +246,7 @@ export default function ModifyAccountsPage() {
           <div className="m-form">
             <div className="m-grid">
               <div className="m-field">
-                <label>Nom</label>
+                <label>Prénom</label>
                 <input
                   value={draft.firstName}
                   onChange={(e) => setDraft({ ...draft, firstName: e.target.value })}
@@ -253,10 +254,20 @@ export default function ModifyAccountsPage() {
               </div>
 
               <div className="m-field">
-                <label>Prénom</label>
+                <label>Nom</label>
                 <input
                   value={draft.lastName}
                   onChange={(e) => setDraft({ ...draft, lastName: e.target.value })}
+                />
+              </div>
+
+              <div className="m-field span2">
+                <label>Email</label>
+                <input
+                  type="email"
+                  value={draft.email ?? ""}
+                  onChange={(e) => setDraft({ ...draft, email: e.target.value })}
+                  placeholder="personne@pharma.ca"
                 />
               </div>
 

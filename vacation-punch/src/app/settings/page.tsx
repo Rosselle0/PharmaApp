@@ -74,6 +74,7 @@ export default function SettingsPage() {
   const [availError, setAvailError] = useState<string | null>(null);
   const [availabilityNote, setAvailabilityNote] = useState("");
   const [employeeFullName, setEmployeeFullName] = useState<string>("Profil");
+  const [employeeEmail, setEmployeeEmail] = useState<string>("");
 
   // KIOSK / EMPLOYEE STATES
   const [kioskRole, setKioskRole] = useState<string | null>(null);
@@ -107,11 +108,13 @@ const [employeeCode, setEmployeeCode] = useState<string | null>(null);
 
         if (!res.ok) return;
         const name = String(data?.employeeName ?? "").trim();
+        const email = String(data?.email ?? "").trim();
         const role = String(data?.role ?? "").trim();
 
         if (!name) return;
 
         setEmployeeFullName(name);
+        setEmployeeEmail(email);
         localStorage.setItem("kiosk_employee_name", name);
         localStorage.setItem("kiosk_employee_code", code);
         setKioskRole(role);
@@ -129,8 +132,15 @@ const [employeeCode, setEmployeeCode] = useState<string | null>(null);
 
   // Avatar initial
   const avatarLetter = useMemo(() => {
-    const clean = employeeFullName.trim();
-    return clean.length ? clean[0].toUpperCase() : "E";
+    const parts = employeeFullName
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+    if (parts.length === 0) return "E";
+    if (parts.length === 1) return parts[0][0]?.toUpperCase() ?? "E";
+    const first = parts[0][0] ?? "";
+    const last = parts[parts.length - 1][0] ?? "";
+    return `${first}${last}`.toUpperCase();
   }, [employeeFullName]);
 
   // Summary of availability
@@ -237,6 +247,7 @@ const [employeeCode, setEmployeeCode] = useState<string | null>(null);
                 <div className="profile-meta">
                   <div className="profile-name">{employeeFullName}</div>
                   <div className="profile-role">Profil</div>
+                  {employeeEmail ? <div className="profile-role">{employeeEmail}</div> : null}
                 </div>
               </div>
 

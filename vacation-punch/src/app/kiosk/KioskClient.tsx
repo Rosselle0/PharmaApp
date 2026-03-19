@@ -143,6 +143,12 @@ export default function KioskClient({
     return `${h}h ${m}m`;
   }
 
+function firstWord(v: string | null | undefined) {
+  const s = String(v ?? "").trim();
+  if (!s) return "";
+  return s.split(/\s+/)[0] ?? "";
+}
+
 
   function formatDuration(ms: number) {
     const totalSeconds = Math.max(0, Math.floor(ms / 1000));
@@ -429,7 +435,7 @@ export default function KioskClient({
 
     const data = await res.json().catch(() => null);
     const roleFromApi = String(data?.employee?.role ?? "EMPLOYEE").toUpperCase();
-    const first = data?.employee?.lastName ?? "";
+    const first = data?.employee?.firstName ?? "";
     const displayName = first.trim();
 
     setPinError(false);
@@ -635,8 +641,8 @@ export default function KioskClient({
           ) : (
             <h1 className="kiosk-title kiosk-titleLogged">
               {isPrivilegedLogged
-                ? `Bonjour ${privilegedName || privilegedCode || "Utilisateur"}`
-                : `Salut ${employeeName || "Utilisateur"}`}
+                ? `Bonjour ${firstWord(privilegedName) || privilegedCode || "Utilisateur"}`
+                : `Salut ${firstWord(employeeName) || "Utilisateur"}`}
             </h1>
           )}
 

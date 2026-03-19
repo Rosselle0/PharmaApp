@@ -16,6 +16,13 @@ function normalizeRole(role: any): Role {
   return role === "ADMIN" || role === "MANAGER" || role === "EMPLOYEE" ? role : Role.EMPLOYEE;
 }
 
+function normalizeEmail(email: unknown): string | null {
+  const raw = String(email ?? "").trim().toLowerCase();
+  if (!raw) return null;
+  const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw);
+  return ok ? raw : null;
+}
+
 export async function PATCH(req: NextRequest, context: Ctx) {
   try {
     const { id } = await context.params;
@@ -24,6 +31,7 @@ export async function PATCH(req: NextRequest, context: Ctx) {
     const firstName = String(body.firstName ?? "").trim();
     const lastName = String(body.lastName ?? "").trim();
     const employeeCode = String(body.employeeCode ?? "").trim();
+    const email = normalizeEmail(body.email);
 
     const department = normalizeDepartment(body.department);
     const role = normalizeRole(body.role);
@@ -37,12 +45,16 @@ export async function PATCH(req: NextRequest, context: Ctx) {
     if (!/^\d+$/.test(employeeCode)) {
       return NextResponse.json({ error: "Employee code must be numeric" }, { status: 400 });
     }
+    if (String(body.email ?? "").trim() && !email) {
+      return NextResponse.json({ error: "Email invalide" }, { status: 400 });
+    }
 
     const updated = await prisma.employee.update({
       where: { id },
       data: {
         firstName,
         lastName,
+        email,
         employeeCode,
         department,
         role,
@@ -53,6 +65,7 @@ export async function PATCH(req: NextRequest, context: Ctx) {
         id: true,
         firstName: true,
         lastName: true,
+        email: true,
         employeeCode: true,
         department: true,
         role: true,
@@ -66,6 +79,7 @@ export async function PATCH(req: NextRequest, context: Ctx) {
         id: updated.id,
         firstName: updated.firstName,
         lastName: updated.lastName,
+        email: updated.email,
         employeeCode: updated.employeeCode,
         department: updated.department,
         role: updated.role,

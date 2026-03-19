@@ -51,7 +51,7 @@ export default async function KioskPage() {
     });
 
     if (employee?.role === Role.ADMIN || employee?.role === Role.MANAGER) {
-      privilegedName = employee.lastName ?? employee.employeeCode ?? "Utilisateur";
+      privilegedName = employee.firstName ?? employee.employeeCode ?? "Utilisateur";
       privilegedCode = employee.employeeCode ?? undefined;
     }
   }

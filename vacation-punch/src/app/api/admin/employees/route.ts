@@ -21,6 +21,13 @@ function normalizeRole(role: any): Role {
   return Role.EMPLOYEE;
 }
 
+function normalizeEmail(email: unknown): string | null {
+  const raw = String(email ?? "").trim().toLowerCase();
+  if (!raw) return null;
+  const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw);
+  return ok ? raw : null;
+}
+
 export async function GET() {
   const companyId = await getCompanyId();
 
@@ -31,6 +38,7 @@ export async function GET() {
       id: true,
       firstName: true,
       lastName: true,
+      email: true,
       employeeCode: true,
       department: true,
       role: true,          // ✅ ADD THIS
@@ -44,6 +52,7 @@ export async function GET() {
       id: e.id,
       firstName: e.firstName,
       lastName: e.lastName,
+      email: e.email,
       employeeCode: e.employeeCode,
       department: e.department,
       paid30: e.paidBreak30,
@@ -60,6 +69,7 @@ export async function POST(req: Request) {
     const firstName = String(body.firstName ?? "").trim();
     const lastName = String(body.lastName ?? "").trim();
     const employeeCode = String(body.employeeCode ?? "").trim();
+    const email = normalizeEmail(body.email);
     const department = normalizeDepartment(body.department);
     const role = normalizeRole(body.role); // ✅ READ ROLE
 
@@ -68,6 +78,9 @@ export async function POST(req: Request) {
 
     if (!firstName || !lastName || employeeCode.length < 4) {
       return NextResponse.json({ error: "Invalid input" }, { status: 400 });
+    }
+    if (String(body.email ?? "").trim() && !email) {
+      return NextResponse.json({ error: "Email invalide" }, { status: 400 });
     }
 
     if (!/^\d+$/.test(employeeCode)) {
@@ -90,6 +103,7 @@ export async function POST(req: Request) {
         companyId,
         firstName,
         lastName,
+        email,
         employeeCode,
         department,
         role,               // ✅ STORE ROLE
@@ -100,6 +114,7 @@ export async function POST(req: Request) {
         id: true,
         firstName: true,
         lastName: true,
+        email: true,
         employeeCode: true,
         department: true,
         role: true,         // ✅ RETURN ROLE

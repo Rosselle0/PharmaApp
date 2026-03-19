@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import "./create-account.css";
 
 type Role = "EMPLOYEE" | "MANAGER" | "ADMIN";
-type Department = "FLOOR" | "CASH_LAB";
+type Department = "FLOOR" | "CASH" | "LAB";
 
 function onlyDigits(v: string, max = 10) {
   return v.replace(/\D/g, "").slice(0, max);
@@ -17,6 +17,7 @@ export default function CreateAccountPage() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [employeeCode, setEmployeeCode] = useState("");
+  const [email, setEmail] = useState("");
   const [role, setRole] = useState<Role>("EMPLOYEE");
   const [department, setDepartment] = useState<Department>("FLOOR");
   const [paid30, setPaid30] = useState(false);
@@ -28,10 +29,11 @@ export default function CreateAccountPage() {
     return (
       firstName.trim().length > 0 &&
       lastName.trim().length > 0 &&
+      email.trim().length > 3 &&
       employeeCode.trim().length >= 4 &&
       !loading
     );
-  }, [firstName, lastName, employeeCode, loading]);
+  }, [firstName, lastName, email, employeeCode, loading]);
 
   async function create() {
     if (!canCreate) return;
@@ -45,6 +47,7 @@ export default function CreateAccountPage() {
         body: JSON.stringify({
           firstName: firstName.trim(),
           lastName: lastName.trim(),
+          email: email.trim().toLowerCase(),
           employeeCode: employeeCode.trim(),
           role,
           department,
@@ -61,6 +64,7 @@ export default function CreateAccountPage() {
       setFirstName("");
       setLastName("");
       setEmployeeCode("");
+      setEmail("");
       setRole("EMPLOYEE");
       setDepartment("FLOOR");
       setPaid30(false);
@@ -82,13 +86,23 @@ export default function CreateAccountPage() {
 
           <div className="grid">
             <div className="field">
-              <label>Nom</label>
+              <label>Prénom</label>
               <input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Ex: Tran" />
             </div>
 
             <div className="field">
-              <label>Prénom</label>
+              <label>Nom</label>
               <input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Ex: Vincent" />
+            </div>
+
+            <div className="field span2">
+              <label>Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Ex: personne@pharma.ca"
+              />
             </div>
 
             <div className="field span2">

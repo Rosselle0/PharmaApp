@@ -44,6 +44,8 @@ model Employee {
   companyId    String
   firstName    String
   lastName     String
+  email        String? @unique
+  phone        String?
   employeeCode String @unique
 
   role       Role       @default(EMPLOYEE) // <-- AJOUTE ÇA
@@ -62,11 +64,25 @@ model Employee {
   VacationRequest             VacationRequest[]
   KioskSession                KioskSession[]
   AvailabilityRule            AvailabilityRule[]
+  phoneOtps                  PhoneOtp[]
   shiftChangeRequestsSent     ShiftChangeRequest[] @relation("ShiftChangeRequester")
   shiftChangeRequestsReceived ShiftChangeRequest[] @relation("ShiftChangeCandidate")
 
   @@index([companyId])
   @@index([companyId, department])
+}
+
+model PhoneOtp {
+  id         String   @id @default(uuid())
+  employeeId String
+  code       String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@index([expiresAt])
 }
 
 model VacationRequest {

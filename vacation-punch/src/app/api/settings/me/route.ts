@@ -18,7 +18,7 @@ export async function GET(req: Request) {
 
     const employee = await prisma.employee.findUnique({
       where: { employeeCode: code },
-      select: { firstName: true, lastName: true, role: true },
+      select: { firstName: true, lastName: true, email: true, role: true },
     });
 
     if (!employee) {
@@ -30,6 +30,9 @@ export async function GET(req: Request) {
     return NextResponse.json({
       ok: true,
       employeeName: employeeName || "EMPLOYEE",
+      firstName: employee.firstName ?? "",
+      lastName: employee.lastName ?? "",
+      email: employee.email ?? null,
       role: employee.role ?? null,
     });
   } catch (e: any) {
