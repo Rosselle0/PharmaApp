@@ -470,6 +470,15 @@ body{
 @media (max-width: 780px) {
   .m-grid { grid-template-columns: 1fr; }
   .m-field.span2 { grid-column: span 1; }
-  .m-card { min-width: 300px; }
+  .m-rail {
+    flex-direction: column;
+    overflow-x: visible;
+    padding-bottom: 0;
+  }
+
+  .m-card {
+    min-width: 0;
+    width: 100%;
+  }
   .m-searchWrap { width: 100%; }
 }

@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireEmployeeFromKioskOrCode, requireEmployeeFromKioskOrCodeValue } from "@/lib/shiftChange/auth";
 import { requireTerminalOrDev } from "@/lib/punch/terminalGuard";
+import { ShiftStatus } from "@prisma/client";
 
 const PunchTypes = [
   "CLOCK_IN",
@@ -163,9 +164,53 @@ export async function POST(req: Request) {
 
   const nextStatus = getShiftStatus([...history as Array<{ type: PunchType; at: Date }>, { type, at: now }], now);
 
+  // Overtime popup should be triggered by the kiosk when CLOCK_OUT happens
+  // after the scheduled end time.
+  let overtime: { shiftId: string; overtimeMinutes: number } | null = null;
+  if (type === "CLOCK_OUT") {
+    const t = now.getTime();
+    const windowStart = new Date(t - 10 * 24 * 60 * 60 * 1000); // last 10 days
+
+    const candidates = await prisma.shift.findMany({
+      where: {
+        employeeId: auth.employeeId,
+        status: { in: [ShiftStatus.PLANNED, ShiftStatus.COMPLETED] },
+        startTime: { gte: windowStart, lte: now },
+      },
+      select: { id: true, startTime: true, endTime: true },
+      orderBy: { startTime: "desc" },
+    });
+
+    // Match the event to the most likely shift, using the same scoring approach
+    // we use in admin logs for missing punch.shiftId.
+    const toleranceBeforeMs = 2 * 60 * 60 * 1000; // 2h early allowed
+    const toleranceAfterMs = 12 * 60 * 60 * 1000; // allow late clock-outs
+
+    let best: { shiftId: string; score: number; startMs: number; endMs: number } | null = null;
+    for (const sh of candidates) {
+      const startMs = sh.startTime.getTime();
+      const endMs = sh.endTime.getTime();
+
+      const minAllowed = startMs - toleranceBeforeMs;
+      const maxAllowed = endMs + toleranceAfterMs;
+      if (t < minAllowed || t > maxAllowed) continue;
+
+      const score = t >= endMs ? t - endMs : endMs - t;
+      if (!best || score < best.score || (score === best.score && startMs > best.startMs)) {
+        best = { shiftId: sh.id, score, startMs, endMs };
+      }
+    }
+
+    if (best && t > best.endMs) {
+      const overtimeMinutes = Math.max(0, Math.floor((t - best.endMs) / 60000));
+      if (overtimeMinutes > 0) overtime = { shiftId: best.shiftId, overtimeMinutes };
+    }
+  }
+
   return NextResponse.json({
     ok: true,
     ...nextStatus,
     punchedAt: now.toISOString(),
+    overtime,
   });
 }

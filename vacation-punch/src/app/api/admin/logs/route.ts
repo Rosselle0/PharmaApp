@@ -133,19 +133,87 @@ export async function GET(req: Request) {
       }
     }
 
-    const punchEvents = shiftIds.length
-      ? await prisma.punchEvent.findMany({
-          where: { shiftId: { in: shiftIds } },
-          orderBy: { at: "asc" },
-          select: { id: true, employeeId: true, type: true, at: true, source: true, shiftId: true },
-        })
-      : [];
+    type PunchEventRow = {
+      id: string;
+      employeeId: string;
+      type: string;
+      at: Date;
+      source: string;
+      shiftId: string | null;
+    };
 
-    const punchesByShift = new Map<string, typeof punchEvents>();
-    for (const p of punchEvents) {
-      const arr = punchesByShift.get(p.shiftId!) ?? [];
-      arr.push(p);
-      punchesByShift.set(p.shiftId!, arr);
+    const punchesByShift = new Map<string, PunchEventRow[]>();
+    let punchEvents: PunchEventRow[] = [];
+    if (shiftIds.length) {
+      const shiftIdsSet = new Set(shiftIds);
+      const punchWindowStart = new Date(dayStart.getTime() - 24 * 60 * 60 * 1000);
+      const punchWindowEnd = new Date(dayEnd.getTime() + 24 * 60 * 60 * 1000);
+
+      punchEvents = (await prisma.punchEvent.findMany({
+        where: {
+          employeeId: { in: employeeIds },
+          at: { gte: punchWindowStart, lt: punchWindowEnd },
+          type: { in: ["CLOCK_IN", "CLOCK_OUT", "BREAK_START", "BREAK_END", "LUNCH_START", "LUNCH_END"] },
+        },
+        orderBy: { at: "asc" },
+        select: { id: true, employeeId: true, type: true, at: true, source: true, shiftId: true },
+      })) as PunchEventRow[];
+
+      const shiftsByEmployee = new Map<string, typeof shifts>();
+      for (const sh of shifts) {
+        const arr = shiftsByEmployee.get(sh.employeeId) ?? [];
+        arr.push(sh);
+        shiftsByEmployee.set(sh.employeeId, arr);
+      }
+
+      function eventToShiftId(p: PunchEventRow) {
+        // If punch already has a shiftId, trust it (fast path).
+        if (p.shiftId && shiftIdsSet.has(p.shiftId)) return p.shiftId;
+
+        const empShifts = shiftsByEmployee.get(p.employeeId) ?? [];
+        if (!empShifts.length) return null;
+
+        const t = p.at.getTime();
+
+        // Different tolerances for in/out vs breaks; late clock-out can exceed shift.endTime.
+        const toleranceBeforeMs = 2 * 60 * 60 * 1000; // 2h early allowed
+        const toleranceAfterMs = p.type === "CLOCK_OUT" ? 12 * 60 * 60 * 1000 : 4 * 60 * 60 * 1000;
+
+        let best: { sid: string; score: number; startMs: number } | null = null;
+
+        for (const sh of empShifts) {
+          const startMs = sh.startTime.getTime();
+          const endMs = sh.endTime.getTime();
+
+          const minAllowed = startMs - toleranceBeforeMs;
+          const maxAllowed = endMs + toleranceAfterMs;
+          if (t < minAllowed || t > maxAllowed) continue;
+
+          const score =
+            p.type === "CLOCK_IN"
+              ? Math.abs(t - startMs)
+              : p.type === "CLOCK_OUT"
+                ? // If clocking out after end, score by overtime distance.
+                  t >= endMs
+                  ? t - endMs
+                  : endMs - t
+                : Math.abs(t - startMs);
+
+          if (!best || score < best.score || (score === best.score && startMs > best.startMs)) {
+            best = { sid: sh.id, score, startMs };
+          }
+        }
+
+        return best?.sid ?? null;
+      }
+
+      for (const p of punchEvents) {
+        const sid = eventToShiftId(p);
+        if (!sid) continue;
+        const arr = punchesByShift.get(sid) ?? [];
+        arr.push(p);
+        punchesByShift.set(sid, arr);
+      }
     }
 
     const computedShifts = shifts.map((s) => {
@@ -160,9 +228,12 @@ export async function GET(req: Request) {
       const missingClockIn = !firstIn;
       const missingClockOut = !lastOut;
 
-      const lateMinutes = firstIn
-        ? roundUpToNext15Minutes((firstIn.getTime() - s.startTime.getTime()) / 60000)
-        : null;
+      // Lateness rules:
+      // - <= 5 minutes late => automatically OK (no penalty)
+      // - > 5 minutes late => round UP to the next 15-min increment and apply as effective start delay
+      const rawLateMinutes = firstIn ? (firstIn.getTime() - s.startTime.getTime()) / 60000 : null;
+      const latePenaltyMinutes =
+        rawLateMinutes === null ? null : rawLateMinutes <= 5 ? 0 : roundUpToNext15Minutes(rawLateMinutes);
       // Overtime: no rounding. We compute exact minutes difference to the scheduled end.
       const overtimeMinutes =
         lastOut && lastOut.getTime() > s.endTime.getTime()
@@ -171,12 +242,12 @@ export async function GET(req: Request) {
             ? 0
             : null;
 
-      const lateDecision = lateMinutes && lateMinutes > 0 ? lateDecisionByShift.get(s.id) ?? "PENDING" : null;
+      const lateDecision = latePenaltyMinutes && latePenaltyMinutes > 0 ? lateDecisionByShift.get(s.id) ?? "PENDING" : null;
       const overtimeDecision = overtimeMinutes && overtimeMinutes > 0 ? overtimeDecisionByShift.get(s.id) ?? "PENDING" : null;
 
       const lateStatus = missingClockIn
         ? "MISSING"
-        : lateMinutes && lateMinutes > 0
+        : latePenaltyMinutes && latePenaltyMinutes > 0
           ? lateDecision ?? "PENDING"
           : "OK";
 
@@ -187,6 +258,13 @@ export async function GET(req: Request) {
           ? overtimeDecision ?? "PENDING"
           : "OK";
 
+      const effectiveStartTime =
+        missingClockIn || latePenaltyMinutes === null
+          ? null
+          : lateStatus === "REJECTED" || !latePenaltyMinutes || latePenaltyMinutes <= 0
+            ? s.startTime.toISOString()
+            : new Date(s.startTime.getTime() + latePenaltyMinutes * 60_000).toISOString();
+
       return {
         id: s.id,
         employeeId: s.employeeId,
@@ -194,7 +272,8 @@ export async function GET(req: Request) {
         endTime: s.endTime.toISOString(),
         note: s.note,
         status: s.status,
-        lateMinutes: lateMinutes === 0 ? 0 : lateMinutes,
+        effectiveStartTime,
+        lateMinutes: latePenaltyMinutes === 0 ? 0 : latePenaltyMinutes,
         overtimeMinutes: overtimeMinutes === 0 ? 0 : overtimeMinutes,
         missingClockIn,
         missingClockOut,
@@ -215,6 +294,7 @@ export async function GET(req: Request) {
         endTime: string;
         note: string | null;
         status: string;
+        effectiveStartTime: string | null;
         lateMinutes: number | null;
         overtimeMinutes: number | null;
         missingClockIn: boolean;

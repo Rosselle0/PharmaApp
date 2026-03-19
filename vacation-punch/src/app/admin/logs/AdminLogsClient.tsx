@@ -27,6 +27,7 @@ type Shift = {
   id: string;
   employeeId: string;
   startTime: string; // ISO
+  effectiveStartTime: string | null; // ISO
   endTime: string; // ISO
   note: string | null;
   status: string;
@@ -272,36 +273,11 @@ export default function AdminLogsClient() {
     }
   }
 
-  const [pharmacistPinsByShiftId, setPharmacistPinsByShiftId] = useState<Record<string, string>>({});
-  const [pharmacistBusyShiftId, setPharmacistBusyShiftId] = useState<string | null>(null);
-  async function pharmacistSignOvertime(shiftId: string) {
-    const pin = pharmacistPinsByShiftId[shiftId] ?? "";
-    const clean = pin.replace(/\D/g, "").slice(0, 4);
-    if (!/^\d{4}$/.test(clean)) {
-      setError("PIN pharmacien requis (4 chiffres).");
-      return;
-    }
-    if (pharmacistBusyShiftId) return;
-    setPharmacistBusyShiftId(shiftId);
-    try {
-      const res = await fetch(`/api/admin/logs/pharmacist-sign`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ shiftId, pin: clean }),
-        credentials: "include",
-      });
-      if (!res.ok) {
-        const t = await res.text().catch(() => "");
-        setError(t || "Signature pharmacien échouée.");
-        return;
-      }
-      const json = (await fetch(`/api/admin/logs?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, { cache: "no-store", credentials: "include" }).then((r) => r.json().catch(() => null)) ) as AdminLogsResponse | null;
-      if (json && json.ok) setData(json);
-    } catch {
-      setError("Erreur réseau (pharmacien).");
-    } finally {
-      setPharmacistBusyShiftId(null);
-    }
+  function employeeNameById(id: string | null | undefined) {
+    if (!id) return null;
+    const e = data?.employees?.find((x) => x.id === id);
+    if (!e) return id;
+    return `${e.firstName} ${e.lastName}`.trim();
   }
 
   return (
@@ -483,8 +459,11 @@ export default function AdminLogsClient() {
                                 >
                                   <td>{date}</td>
                                   <td>
-                                    {new Date(s.startTime).toLocaleTimeString("fr-CA", { hour: "2-digit", minute: "2-digit", hour12: false })} →{" "}
-                                    {new Date(s.endTime).toLocaleTimeString("fr-CA", { hour: "2-digit", minute: "2-digit", hour12: false })}
+                                    {new Date(s.effectiveStartTime ?? s.startTime).toLocaleTimeString("fr-CA", {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                      hour12: false,
+                                    })} → {new Date(s.endTime).toLocaleTimeString("fr-CA", { hour: "2-digit", minute: "2-digit", hour12: false })}
                                   </td>
                                   <td>
                                     {s.missingClockIn ? (
@@ -552,97 +531,43 @@ export default function AdminLogsClient() {
                                         <div>
                                           <div className="expandTitle">Actions</div>
                                           <div className="expandActions">
-                                            <button
-                                              type="button"
-                                              className="btnSmall"
-                                              disabled={
-                                                s.lateStatus !== "PENDING" ||
-                                                reviewBusyId === `LATE:ACCEPT:${s.id}`
-                                              }
-                                              onClick={(ev) => {
-                                                ev.stopPropagation();
-                                                reviewShift(s.id, "LATE", "ACCEPT");
-                                              }}
-                                            >
-                                              Retard vérifié
-                                            </button>
-                                            <button
-                                              type="button"
-                                              className="btnSmall dangerBtn"
-                                              disabled={
-                                                s.lateStatus !== "PENDING" ||
-                                                reviewBusyId === `LATE:REJECT:${s.id}`
-                                              }
-                                              onClick={(ev) => {
-                                                ev.stopPropagation();
-                                                reviewShift(s.id, "LATE", "REJECT");
-                                              }}
-                                            >
-                                              Retard rejeté
-                                            </button>
-                                            <button
-                                              type="button"
-                                              className="btnSmall okBtn"
-                                              disabled={
-                                                s.overtimeStatus !== "PENDING" ||
-                                                reviewBusyId === `OVERTIME:ACCEPT:${s.id}`
-                                              }
-                                              onClick={(ev) => {
-                                                ev.stopPropagation();
-                                                reviewShift(s.id, "OVERTIME", "ACCEPT");
-                                              }}
-                                            >
-                                              Heures sup vérifiées
-                                            </button>
-                                            <button
-                                              type="button"
-                                              className="btnSmall dangerBtn"
-                                              disabled={
-                                                s.overtimeStatus !== "PENDING" ||
-                                                reviewBusyId === `OVERTIME:REJECT:${s.id}`
-                                              }
-                                              onClick={(ev) => {
-                                                ev.stopPropagation();
-                                                reviewShift(s.id, "OVERTIME", "REJECT");
-                                              }}
-                                            >
-                                              Heures sup rejetées
-                                            </button>
-                                          </div>
-                                          {s.overtimeStatus === "ACCEPTED_BY_PHARMACIST" ? (
-                                            <div className="muted" style={{ marginTop: 10 }}>
-                                              Heures sup acceptées par pharmacien.
-                                            </div>
-                                          ) : s.overtimeStatus === "PENDING" && s.overtimeMinutes && s.overtimeMinutes > 0 ? (
-                                            <div style={{ marginTop: 10 }}>
-                                              <div className="muted" style={{ marginBottom: 8 }}>
-                                                Signature pharmacien (PIN 4 chiffres)
-                                              </div>
-                                              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                                                <input
-                                                  className="adminLogsInput"
-                                                  style={{ width: 140 }}
-                                                  value={pharmacistPinsByShiftId[s.id] ?? ""}
-                                                  inputMode="numeric"
-                                                  onChange={(e) => {
-                                                    const clean = e.target.value.replace(/\D/g, "").slice(0, 4);
-                                                    setPharmacistPinsByShiftId((prev) => ({ ...prev, [s.id]: clean }));
-                                                  }}
-                                                  placeholder="PIN"
-                                                  disabled={pharmacistBusyShiftId === s.id}
-                                                />
+                                            {s.overtimeStatus === "PENDING" ? (
+                                              <>
                                                 <button
                                                   type="button"
                                                   className="btnSmall okBtn"
-                                                  disabled={pharmacistBusyShiftId === s.id}
+                                                  disabled={
+                                                    s.overtimeStatus !== "PENDING" ||
+                                                    reviewBusyId === `OVERTIME:ACCEPT:${s.id}`
+                                                  }
                                                   onClick={(ev) => {
                                                     ev.stopPropagation();
-                                                    pharmacistSignOvertime(s.id);
+                                                    reviewShift(s.id, "OVERTIME", "ACCEPT");
                                                   }}
                                                 >
-                                                  Signer pharmacien
+                                                  Heures sup vérifiées
                                                 </button>
-                                              </div>
+                                                <button
+                                                  type="button"
+                                                  className="btnSmall dangerBtn"
+                                                  disabled={
+                                                    s.overtimeStatus !== "PENDING" ||
+                                                    reviewBusyId === `OVERTIME:REJECT:${s.id}`
+                                                  }
+                                                  onClick={(ev) => {
+                                                    ev.stopPropagation();
+                                                    reviewShift(s.id, "OVERTIME", "REJECT");
+                                                  }}
+                                                >
+                                                  Heures sup rejetées
+                                                </button>
+                                              </>
+                                            ) : null}
+                                          </div>
+                                          {s.overtimeStatus === "ACCEPTED_BY_PHARMACIST" ? (
+                                            <div className="muted" style={{ marginTop: 10 }}>
+                                              Temps Supplementaire signer par:{" "}
+                                              {employeeNameById(s.pharmacistEmployeeId) ?? "—"}
                                             </div>
                                           ) : (
                                             <div className="muted" style={{ marginTop: 10 }}>
@@ -796,6 +721,7 @@ export default function AdminLogsClient() {
           )}
         </div>
       </section>
+
     </main>
   );
 }

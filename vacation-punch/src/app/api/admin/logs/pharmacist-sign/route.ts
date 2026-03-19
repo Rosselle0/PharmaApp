@@ -56,7 +56,7 @@ export async function POST(req: Request) {
       },
     });
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, pharmacistName: `${pharmacist.firstName} ${pharmacist.lastName}`.trim() });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message ?? "Pharmacien sign failed" }, { status: 500 });
   }

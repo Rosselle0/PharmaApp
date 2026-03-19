@@ -39,6 +39,11 @@ type PunchStatus = {
   fetchedAt: string;
 };
 
+type OvertimePrompt = {
+  shiftId: string;
+  overtimeMinutes: number;
+};
+
 const PIN_LEN = 4;
 
 type KioskClientProps = {
@@ -78,6 +83,12 @@ export default function KioskClient({
   const [adminPassword, setAdminPassword] = useState("");
   const [adminError, setAdminError] = useState<string | null>(null);
   const [adminLoading, setAdminLoading] = useState(false);
+
+  const [overtimePrompt, setOvertimePrompt] = useState<OvertimePrompt | null>(null);
+  const [overtimePharmPin, setOvertimePharmPin] = useState("");
+  const [overtimePharmBusy, setOvertimePharmBusy] = useState(false);
+  const [overtimePharmName, setOvertimePharmName] = useState<string | null>(null);
+  const [overtimeError, setOvertimeError] = useState<string | null>(null);
 
   const [actifsOverlayOpen, setActifsOverlayOpen] = useState(false);
 
@@ -232,10 +243,67 @@ export default function KioskClient({
         return;
       }
       showToast(`✅ ${type}`);
+
+      if (type === "CLOCK_OUT" && data?.overtime?.shiftId && Number(data?.overtime?.overtimeMinutes ?? 0) > 0) {
+        setOvertimePharmPin("");
+        setOvertimePharmName(null);
+        setOvertimeError(null);
+        setOvertimePrompt({
+          shiftId: String(data.overtime.shiftId),
+          overtimeMinutes: Number(data.overtime.overtimeMinutes ?? 0),
+        });
+      }
+
       await Promise.all([loadActifs(), loadPunchState()]);
     } catch {
       showToast("Erreur réseau punch.");
     }
+  }
+
+  async function signOvertimeAsPharmacien() {
+    if (!overtimePrompt) return;
+    const pinClean = overtimePharmPin.replace(/\D/g, "").slice(0, PIN_LEN);
+    if (!/^\d{4}$/.test(pinClean)) {
+      setOvertimeError("PIN pharmacien requis (4 chiffres).");
+      return;
+    }
+    if (overtimePharmBusy) return;
+
+    setOvertimePharmBusy(true);
+    setOvertimeError(null);
+    try {
+      const res = await fetch(`/api/admin/logs/pharmacist-sign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ shiftId: overtimePrompt.shiftId, pin: pinClean }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const t = await res.text().catch(() => "");
+        setOvertimeError(t || "Signature pharmacien échouée.");
+        return;
+      }
+      const json = (await res.json().catch(() => null)) as { ok?: boolean; pharmacistName?: string } | null;
+      setOvertimePharmName(json?.pharmacistName ?? null);
+      showToast("Temps supplémentaire signé par le pharmacien.");
+      // Close after short success so the employee sees the confirmation.
+      window.setTimeout(() => {
+        setOvertimePrompt(null);
+        setOvertimePharmPin("");
+      }, 900);
+    } catch {
+      setOvertimeError("Erreur réseau (signature pharmacien).");
+    } finally {
+      setOvertimePharmBusy(false);
+    }
+  }
+
+  function dismissOvertimePrompt() {
+    setOvertimePrompt(null);
+    setOvertimePharmPin("");
+    setOvertimePharmName(null);
+    setOvertimeError(null);
+    setOvertimePharmBusy(false);
   }
 
   useEffect(() => {
@@ -891,6 +959,86 @@ export default function KioskClient({
             >
               Annuler
             </button>
+          </div>
+        </div>
+      )}
+
+      {overtimePrompt && (
+        <div
+          className="modal-overlay"
+          onMouseDown={(e) => e.target === e.currentTarget && dismissOvertimePrompt()}
+        >
+          <div className="modal-card">
+            <div className="modal-head">
+              <h2 className="modal-title">Temps supplémentaire</h2>
+              <button
+                className="ghost"
+                type="button"
+                onClick={dismissOvertimePrompt}
+                disabled={overtimePharmBusy}
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="modal-sub">
+              Temps supplémentaire détecté : <b>{fmtMinutes(overtimePrompt.overtimeMinutes)}</b>
+            </p>
+
+            {overtimePharmName ? (
+              <>
+                <div className="alert" style={{ background: "rgba(21,195,154,0.14)", borderColor: "rgba(21,195,154,0.25)" }}>
+                  <span className="alert-dot" style={{ background: "rgba(21,195,154,0.92)" }} />
+                  <p className="alert-text" style={{ margin: 0 }}>
+                    Temps Supplementaire signer par: <b>{overtimePharmName}</b>
+                  </p>
+                </div>
+                <button className="primary" type="button" onClick={dismissOvertimePrompt} style={{ marginTop: 12 }}>
+                  OK
+                </button>
+              </>
+            ) : (
+              <>
+                <label className="label">PIN pharmacien (4 chiffres)</label>
+                <input
+                  className="input"
+                  value={overtimePharmPin}
+                  inputMode="numeric"
+                  onChange={(e) => setOvertimePharmPin(e.target.value.replace(/\D/g, "").slice(0, PIN_LEN))}
+                  placeholder="PIN"
+                  disabled={overtimePharmBusy}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") signOvertimeAsPharmacien();
+                  }}
+                />
+
+                {overtimeError && (
+                  <div className="alert" style={{ marginTop: 12, borderColor: "rgba(255,77,94,0.22)" }}>
+                    <span className="alert-dot" />
+                    <p className="alert-text" style={{ margin: 0 }}>{overtimeError}</p>
+                  </div>
+                )}
+
+                <button
+                  className="primary"
+                  type="button"
+                  onClick={signOvertimeAsPharmacien}
+                  disabled={overtimePharmBusy}
+                  style={{ marginTop: 12 }}
+                >
+                  {overtimePharmBusy ? "..." : "Signer pharmacien"}
+                </button>
+                <button
+                  className="secondary"
+                  type="button"
+                  onClick={dismissOvertimePrompt}
+                  disabled={overtimePharmBusy}
+                  style={{ marginTop: 10, width: "100%" }}
+                >
+                  Pas de Pharmacien signature
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

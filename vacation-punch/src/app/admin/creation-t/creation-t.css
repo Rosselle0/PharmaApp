@@ -422,6 +422,35 @@
   .ctGrid2{ grid-template-columns: 1fr; }
   .ctLine{ grid-template-columns: 1fr; }
 }
+
+@media (max-width: 720px){
+  .ctShell{
+    padding: 18px 14px 40px;
+  }
+
+  .ctTop{
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .ctTopActions{
+    width: 100%;
+  }
+
+  .ctTopActions .ctBtn{
+    width: 100%;
+    text-align: center;
+  }
+
+  .ctH1{
+    font-size: 22px;
+    line-height: 1.1;
+  }
+
+  .ctGrid{
+    gap: 12px;
+  }
+}
 .ctTextarea {
   width: 100%;
   padding: 12px;

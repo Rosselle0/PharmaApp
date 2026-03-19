@@ -680,5 +680,108 @@
   .adminLogsHover {
     display: none;
   }
+
+  .adminLogsHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .adminLogsTitle {
+    font-size: 24px;
+    line-height: 1.1;
+  }
+
+  .adminLogsSub {
+    font-size: 13px;
+  }
+
+  .adminLogsControls {
+    align-items: flex-start;
+    width: 100%;
+  }
+
+  .adminLogsDateRow {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .adminLogsSide {
+    padding: 10px;
+  }
+
+  .adminLogsTable {
+    min-width: 0;
+  }
+
+  .adminLogsTable th,
+  .adminLogsTable td {
+    padding: 10px 8px;
+  }
+}
+
+/* Pharmacien signature modal (overtime pending) */
+.adminLogsModalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.adminLogsModal {
+  width: 520px;
+  max-width: 100%;
+  border-radius: 18px;
+  border: 1px solid var(--log-border);
+  background: rgba(10, 16, 32, 0.35);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.6);
+  color: var(--log-ink);
+  padding: 16px;
+}
+
+[data-theme="dark"] .adminLogsModal {
+  background: rgba(10, 16, 32, 0.55);
+}
+
+.adminLogsModalTitle {
+  font-weight: 950;
+  letter-spacing: -0.01em;
+  font-size: 18px;
+  margin-bottom: 6px;
+}
+
+.adminLogsModalHint {
+  color: var(--log-muted);
+  font-weight: 900;
+  margin-bottom: 14px;
+}
+
+.adminLogsModalBody {
+  display: grid;
+  gap: 12px;
+}
+
+.adminLogsModalRow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.adminLogsModalGhostBtn {
+  width: 100%;
+}
+
+@media (max-width: 720px) {
+  .adminLogsModal {
+    width: 100%;
+    padding: 14px;
+  }
 }
 

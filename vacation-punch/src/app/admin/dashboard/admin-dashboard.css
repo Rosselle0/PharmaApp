@@ -79,6 +79,32 @@
   gap: 12px;
 }
 
+@media (max-width: 980px) {
+  .adminDash {
+    padding: 14px;
+  }
+
+  .adminDashHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .adminDashTitle {
+    font-size: 24px;
+  }
+
+  .adminDashSub {
+    font-size: 13px;
+  }
+
+  .adminGrid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
+
 .adminCard {
   text-align: left;
   border: 1px solid var(--admin-border, rgba(20,40,80,.14));

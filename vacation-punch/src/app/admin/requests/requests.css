@@ -291,5 +291,5 @@
   .requestsScope .row { justify-content: flex-start; }
   .requestsScope .btn { min-width: 140px; }
   .requestsScope .tableWrap { overflow-x: auto; }
-  .requestsScope .table { min-width: 820px; }
+  .requestsScope .table { min-width: 0 !important; }
 }

@@ -178,7 +178,8 @@
   }
 
   .scheduleScope .table {
-    min-width: 580px !important;
+    min-width: 0 !important;
+    width: 100%;
     table-layout: fixed;
   }
 
@@ -194,13 +195,19 @@
   }
 
   .scheduleScope .nameCell {
-    min-width: 85px;
-    width: 85px;
-    max-width: 85px;
+    min-width: 70px;
+    width: 70px;
+    max-width: 70px;
     font-size: 12px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  /* prevent shell from forcing a wide layout on mobile */
+  .scheduleScope .shell {
+    min-width: 0 !important;
+    max-width: 100% !important;
   }
 
   /* Slightly tighter top on mobile, still readable */
