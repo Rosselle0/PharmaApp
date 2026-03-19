@@ -2,13 +2,6 @@
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 
-const ALLOWED_TERMINAL_IPS = new Set(
-  (process.env.ALLOWED_TERMINAL_IPS || "")
-    .split(",")
-    .map((x) => x.trim())
-    .filter(Boolean)
-);
-
 function normalizeIP(ip: string) {
   const value = ip.trim();
 
@@ -22,6 +15,19 @@ function normalizeIP(ip: string) {
 
   return first;
 }
+
+function normalizeAllowedIp(ip: string) {
+  const v = String(ip ?? "").trim();
+  if (!v) return null;
+  return normalizeIP(v) || null;
+}
+
+const ALLOWED_TERMINAL_IPS = new Set(
+  (process.env.ALLOWED_TERMINAL_IPS || "")
+    .split(",")
+    .map((x) => normalizeAllowedIp(x))
+    .filter((x): x is string => Boolean(x))
+);
 
 function getClientIP(req: Request) {
   const xf = req.headers.get("x-forwarded-for");
@@ -40,6 +46,7 @@ export function getTerminalIpCheck(req: Request) {
     ip,
     allowed,
     allowedIpsCount: ALLOWED_TERMINAL_IPS.size,
+    allowedIps: Array.from(ALLOWED_TERMINAL_IPS.values()),
   };
 }
 
