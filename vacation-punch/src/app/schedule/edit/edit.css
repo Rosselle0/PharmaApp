@@ -18,6 +18,13 @@
   box-shadow: 0 30px 80px rgba(0,0,0,.6);
 }
 
+/* Création horaire — modal plus étroit, moins de vide */
+.scheduleScope .modal.scheduleEditModal {
+  width: min(560px, 94vw);
+  padding: 14px 16px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
 
 .scheduleScope .modalHead{
   display: flex;
@@ -60,6 +67,15 @@
   padding: 14px 16px 16px;
   display: grid;
   gap: 12px;
+}
+
+.scheduleScope .modal.scheduleEditModal .form {
+  padding: 8px 2px 4px;
+  gap: 10px;
+}
+
+.scheduleScope .modal.scheduleEditModal .modalHead {
+  padding: 10px 4px 10px;
 }
 
 .scheduleScope .grid2{
@@ -143,6 +159,137 @@
   gap: 10px;
   flex-wrap: wrap;
   margin-top: 4px;
+}
+
+.scheduleScope .timeScrollGrid {
+  align-items: start;
+}
+
+.scheduleScope .timeScrollGrid > .field {
+  min-width: 0;
+}
+
+.scheduleScope .timePickerField label {
+  margin-bottom: 4px;
+}
+
+.scheduleScope .timePickerColumn {
+  border-radius: 14px;
+  padding: 8px 8px 6px;
+  border: 1px solid transparent;
+  transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+}
+
+.scheduleScope .timePickerColumn.isActive {
+  border-color: rgba(59, 130, 246, 0.35);
+  background: rgba(59, 130, 246, 0.08);
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.12);
+}
+
+.scheduleScope .timeReadoutInput {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 8px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(0, 0, 0, 0.35);
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 18px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  padding: 0 12px;
+  outline: none;
+  transition: border-color 0.14s ease, box-shadow 0.14s ease;
+}
+
+.scheduleScope .timeReadoutInput::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+
+.scheduleScope .timeReadoutInput:focus {
+  border-color: rgba(120, 190, 255, 0.45);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
+}
+
+.scheduleScope .timeReadoutInput:disabled {
+  opacity: 0.55;
+}
+
+.scheduleScope .timePickerHint {
+  font-size: 11px;
+  line-height: 1.45;
+  margin-top: -2px;
+}
+
+/* Outer: fixed viewport, only this scrolls (inner track stacks in a column). */
+.scheduleScope .timeScrollViewport {
+  box-sizing: border-box;
+  height: 108px;
+  max-height: 108px;
+  min-height: 108px;
+  width: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: y mandatory;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.22);
+  scrollbar-width: thin;
+  position: relative;
+  isolation: isolate;
+}
+
+/* Inner: explicit column so time rows never collapse/overlap (Tailwind + flex parents). */
+.scheduleScope .timeScrollTrack {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  width: 100%;
+  min-height: min-content;
+}
+
+.scheduleScope .timeScrollItem {
+  scroll-snap-align: center;
+  flex: 0 0 32px;
+  height: 32px;
+  min-height: 32px;
+  max-height: 32px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-weight: 800;
+  font-size: 13px;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+  transition: color 0.12s ease, transform 0.12s ease;
+}
+
+.scheduleScope .timeScrollItem:hover {
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.scheduleScope .timeScrollItem.sel {
+  color: #fff;
+  font-weight: 950;
+  transform: scale(1.03);
+}
+
+.scheduleScope .timeScrollPad {
+  flex: 0 0 auto;
+  flex-shrink: 0;
 }
 
 @media (max-width: 720px){

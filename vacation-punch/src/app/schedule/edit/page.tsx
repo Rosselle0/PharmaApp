@@ -2,6 +2,9 @@
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+import "../schedule.css";
+import "./edit.css";
+
 import { unstable_noStore as noStore } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";

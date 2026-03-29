@@ -404,7 +404,7 @@ body{
   grid-template-columns: 1fr 1fr;
 }
 
-.m-field label {
+.m-field label:not(.m-check) {
   display: block;
   color: var(--muted);
   font-size: 12px;
@@ -412,7 +412,7 @@ body{
   font-weight: 600;
 }
 
-.m-field input,
+.m-field input:not([type="checkbox"]),
 .m-field select {
   width: 100%;
   border-radius: 12px;
@@ -424,12 +424,22 @@ body{
   transition: border-color var(--speed) ease, box-shadow var(--speed) ease;
 }
 
-[data-theme="dark"] .m-field input,
+.m-field input[type="checkbox"] {
+  width: 1.125rem;
+  height: 1.125rem;
+  padding: 0;
+  margin: 0;
+  flex-shrink: 0;
+  border-radius: 4px;
+  accent-color: var(--blue);
+}
+
+[data-theme="dark"] .m-field input:not([type="checkbox"]),
 [data-theme="dark"] .m-field select {
   background: rgba(255,255,255,0.06);
 }
 
-.m-field input:focus,
+.m-field input:not([type="checkbox"]):focus,
 .m-field select:focus {
   border-color: rgba(11,91,211,.55);
   box-shadow: 0 0 0 3px var(--blueSoft);
@@ -443,8 +453,22 @@ body{
   color: var(--muted);
 }
 
+/* Checkbox row: must beat .m-field label { display:block } so input + text stay inline */
+.m-field label.m-check {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 0;
+  margin-top: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+}
+
 .m-check {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 10px;
   color: var(--text);

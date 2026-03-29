@@ -10,6 +10,7 @@ type Employee = {
   lastName: string;
   employeeCode: string | null;
   department: Department;
+  punchKioskLocked?: boolean;
 };
 
 type PunchType = "CLOCK_IN" | "CLOCK_OUT" | "BREAK_START" | "BREAK_END" | "LUNCH_START" | "LUNCH_END";
@@ -250,6 +251,31 @@ export default function AdminLogsClient() {
 
   const [reviewBusyId, setReviewBusyId] = useState<string | null>(null);
   const [manualOvertimeEndByShiftId, setManualOvertimeEndByShiftId] = useState<Record<string, string>>({});
+  const [forceOutAtByShiftId, setForceOutAtByShiftId] = useState<Record<string, string>>({});
+  const [punchAtDraftById, setPunchAtDraftById] = useState<Record<string, string>>({});
+  const [punchCorrectionBusy, setPunchCorrectionBusy] = useState<string | null>(null);
+  const [punchUnlockBusyId, setPunchUnlockBusyId] = useState<string | null>(null);
+
+  function toDatetimeLocalValue(iso: string) {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    const h = String(d.getHours()).padStart(2, "0");
+    const min = String(d.getMinutes()).padStart(2, "0");
+    return `${y}-${m}-${day}T${h}:${min}`;
+  }
+
+  async function reloadLogs() {
+    const res = await fetch(`/api/admin/logs?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, {
+      cache: "no-store",
+      credentials: "include",
+    });
+    const json = (await res.json().catch(() => null)) as AdminLogsResponse | { error: string };
+    if ("ok" in json) setData(json as AdminLogsResponse);
+  }
+
   async function reviewShift(
     shiftId: string,
     kind: "LATE" | "OVERTIME",
@@ -266,15 +292,98 @@ export default function AdminLogsClient() {
         credentials: "include",
       });
       // fire and forget: just refresh to reflect any audit list later
-      const res = await fetch(`/api/admin/logs?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, { cache: "no-store", credentials: "include" });
-      const json = (await res.json().catch(() => null)) as AdminLogsResponse | { error: string };
-      if ("ok" in json) setData(json as AdminLogsResponse);
+      await reloadLogs();
     } catch {
       // ignore for now
     } finally {
       setReviewBusyId(null);
     }
   }
+
+  async function forceClockOut(shiftId: string) {
+    if (punchCorrectionBusy) return;
+    setPunchCorrectionBusy(`force:${shiftId}`);
+    try {
+      const raw = forceOutAtByShiftId[shiftId]?.trim();
+      const res = await fetch("/api/admin/logs/punch-correction", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          action: "FORCE_CLOCK_OUT",
+          shiftId,
+          ...(raw ? { atISO: new Date(raw).toISOString() } : {}),
+        }),
+      });
+      const j = (await res.json().catch(() => null)) as { ok?: boolean; error?: string };
+      if (!res.ok || !j?.ok) {
+        window.alert(j?.error ?? "Impossible d’enregistrer la sortie.");
+        return;
+      }
+      await reloadLogs();
+    } finally {
+      setPunchCorrectionBusy(null);
+    }
+  }
+
+  async function unlockPunchKiosk(employeeId: string) {
+    if (punchUnlockBusyId) return;
+    setPunchUnlockBusyId(employeeId);
+    try {
+      const res = await fetch("/api/admin/punch-unlock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ employeeId }),
+      });
+      const j = (await res.json().catch(() => null)) as { ok?: boolean; error?: string };
+      if (!res.ok || !j?.ok) {
+        window.alert(j?.error ?? "Déverrouillage impossible.");
+        return;
+      }
+      await reloadLogs();
+    } finally {
+      setPunchUnlockBusyId(null);
+    }
+  }
+
+  async function updatePunchAt(punchEventId: string) {
+    if (punchCorrectionBusy) return;
+    const draft = punchAtDraftById[punchEventId]?.trim();
+    if (!draft) return;
+    setPunchCorrectionBusy(`upd:${punchEventId}`);
+    try {
+      const res = await fetch("/api/admin/logs/punch-correction", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          action: "UPDATE_PUNCH_AT",
+          punchEventId,
+          atISO: new Date(draft).toISOString(),
+        }),
+      });
+      const j = (await res.json().catch(() => null)) as { ok?: boolean; error?: string };
+      if (!res.ok || !j?.ok) {
+        window.alert(j?.error ?? "Impossible de modifier l’heure.");
+        return;
+      }
+      await reloadLogs();
+    } finally {
+      setPunchCorrectionBusy(null);
+    }
+  }
+
+  useEffect(() => {
+    if (!expandedShiftId || !data) return;
+    const s = data.shifts.find((x) => x.id === expandedShiftId);
+    if (!s?.missingClockOut) return;
+    if (!s.punches.some((p) => p.type === "CLOCK_IN")) return;
+    setForceOutAtByShiftId((prev) => {
+      if (prev[expandedShiftId]) return prev;
+      return { ...prev, [expandedShiftId]: toDatetimeLocalValue(new Date().toISOString()) };
+    });
+  }, [expandedShiftId, data]);
 
   function employeeNameById(id: string | null | undefined) {
     if (!id) return null;
@@ -391,7 +500,28 @@ export default function AdminLogsClient() {
                     <span className="stat">{sCount} quarts</span>
                     <span className={`badge ${lateCount ? "warn" : ""}`}>{lateCount} retards</span>
                     <span className={`badge ${otCount ? "ok" : ""}`}>{otCount} heures sup</span>
+                    {e.punchKioskLocked ? (
+                      <span
+                        className="badge punchLockBadge"
+                        title="Kiosque verrouillé après sortie (jusqu’au lendemain ou déverrouillage manuel)"
+                      >
+                        Kiosque verr.
+                      </span>
+                    ) : null}
                   </div>
+                  {e.punchKioskLocked ? (
+                    <button
+                      type="button"
+                      className="adminLogsUnlockInlineBtn"
+                      disabled={punchUnlockBusyId === e.id}
+                      onClick={(ev) => {
+                        ev.stopPropagation();
+                        void unlockPunchKiosk(e.id);
+                      }}
+                    >
+                      {punchUnlockBusyId === e.id ? "…" : "Déverrouiller pointage"}
+                    </button>
+                  ) : null}
                 </div>
               );
             })}
@@ -430,6 +560,22 @@ export default function AdminLogsClient() {
                     </div>
                     <div className="adminLogsDetailsSub">Cliquez un quart pour ouvrir le détail des pointages.</div>
                   </div>
+
+                  {selectedEmployee?.punchKioskLocked ? (
+                    <div className="adminLogsPunchLockBar">
+                      <span className="adminLogsPunchLockText">
+                        Pointage kiosque verrouillé (sortie enregistrée) jusqu’au lendemain. Déverrouiller pour un 2e quart le même jour ou cas exceptionnel.
+                      </span>
+                      <button
+                        type="button"
+                        className="btnSmall okBtn adminLogsUnlockPunchBtn"
+                        disabled={punchUnlockBusyId === selectedEmployee.id}
+                        onClick={() => void unlockPunchKiosk(selectedEmployee.id)}
+                      >
+                        {punchUnlockBusyId === selectedEmployee.id ? "…" : "Déverrouiller le pointage"}
+                      </button>
+                    </div>
+                  ) : null}
 
                   <div className="adminLogsTableWrap">
                     <table className="adminLogsTable">
@@ -519,6 +665,35 @@ export default function AdminLogsClient() {
                                       <div className="expandGrid">
                                         <div>
                                           <div className="expandTitle">Événements de pointage</div>
+                                          {s.missingClockOut && s.punches.some((p) => p.type === "CLOCK_IN") ? (
+                                            <div className="adminForceOutBox" onClick={(ev) => ev.stopPropagation()}>
+                                              <div className="adminForceOutTitle">Sortie oubliée</div>
+                                              <p className="adminForceOutHint">
+                                                Enregistrer une sortie manuelle (correction patron). Laissez l’heure par défaut ou ajustez.
+                                              </p>
+                                              <div className="adminForceOutRow">
+                                                <input
+                                                  className="manualOvertimeInput adminPunchDatetime"
+                                                  type="datetime-local"
+                                                  value={forceOutAtByShiftId[s.id] ?? toDatetimeLocalValue(new Date().toISOString())}
+                                                  onChange={(e) =>
+                                                    setForceOutAtByShiftId((prev) => ({ ...prev, [s.id]: e.target.value }))
+                                                  }
+                                                />
+                                                <button
+                                                  type="button"
+                                                  className="btnSmall okBtn"
+                                                  disabled={punchCorrectionBusy === `force:${s.id}`}
+                                                  onClick={(ev) => {
+                                                    ev.stopPropagation();
+                                                    void forceClockOut(s.id);
+                                                  }}
+                                                >
+                                                  {punchCorrectionBusy === `force:${s.id}` ? "…" : "Pointer la sortie"}
+                                                </button>
+                                              </div>
+                                            </div>
+                                          ) : null}
                                           <div className="expandList">
                                             {s.punches.length === 0 ? (
                                               <div className="muted">Aucun punch lié au shift.</div>
@@ -526,19 +701,55 @@ export default function AdminLogsClient() {
                                               // Newest punch on top.
                                               [...s.punches]
                                                 .reverse()
-                                                .map((p) => (
-                                                  <div key={p.id} className="punchItem">
-                                                    <span className={`punchType type-${p.type}`}>{punchTypeLabel(p.type)}</span>
-                                                    <span className="punchAt">
-                                                      {new Date(p.at).toLocaleTimeString("fr-CA", {
-                                                        hour: "2-digit",
-                                                        minute: "2-digit",
-                                                        hour12: false,
-                                                      })}
-                                                    </span>
-                                                    <span className="punchSrc">{punchSourceLabel(p.source)}</span>
-                                                  </div>
-                                                ))
+                                                .map((p) => {
+                                                  const canEditTime = p.type === "CLOCK_IN" || p.type === "CLOCK_OUT";
+                                                  return (
+                                                    <div key={p.id} className="punchItem punchItemEditable">
+                                                      <div className="punchItemTop">
+                                                        <span className={`punchType type-${p.type}`}>
+                                                          {punchTypeLabel(p.type)}
+                                                        </span>
+                                                        <span className="punchSrc">{punchSourceLabel(p.source)}</span>
+                                                      </div>
+                                                      {canEditTime ? (
+                                                        <div className="punchEditRow" onClick={(ev) => ev.stopPropagation()}>
+                                                          <input
+                                                            className="manualOvertimeInput adminPunchDatetime"
+                                                            type="datetime-local"
+                                                            value={
+                                                              punchAtDraftById[p.id] ?? toDatetimeLocalValue(p.at)
+                                                            }
+                                                            onChange={(e) =>
+                                                              setPunchAtDraftById((prev) => ({
+                                                                ...prev,
+                                                                [p.id]: e.target.value,
+                                                              }))
+                                                            }
+                                                          />
+                                                          <button
+                                                            type="button"
+                                                            className="btnSmall secondaryBtn"
+                                                            disabled={punchCorrectionBusy === `upd:${p.id}`}
+                                                            onClick={(ev) => {
+                                                              ev.stopPropagation();
+                                                              void updatePunchAt(p.id);
+                                                            }}
+                                                          >
+                                                            {punchCorrectionBusy === `upd:${p.id}` ? "…" : "Appliquer"}
+                                                          </button>
+                                                        </div>
+                                                      ) : (
+                                                        <span className="punchAt">
+                                                          {new Date(p.at).toLocaleTimeString("fr-CA", {
+                                                            hour: "2-digit",
+                                                            minute: "2-digit",
+                                                            hour12: false,
+                                                          })}
+                                                        </span>
+                                                      )}
+                                                    </div>
+                                                  );
+                                                })
                                             )}
                                           </div>
                                         </div>

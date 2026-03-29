@@ -6,7 +6,6 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
 }
 
 model Company {
@@ -53,6 +52,8 @@ model Employee {
   department Department @default(FLOOR) // <-- GARDE ÇA (Option A)
 
   paidBreak30 Boolean  @default(false)
+  /// Après une sortie au kiosque, pointages bloqués jusqu’au lendemain (minuit APP_TZ) ou déverrouillage patron (Journaux).
+  punchKioskLocked Boolean @default(false)
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

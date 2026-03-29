@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { expireStalePunchKioskLocksForEmployeeIds } from "@/lib/punch/kioskLockDay";
 import { requirePrivilegedOrRedirect } from "@/lib/privilgedAuth";
 import { ShiftStatus } from "@prisma/client";
 
@@ -53,7 +54,7 @@ export async function GET(req: Request) {
     // Keep response scoped to this company (admin can still see multi-company via UI, but API stays strict).
     const companyId = auth.companyId;
 
-    const employees = await prisma.employee.findMany({
+    const employeesRaw = await prisma.employee.findMany({
       where: { companyId, isActive: true },
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
       select: {
@@ -62,8 +63,17 @@ export async function GET(req: Request) {
         lastName: true,
         employeeCode: true,
         department: true,
+        punchKioskLocked: true,
       },
     });
+
+    const clearedLocks = await expireStalePunchKioskLocksForEmployeeIds(
+      employeesRaw.filter((e) => e.punchKioskLocked).map((e) => e.id)
+    );
+    const employees = employeesRaw.map((e) => ({
+      ...e,
+      punchKioskLocked: clearedLocks.has(e.id) ? false : e.punchKioskLocked,
+    }));
 
     const employeeIds = employees.map((e) => e.id);
 

@@ -48,8 +48,7 @@ if (process.env.NODE_ENV === "production") {
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
-// Runtime app queries should always use DATABASE_URL (pooled URL on Vercel).
-// DIRECT_URL is for Prisma Migrate/Studio via schema `directUrl`, not for runtime.
+// Runtime app queries use DATABASE_URL (pooled URL on Vercel when applicable).
 const effectiveDbUrl = process.env.DATABASE_URL;
 
 // Cache PrismaClient on the global object in *all* environments.
@@ -63,3 +62,19 @@ if (!globalForPrisma.prisma) {
 }
 
 export const prisma = globalForPrisma.prisma;
+
+/** User-facing hint when Prisma throws after a schema change (stale client singleton or missing migration). */
+export function punchPrismaErrorUserMessage(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (
+    msg.includes("Unknown field") ||
+    /column .* does not exist/i.test(msg) ||
+    msg.toLowerCase().includes("punchkiosklocked")
+  ) {
+    return "Mise à jour requise : arrêtez le serveur (Ctrl+C), exécutez « npx prisma generate » puis « npx prisma migrate deploy », et redémarrez.";
+  }
+  if (process.env.NODE_ENV === "development") {
+    return `Erreur serveur : ${msg}`;
+  }
+  return "Erreur serveur (pointage).";
+}

@@ -2,7 +2,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma, punchPrismaErrorUserMessage } from "@/lib/prisma";
+import { resolvePunchKioskLocked } from "@/lib/punch/kioskLockDay";
 import { requireEmployeeFromKioskOrCode, requireEmployeeFromKioskOrCodeValue } from "@/lib/shiftChange/auth";
 
 const PunchTypes = [
@@ -106,33 +107,40 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, error: auth.error }, { status: 401 });
   }
 
-  const employee = await prisma.employee.findUnique({
-    where: { id: auth.employeeId },
-    select: { id: true, firstName: true, lastName: true, employeeCode: true },
-  });
+  try {
+    const employee = await prisma.employee.findUnique({
+      where: { id: auth.employeeId },
+      select: { id: true, firstName: true, lastName: true, employeeCode: true, punchKioskLocked: true },
+    });
 
-  if (!employee) {
-    return NextResponse.json({ ok: false, error: "Employé introuvable" }, { status: 404 });
+    if (!employee) {
+      return NextResponse.json({ ok: false, error: "Employé introuvable" }, { status: 404 });
+    }
+
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // last 7 days
+    const history = await prisma.punchEvent.findMany({
+      where: { employeeId: auth.employeeId, at: { gte: since } },
+      orderBy: { at: "asc" },
+      select: { type: true, at: true },
+    });
+
+    const status = getShiftStatus(history as Array<{ type: PunchType; at: Date }>);
+    const now = new Date();
+    const punchKioskLocked = await resolvePunchKioskLocked(employee.id, Boolean(employee.punchKioskLocked), now);
+
+    return NextResponse.json({
+      ok: true,
+      punchKioskLocked,
+      employee: {
+        id: employee.id,
+        name: `${employee.firstName} ${employee.lastName}`.trim(),
+      },
+      ...status,
+      fetchedAt: now.toISOString(),
+    });
+  } catch (e) {
+    return NextResponse.json({ ok: false, error: punchPrismaErrorUserMessage(e) }, { status: 500 });
   }
-
-  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // last 7 days
-  const history = await prisma.punchEvent.findMany({
-    where: { employeeId: auth.employeeId, at: { gte: since } },
-    orderBy: { at: "asc" },
-    select: { type: true, at: true },
-  });
-
-  const status = getShiftStatus(history as Array<{ type: PunchType; at: Date }>);
-
-  return NextResponse.json({
-    ok: true,
-    employee: {
-      id: employee.id,
-      name: `${employee.firstName} ${employee.lastName}`.trim(),
-    },
-    ...status,
-    fetchedAt: new Date().toISOString(),
-  });
 }
 
 export async function POST(req: Request) {
@@ -144,31 +152,38 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: auth.error }, { status: 401 });
   }
 
-  const employee = await prisma.employee.findUnique({
-    where: { id: auth.employeeId },
-    select: { id: true, firstName: true, lastName: true, employeeCode: true },
-  });
+  try {
+    const employee = await prisma.employee.findUnique({
+      where: { id: auth.employeeId },
+      select: { id: true, firstName: true, lastName: true, employeeCode: true, punchKioskLocked: true },
+    });
 
-  if (!employee) {
-    return NextResponse.json({ ok: false, error: "Employé introuvable" }, { status: 404 });
+    if (!employee) {
+      return NextResponse.json({ ok: false, error: "Employé introuvable" }, { status: 404 });
+    }
+
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // last 7 days
+    const history = await prisma.punchEvent.findMany({
+      where: { employeeId: auth.employeeId, at: { gte: since } },
+      orderBy: { at: "asc" },
+      select: { type: true, at: true },
+    });
+
+    const status = getShiftStatus(history as Array<{ type: PunchType; at: Date }>);
+    const now = new Date();
+    const punchKioskLocked = await resolvePunchKioskLocked(employee.id, Boolean(employee.punchKioskLocked), now);
+
+    return NextResponse.json({
+      ok: true,
+      punchKioskLocked,
+      employee: {
+        id: employee.id,
+        name: `${employee.firstName} ${employee.lastName}`.trim(),
+      },
+      ...status,
+      fetchedAt: now.toISOString(),
+    });
+  } catch (e) {
+    return NextResponse.json({ ok: false, error: punchPrismaErrorUserMessage(e) }, { status: 500 });
   }
-
-  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // last 7 days
-  const history = await prisma.punchEvent.findMany({
-    where: { employeeId: auth.employeeId, at: { gte: since } },
-    orderBy: { at: "asc" },
-    select: { type: true, at: true },
-  });
-
-  const status = getShiftStatus(history as Array<{ type: PunchType; at: Date }>);
-
-  return NextResponse.json({
-    ok: true,
-    employee: {
-      id: employee.id,
-      name: `${employee.firstName} ${employee.lastName}`.trim(),
-    },
-    ...status,
-    fetchedAt: new Date().toISOString(),
-  });
 }

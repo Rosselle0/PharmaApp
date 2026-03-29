@@ -29,11 +29,10 @@ export default function CreateAccountPage() {
     return (
       firstName.trim().length > 0 &&
       lastName.trim().length > 0 &&
-      email.trim().length > 3 &&
       employeeCode.trim().length >= 4 &&
       !loading
     );
-  }, [firstName, lastName, email, employeeCode, loading]);
+  }, [firstName, lastName, employeeCode, loading]);
 
   async function create() {
     if (!canCreate) return;
@@ -47,7 +46,7 @@ export default function CreateAccountPage() {
         body: JSON.stringify({
           firstName: firstName.trim(),
           lastName: lastName.trim(),
-          email: email.trim().toLowerCase(),
+          ...(email.trim() ? { email: email.trim().toLowerCase() } : {}),
           employeeCode: employeeCode.trim(),
           role,
           department,
@@ -86,17 +85,17 @@ export default function CreateAccountPage() {
 
           <div className="grid">
             <div className="field">
-              <label>Prénom</label>
-              <input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Ex: Tran" />
+              <label>Nom</label>
+              <input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Ex: Tran" />
             </div>
 
             <div className="field">
-              <label>Nom</label>
-              <input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Ex: Vincent" />
+              <label>Prénom</label>
+              <input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Ex: Vincent" />
             </div>
 
             <div className="field span2">
-              <label>Email</label>
+              <label>Email (optionnel)</label>
               <input
                 type="email"
                 value={email}

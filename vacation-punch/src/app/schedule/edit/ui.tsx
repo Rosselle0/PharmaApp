@@ -1,8 +1,214 @@
 "use client";
-import "../schedule.css";
-import "./edit.css";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+
+const TIME_SCROLL_ITEM_H = 32;
+const TIME_SCROLL_VIEW_H = 108;
+const TIME_SCROLL_PAD = (TIME_SCROLL_VIEW_H - TIME_SCROLL_ITEM_H) / 2;
+
+const BUSINESS_TIME_SLOTS: string[] = (() => {
+    const out: string[] = [];
+    for (let m = 8 * 60; m <= 21 * 60; m += 5) {
+        const hh = Math.floor(m / 60);
+        const mm = m % 60;
+        out.push(`${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`);
+    }
+    return out;
+})();
+
+function nearestBusinessSlot(hhmm: string): string {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());
+    if (!m) return "08:00";
+    let h = Number(m[1]);
+    let min = Number(m[2]);
+    if (!Number.isFinite(h) || !Number.isFinite(min)) return "08:00";
+    const total = h * 60 + min;
+    const first = 8 * 60;
+    const last = 21 * 60;
+    const clamped = Math.max(first, Math.min(last, total));
+    const rounded = Math.round((clamped - first) / 5) * 5 + first;
+    const hh = Math.floor(rounded / 60);
+    const mm = rounded % 60;
+    return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+}
+
+/** Minutes part of HH:MM (for digit shortcuts preserving minutes). */
+function minuteFromSlot(hhmm: string) {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());
+    if (!m) return 0;
+    const min = Number(m[2]);
+    return Number.isFinite(min) ? min : 0;
+}
+
+/** Accepts 9, 14, 14:30, 1430, 930, etc. → raw H:MM */
+function parseLooseTime(raw: string): string | null {
+    const s = raw.trim();
+    if (!s) return null;
+    if (/^\d{1,2}:\d{1,2}$/.test(s)) {
+        const [a, b] = s.split(":");
+        const h = Number(a);
+        const mm = Number(b);
+        if (!Number.isFinite(h) || !Number.isFinite(mm)) return null;
+        return `${h}:${String(mm).padStart(2, "0")}`;
+    }
+    const digits = s.replace(/\D/g, "");
+    if (!digits) return null;
+    if (digits.length === 1) return `${Number(digits)}:00`;
+    if (digits.length === 2) return `${Number(digits)}:00`;
+    if (digits.length === 3) {
+        const h = Number(digits[0]);
+        const mm = Number(digits.slice(1));
+        if (!Number.isFinite(h) || !Number.isFinite(mm)) return null;
+        return `${h}:${String(mm).padStart(2, "0")}`;
+    }
+    if (digits.length >= 4) {
+        const h = Number(digits.slice(0, 2));
+        const mm = Number(digits.slice(2, 4));
+        if (!Number.isFinite(h) || !Number.isFinite(mm)) return null;
+        return `${h}:${String(mm).padStart(2, "0")}`;
+    }
+    return null;
+}
+
+function TimeScrollColumn({
+    label,
+    value,
+    onChange,
+    disabled,
+    active,
+    columnId,
+    isActiveColumn,
+    onColumnActivate,
+}: {
+    label: string;
+    value: string;
+    onChange: (hhmm: string) => void;
+    disabled?: boolean;
+    active: boolean;
+    columnId: "start" | "end";
+    isActiveColumn: boolean;
+    onColumnActivate: () => void;
+}) {
+    const viewportRef = useRef<HTMLDivElement>(null);
+    const scrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [text, setText] = useState(value);
+
+    const slotIndex = (v: string) => {
+        const i = BUSINESS_TIME_SLOTS.indexOf(v);
+        return i >= 0 ? i : 0;
+    };
+
+    useEffect(() => {
+        setText(value);
+    }, [value]);
+
+    useEffect(() => {
+        if (!active) return;
+        const el = viewportRef.current;
+        if (!el) return;
+        const i = slotIndex(value);
+        el.scrollTop =
+            TIME_SCROLL_PAD + i * TIME_SCROLL_ITEM_H - TIME_SCROLL_VIEW_H / 2 + TIME_SCROLL_ITEM_H / 2;
+    }, [value, active]);
+
+    function commitTextInput() {
+        const loose = parseLooseTime(text);
+        if (!loose) {
+            setText(value);
+            return;
+        }
+        const clamped = clampToBusinessHours(loose);
+        if (!clamped) {
+            setText(value);
+            return;
+        }
+        const next = nearestBusinessSlot(clamped);
+        onChange(next);
+        setText(next);
+    }
+
+    function pickFromScroll() {
+        const el = viewportRef.current;
+        if (!el || disabled) return;
+        const raw =
+            (el.scrollTop + TIME_SCROLL_VIEW_H / 2 - TIME_SCROLL_PAD - TIME_SCROLL_ITEM_H / 2) /
+            TIME_SCROLL_ITEM_H;
+        const i = Math.max(0, Math.min(BUSINESS_TIME_SLOTS.length - 1, Math.round(raw)));
+        const next = BUSINESS_TIME_SLOTS[i];
+        if (next !== value) onChange(next);
+    }
+
+    return (
+        <div
+            className={`field timePickerField timePickerColumn ${isActiveColumn ? "isActive" : ""}`}
+            onMouseDown={() => onColumnActivate()}
+        >
+            <label id={`time-label-${columnId}`}>{label}</label>
+            <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                spellCheck={false}
+                data-schedule-time={columnId}
+                className="timeReadoutInput"
+                aria-labelledby={`time-label-${columnId}`}
+                placeholder="ex. 9, 14:30, 1430"
+                disabled={disabled}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                onBlur={commitTextInput}
+                onFocus={() => onColumnActivate()}
+                onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                        e.preventDefault();
+                        commitTextInput();
+                        (e.target as HTMLInputElement).blur();
+                        return;
+                    }
+                    if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                        e.preventDefault();
+                        const cur = nearestBusinessSlot(value);
+                        let idx = BUSINESS_TIME_SLOTS.indexOf(cur);
+                        if (idx < 0) idx = 0;
+                        const nidx = e.key === "ArrowDown" ? idx + 1 : idx - 1;
+                        const clamped = Math.max(0, Math.min(BUSINESS_TIME_SLOTS.length - 1, nidx));
+                        onChange(BUSINESS_TIME_SLOTS[clamped]);
+                    }
+                }}
+            />
+            <div
+                className="timeScrollViewport"
+                ref={viewportRef}
+                tabIndex={-1}
+                onMouseDown={() => onColumnActivate()}
+                onScroll={() => {
+                    if (disabled) return;
+                    if (scrollTimer.current) clearTimeout(scrollTimer.current);
+                    scrollTimer.current = setTimeout(pickFromScroll, 70);
+                }}
+                style={{
+                    opacity: disabled ? 0.55 : 1,
+                    pointerEvents: disabled ? "none" : "auto",
+                }}
+            >
+                <div className="timeScrollTrack">
+                    <div className="timeScrollPad" style={{ height: TIME_SCROLL_PAD }} aria-hidden />
+                    {BUSINESS_TIME_SLOTS.map((t) => (
+                        <button
+                            key={t}
+                            type="button"
+                            className={`timeScrollItem ${t === value ? "sel" : ""}`}
+                            onClick={() => !disabled && onChange(t)}
+                        >
+                            {t}
+                        </button>
+                    ))}
+                    <div className="timeScrollPad" style={{ height: TIME_SCROLL_PAD }} aria-hidden />
+                </div>
+            </div>
+        </div>
+    );
+}
 
 type Department = "FLOOR" | "CASH" | "LAB";
 
@@ -115,7 +321,93 @@ export default function ScheduleEditorClient(props: {
     const [isEditingExistingShift, setIsEditingExistingShift] = useState(false);
     const [initialRepeatWeekly, setInitialRepeatWeekly] = useState(false);
     const [initialLocked, setInitialLocked] = useState(false);
+    const [activeTimeCol, setActiveTimeCol] = useState<"start" | "end">("start");
+    const activeTimeColRef = useRef(activeTimeCol);
+    activeTimeColRef.current = activeTimeCol;
+    const hourDigitBufRef = useRef("");
+    const hourDigitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+    useEffect(() => {
+        if (open) setActiveTimeCol("start");
+    }, [open]);
+
+    useEffect(() => {
+        if (!open) {
+            hourDigitBufRef.current = "";
+            if (hourDigitTimerRef.current) {
+                clearTimeout(hourDigitTimerRef.current);
+                hourDigitTimerRef.current = null;
+            }
+            return;
+        }
+
+        function flushHourDigits() {
+            const s = hourDigitBufRef.current;
+            hourDigitBufRef.current = "";
+            if (hourDigitTimerRef.current) {
+                clearTimeout(hourDigitTimerRef.current);
+                hourDigitTimerRef.current = null;
+            }
+            if (!s || !/^\d+$/.test(s)) return;
+            const n = parseInt(s, 10);
+            let h: number | null = null;
+            if (s.length === 1) {
+                if (n === 8 || n === 9) h = n;
+            } else if (n >= 8 && n <= 21) {
+                h = n;
+            }
+            if (h === null) return;
+            const col = activeTimeColRef.current;
+            const apply = (prev: string) => {
+                const mm = minuteFromSlot(nearestBusinessSlot(prev));
+                return nearestBusinessSlot(`${h}:${String(mm).padStart(2, "0")}`);
+            };
+            if (col === "start") setStartHHMM(apply);
+            else setEndHHMM(apply);
+        }
+
+        function onKey(e: KeyboardEvent) {
+            const el = e.target as HTMLElement | null;
+            if (el?.closest?.("[data-schedule-note]")) return;
+            if (el?.closest?.("[data-schedule-time]")) return;
+
+            if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                e.preventDefault();
+                const col = activeTimeColRef.current;
+                const apply = (prev: string) => {
+                    const cur = nearestBusinessSlot(prev);
+                    let idx = BUSINESS_TIME_SLOTS.indexOf(cur);
+                    if (idx < 0) idx = 0;
+                    const nidx = e.key === "ArrowDown" ? idx + 1 : idx - 1;
+                    const clamped = Math.max(0, Math.min(BUSINESS_TIME_SLOTS.length - 1, nidx));
+                    return BUSINESS_TIME_SLOTS[clamped];
+                };
+                if (col === "start") setStartHHMM(apply);
+                else setEndHHMM(apply);
+                return;
+            }
+
+            if (!/^[0-9]$/.test(e.key)) return;
+            e.preventDefault();
+            hourDigitBufRef.current += e.key;
+            if (hourDigitBufRef.current.length >= 2) {
+                flushHourDigits();
+                return;
+            }
+            if (hourDigitTimerRef.current) clearTimeout(hourDigitTimerRef.current);
+            hourDigitTimerRef.current = setTimeout(flushHourDigits, 420);
+        }
+
+        window.addEventListener("keydown", onKey, true);
+        return () => {
+            window.removeEventListener("keydown", onKey, true);
+            if (hourDigitTimerRef.current) {
+                clearTimeout(hourDigitTimerRef.current);
+                hourDigitTimerRef.current = null;
+            }
+            hourDigitBufRef.current = "";
+        };
+    }, [open]);
 
     useEffect(() => {
         setShifts(props.shifts);
@@ -187,8 +479,8 @@ export default function ScheduleEditorClient(props: {
 
         if (list[0]) {
             const s = list[0];
-            setStartHHMM(hm(new Date(s.startTime)));
-            setEndHHMM(hm(new Date(s.endTime)));
+            setStartHHMM(nearestBusinessSlot(hm(new Date(s.startTime))));
+            setEndHHMM(nearestBusinessSlot(hm(new Date(s.endTime))));
             setNote(s.note ?? "");
 
             const isRecurring = s.source === "RECURRING";
@@ -201,8 +493,8 @@ export default function ScheduleEditorClient(props: {
             setInitialRepeatWeekly(prevRepeatWeekly);
             setInitialLocked(prevLocked);
         } else {
-            setStartHHMM(availability?.startHHMM ?? "08:00");
-            setEndHHMM(availability?.endHHMM ?? "17:00");
+            setStartHHMM(nearestBusinessSlot(availability?.startHHMM ?? "08:00"));
+            setEndHHMM(nearestBusinessSlot(availability?.endHHMM ?? "17:00"));
             setNote("");
 
             setRepeatWeekly(false);
@@ -360,6 +652,9 @@ export default function ScheduleEditorClient(props: {
 
     const prevWeek = ymdLocal(new Date(weekStart.getTime() - 7 * 86400000));
     const nextWeek = ymdLocal(new Date(weekStart.getTime() + 7 * 86400000));
+    const exportHref = `/api/schedule/export?week=${encodeURIComponent(props.weekStartYMD)}&section=${encodeURIComponent(
+        props.section
+    )}`;
 
     return (
         <main className="page scheduleScope">
@@ -430,6 +725,22 @@ export default function ScheduleEditorClient(props: {
                         </a>
                     </div>
 
+                </div>
+
+                <div className="pdfRow">
+                    <a
+                        href={exportHref}
+                        className="btn pdfBtn"
+                        style={{
+                            textDecoration: "none",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 8,
+                            fontWeight: 700,
+                        }}
+                    >
+                        ⬇ Télécharger PDF (2 semaines)
+                    </a>
                 </div>
 
                 <div className="section">
@@ -542,7 +853,7 @@ export default function ScheduleEditorClient(props: {
 
             {open ? (
                 <div className="modalBack" onMouseDown={() => !saving && setOpen(false)}>
-                    <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
+                    <div className="modal scheduleEditModal" onMouseDown={(e) => e.stopPropagation()}>
                         <div className="modalHead">
                             <div>
                                 <div className="modalTitle">Ajouter / Modifier</div>
@@ -552,38 +863,54 @@ export default function ScheduleEditorClient(props: {
                         </div>
 
                         <div className="form">
-                            <div className="grid2">
-                                <div className="field">
-                                    <label>Début</label>
-                                    <input value={startHHMM} onChange={(e) => setStartHHMM(e.target.value)} placeholder="08:00" />
-                                        <div className="mutedSmall" style={{ marginTop: 8 }}>
-                                            Tapez l’heure (HH:MM)
-                                        </div>
-
-                                </div>
-
-                                <div className="field">
-                                    <label>Fin</label>
-                                    <input value={endHHMM} onChange={(e) => setEndHHMM(e.target.value)} placeholder="17:00" />
-                                        <div className="mutedSmall" style={{ marginTop: 8 }}>
-                                            Tapez l’heure (HH:MM)
-                                        </div>
-
-                                </div>
+                            <div className="grid2 timeScrollGrid">
+                                <TimeScrollColumn
+                                    label="Début"
+                                    columnId="start"
+                                    isActiveColumn={activeTimeCol === "start"}
+                                    onColumnActivate={() => setActiveTimeCol("start")}
+                                    value={nearestBusinessSlot(startHHMM)}
+                                    onChange={(v) => setStartHHMM(v)}
+                                    disabled={saving}
+                                    active={open}
+                                />
+                                <TimeScrollColumn
+                                    label="Fin"
+                                    columnId="end"
+                                    isActiveColumn={activeTimeCol === "end"}
+                                    onColumnActivate={() => setActiveTimeCol("end")}
+                                    value={nearestBusinessSlot(endHHMM)}
+                                    onChange={(v) => setEndHHMM(v)}
+                                    disabled={saving}
+                                    active={open}
+                                />
+                            </div>
+                            <div className="mutedSmall timePickerHint">
+                                Cliquez Début ou Fin : chiffres au clavier (9 → 9h00, 14 → 14h00, 1430 → 14h30), champ éditable, flèches ±5 min hors du champ, ou liste défilante.
                             </div>
 
                             <div className="field">
                                 <label>Note</label>
-                                <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optionnel" />
+                                <input
+                                    data-schedule-note
+                                    value={note}
+                                    onChange={(e) => setNote(e.target.value)}
+                                    placeholder="Optionnel"
+                                />
                             </div>
                             <div className="grid2">
                                 <label className="checkRow">
                                     <input
                                         type="checkbox"
                                         checked={repeatWeekly}
-                                        onChange={(e) => setRepeatWeekly(e.target.checked)}
+                                        onChange={(e) => {
+                                            const on = e.target.checked;
+                                            setRepeatWeekly(on);
+                                            if (on) setLocked(true);
+                                            else setLocked(false);
+                                        }}
                                     />
-                                    Répéter chaque semaine (template)
+                                    Répéter chaque semaine
                                 </label>
 
                                 <label className="checkRow">

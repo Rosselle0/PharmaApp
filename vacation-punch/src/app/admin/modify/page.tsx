@@ -278,7 +278,7 @@ export default function ModifyAccountsPage() {
                   inputMode="numeric"
                   onChange={(e) => setDraft({ ...draft, employeeCode: onlyDigits(e.target.value) })}
                 />
-                <div className="m-hint">Chiffres seulement (min 4).</div>
+                <div className="m-hint">Chiffres seulement.</div>
               </div>
 
               <div className="m-field">

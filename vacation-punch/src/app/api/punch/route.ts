@@ -2,7 +2,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma, punchPrismaErrorUserMessage } from "@/lib/prisma";
+import { resolvePunchKioskLocked } from "@/lib/punch/kioskLockDay";
 import { requireEmployeeFromKioskOrCode, requireEmployeeFromKioskOrCodeValue } from "@/lib/shiftChange/auth";
 import { requireTerminalOrDev } from "@/lib/punch/terminalGuard";
 import { ShiftStatus, VacationStatus } from "@prisma/client";
@@ -167,6 +168,24 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: auth.error }, { status: 401 });
   }
   const employeeId = auth.employeeId;
+
+  try {
+  const empRow = await prisma.employee.findUnique({
+    where: { id: employeeId },
+    select: { punchKioskLocked: true },
+  });
+  const kioskLocked = await resolvePunchKioskLocked(employeeId, Boolean(empRow?.punchKioskLocked), new Date());
+  if (kioskLocked) {
+    return NextResponse.json(
+      {
+        ok: false,
+        punchLocked: true,
+        error:
+          "Pointage verrouillé après votre sortie jusqu’au lendemain (après minuit) ou le responsable peut déverrouiller depuis les Journaux (double quart le même jour).",
+      },
+      { status: 403 }
+    );
+  }
 
   if (!isPunchType(type)) {
     return NextResponse.json({ ok: false, error: "Type de punch invalide" }, { status: 400 });
@@ -368,6 +387,13 @@ export async function POST(req: Request) {
     },
   });
 
+  if (type === "CLOCK_OUT") {
+    await prisma.employee.update({
+      where: { id: employeeId },
+      data: { punchKioskLocked: true },
+    });
+  }
+
   // If this was an auto-created shift, update its endTime on CLOCK_OUT so schedule shows the real range.
   if (type === "CLOCK_OUT" && isAuto && chosenShiftId) {
     const end = roundToNearest0or5(now);
@@ -398,4 +424,7 @@ export async function POST(req: Request) {
     punchedAt: now.toISOString(),
     overtime,
   });
+  } catch (e) {
+    return NextResponse.json({ ok: false, error: punchPrismaErrorUserMessage(e) }, { status: 500 });
+  }
 }

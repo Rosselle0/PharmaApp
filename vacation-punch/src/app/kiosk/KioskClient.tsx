@@ -37,6 +37,7 @@ type PunchStatus = {
   breakMs: number;
   lunchMs: number;
   fetchedAt: string;
+  punchKioskLocked?: boolean;
 };
 
 type OvertimePrompt = {
@@ -96,10 +97,13 @@ export default function KioskClient({
   const [overtimeError, setOvertimeError] = useState<string | null>(null);
 
   const [actifsOverlayOpen, setActifsOverlayOpen] = useState(false);
+  const [clockOutConfirmOpen, setClockOutConfirmOpen] = useState(false);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setActifsOverlayOpen(false);
+      if (e.key !== "Escape") return;
+      setActifsOverlayOpen(false);
+      setClockOutConfirmOpen(false);
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
@@ -194,6 +198,7 @@ function firstWord(v: string | null | undefined) {
         breakMs: Number(data.breakMs ?? 0),
         lunchMs: Number(data.lunchMs ?? 0),
         fetchedAt: String(data.fetchedAt ?? new Date().toISOString()),
+        punchKioskLocked: Boolean(data.punchKioskLocked),
       });
     } catch {
       setPunchStateErr("Erreur réseau punch.");
@@ -648,6 +653,7 @@ function firstWord(v: string | null | undefined) {
   }
 
   const state: PunchState = punchStatus?.state ?? "OUT";
+  const punchKioskLocked = Boolean(punchStatus?.punchKioskLocked);
   const displayedMs = getDisplayedMs(punchStatus, tickNow);
   const timerLabel =
     state === "ON_BREAK"
@@ -672,7 +678,7 @@ function firstWord(v: string | null | undefined) {
       key: "IN",
       label: "Entrée",
       action: "CLOCK_IN",
-      disabled: state !== "OUT",
+      disabled: punchKioskLocked || state !== "OUT",
       danger: false,
     },
     {
@@ -680,6 +686,7 @@ function firstWord(v: string | null | undefined) {
       label: state === "ON_BREAK" ? "Retour" : "Pause",
       action: state === "ON_BREAK" ? "BREAK_END" : "BREAK_START",
       disabled:
+        punchKioskLocked ||
         state === "OUT" ||
         state === "ON_LUNCH" ||
         (state === "IN" && Boolean(punchStatus?.breakDone)) ||
@@ -691,6 +698,7 @@ function firstWord(v: string | null | undefined) {
       label: state === "ON_LUNCH" ? "Retour" : "Repas",
       action: state === "ON_LUNCH" ? "LUNCH_END" : "LUNCH_START",
       disabled:
+        punchKioskLocked ||
         state === "OUT" ||
         state === "ON_BREAK" ||
         (state === "IN" && Boolean(punchStatus?.lunchDone)) ||
@@ -701,7 +709,7 @@ function firstWord(v: string | null | undefined) {
       key: "OUT",
       label: "Sortie",
       action: "CLOCK_OUT",
-      disabled: state !== "IN",
+      disabled: punchKioskLocked || state !== "IN",
       danger: true,
     },
   ];
@@ -883,6 +891,13 @@ function firstWord(v: string | null | undefined) {
             <div className="punchPanel">
               <div className="punchTitle">Punch</div>
 
+              {punchKioskLocked ? (
+                <div className="punchLockedBanner" role="status">
+                  Pointage fermé après votre sortie jusqu’au lendemain (après minuit) ou le responsable peut déverrouiller depuis les{" "}
+                  <strong>Journaux</strong> admin (ex. 2e quart le même jour).
+                </div>
+              ) : null}
+
               <div className={`punchTimer ${timerDanger ? "danger" : ""}`}>
                 <div className="punchTimerLabel">{timerLabel}</div>
                 <div className="punchTimerValue">{formatDuration(displayedMs)}</div>
@@ -897,7 +912,13 @@ function firstWord(v: string | null | undefined) {
                     className={`punchBtn ${btn.danger ? "danger" : ""} ${btn.disabled ? "disabled" : ""}`}
                     type="button"
                     disabled={btn.disabled}
-                    onClick={() => punch(btn.action)}
+                    onClick={() => {
+                      if (btn.action === "CLOCK_OUT") {
+                        setClockOutConfirmOpen(true);
+                        return;
+                      }
+                      void punch(btn.action);
+                    }}
                   >
                     {btn.label}
                   </button>
@@ -919,6 +940,44 @@ function firstWord(v: string | null | undefined) {
                   Déconnecter
                 </button>
               </div>
+
+              {clockOutConfirmOpen && (
+                <div
+                  className="modal-overlay"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="clock-out-confirm-title"
+                  onClick={() => setClockOutConfirmOpen(false)}
+                >
+                  <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+                    <h3 id="clock-out-confirm-title" className="modal-title">
+                      Confirmer la sortie
+                    </h3>
+                    <p className="modal-sub">
+                      Êtes-vous sûr de vouloir pointer la sortie&nbsp;?
+                    </p>
+                    <div className="otpActions">
+                      <button
+                        className="secondary"
+                        type="button"
+                        onClick={() => setClockOutConfirmOpen(false)}
+                      >
+                        Annuler
+                      </button>
+                      <button
+                        className="primary"
+                        type="button"
+                        onClick={async () => {
+                          setClockOutConfirmOpen(false);
+                          await punch("CLOCK_OUT");
+                        }}
+                      >
+                        Oui, pointer la sortie
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </section>
