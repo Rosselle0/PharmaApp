@@ -45,8 +45,8 @@ function defaultWeek(): DayAvailability[] {
   return DAYS.map((d) => ({
     day: d.key,
     available: false,
-    start: "09:00",
-    end: "17:00",
+    start: "08:00",
+    end: "21:00",
     note: "",
   }));
 }
@@ -216,9 +216,9 @@ const [employeeCode, setEmployeeCode] = useState<string | null>(null);
   }
 
   // Validate week
-  function validateWeek(): string | null {
-    if (!week.some((d) => d.available)) return "Choisis au moins une journée disponible.";
-    for (const d of week) {
+  function validateWeekPayload(w: DayAvailability[]): string | null {
+    if (!w.some((d) => d.available)) return "Choisis au moins une journée disponible.";
+    for (const d of w) {
       if (!d.available) continue;
       if (!isValidRange(d.start, d.end)) {
         const label = DAYS.find((x) => x.key === d.day)?.labelFR ?? d.day;
@@ -230,7 +230,7 @@ const [employeeCode, setEmployeeCode] = useState<string | null>(null);
 
   // Save availability
   async function handleSave() {
-    const err = validateWeek();
+    const err = validateWeekPayload(week);
     setAvailError(err);
     if (err) return;
 
@@ -479,21 +479,23 @@ const [employeeCode, setEmployeeCode] = useState<string | null>(null);
                         <input
                           className="avail-time"
                           type="time"
+                          step={60}
+                          autoComplete="off"
+                          aria-label={`Heure de début — ${d.labelFR}`}
                           value={item.start}
                           disabled={!item.available}
-                          onChange={(e) =>
-                            updateDay(d.key, { start: e.target.value })
-                          }
+                          onChange={(e) => updateDay(d.key, { start: e.target.value })}
                         />
                         <span className="avail-sep">→</span>
                         <input
                           className="avail-time"
                           type="time"
+                          step={60}
+                          autoComplete="off"
+                          aria-label={`Heure de fin — ${d.labelFR}`}
                           value={item.end}
                           disabled={!item.available}
-                          onChange={(e) =>
-                            updateDay(d.key, { end: e.target.value })
-                          }
+                          onChange={(e) => updateDay(d.key, { end: e.target.value })}
                         />
                       </div>
 

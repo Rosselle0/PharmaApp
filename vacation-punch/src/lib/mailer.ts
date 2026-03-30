@@ -223,6 +223,86 @@ Le quart a bien été transféré.`;
   return { ok: true as const };
 }
 
+const APP_TZ = process.env.APP_TZ || "America/Toronto";
+
+function formatShiftReminderLine(start: Date, end: Date, note?: string | null) {
+  const date = new Intl.DateTimeFormat("fr-CA", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: APP_TZ,
+  }).format(start);
+  const startT = new Intl.DateTimeFormat("fr-CA", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: APP_TZ,
+  }).format(start);
+  const endT = new Intl.DateTimeFormat("fr-CA", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: APP_TZ,
+  }).format(end);
+  const base = `${date} — ${startT} à ${endT}`;
+  const n = note?.trim();
+  return n ? `${base} — Note : ${n}` : base;
+}
+
+export async function sendTomorrowShiftsReminderEmail(args: {
+  to: string;
+  firstName?: string | null;
+  shifts: Array<{ start: Date; end: Date; note?: string | null }>;
+}) {
+  const cfg = getSmtpConfig();
+  if (!cfg) {
+    return {
+      ok: false as const,
+      error:
+        "Email non configuré. Ajoute SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM.",
+    };
+  }
+
+  if (!args.shifts.length) {
+    return { ok: false as const, error: "Aucun quart à rappeler." };
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: cfg.host,
+    port: cfg.port,
+    secure: cfg.secure,
+    auth: cfg.auth,
+  });
+
+  const hello = args.firstName?.trim() ? `Bonjour ${args.firstName},` : "Bonjour,";
+  const plural = args.shifts.length > 1;
+  const description = plural
+    ? "Tu as des quarts prévus demain. Voici le détail :"
+    : "Tu as un quart prévu demain. Voici le détail :";
+
+  const blocks = args.shifts.map((s) => formatShiftReminderLine(s.start, s.end, s.note));
+  const textLines = [hello, "", description, "", ...blocks.map((b) => `• ${b}`), "", "À demain, et bon quart !"];
+
+  const html = renderBeautifulEmail({
+    title: plural ? "Rappel : tes quarts demain" : "Rappel : ton quart demain",
+    greeting: hello,
+    description,
+    blocks,
+    footer: "Ce message est envoyé automatiquement la veille. Si ce n’est pas toi, contacte la pharmacie.",
+  });
+
+  await transporter.sendMail({
+    from: cfg.from,
+    to: args.to,
+    subject: plural ? "Rappel : tes quarts demain" : "Rappel : ton quart demain",
+    text: textLines.join("\n"),
+    html,
+  });
+
+  return { ok: true as const };
+}
+
 function renderBeautifulEmail(args: {
   title: string;
   greeting: string;

@@ -10,6 +10,16 @@ export function ymdInTZ(d: Date): string {
   }).format(d);
 }
 
+/** Gregorian calendar: add days to a YYYY-MM-DD string (used with ymdInTZ dates). */
+export function addCalendarDaysYmd(ymd: string, deltaDays: number): string {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + deltaDays));
+  const yy = dt.getUTCFullYear();
+  const mm = String(dt.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(dt.getUTCDate()).padStart(2, "0");
+  return `${yy}-${mm}-${dd}`;
+}
+
 // dayOfWeek in TZ: 0=Sun..6=Sat
 export function dowInTZ(d: Date): number {
   // Force weekday in TZ by formatting parts then reconstructing a Date at noon local.

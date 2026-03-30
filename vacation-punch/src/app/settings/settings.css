@@ -594,6 +594,8 @@
   background: rgba(255, 255, 255, 0.82);
   color: var(--settings-text-color);
   transition: border-color 140ms ease, box-shadow 140ms ease;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
 }
 
 [data-theme="dark"] .settingsScope .avail-time {

@@ -42,8 +42,8 @@ function defaultWeek(): DayAvailability[] {
   return days.map((day) => ({
     day,
     available: false,
-    start: "09:00",
-    end: "17:00",
+    start: "08:00",
+    end: "21:00",
     note: "",
   }));
 }

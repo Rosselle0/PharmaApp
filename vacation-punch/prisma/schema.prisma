@@ -307,10 +307,25 @@ model Shift {
   vacationRequestId   String?
   vacationRequest     VacationRequest?     @relation(fields: [vacationRequestId], references: [id], onDelete: SetNull)
   shiftChangeRequests ShiftChangeRequest[]
+  dayReminders        ShiftDayReminder[]
 
   @@index([employeeId, startTime])
   @@index([startTime, endTime])
   @@index([ruleId])
+}
+
+/// One row per shift + civil date (APP_TZ) so daily cron does not send duplicate “demain” emails.
+model ShiftDayReminder {
+  id       String @id @default(uuid())
+  shiftId  String
+  shiftYmd String
+
+  sentAt DateTime @default(now())
+
+  shift Shift @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+
+  @@unique([shiftId, shiftYmd])
+  @@index([shiftYmd])
 }
 
 model KioskSession {
