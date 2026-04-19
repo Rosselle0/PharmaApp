@@ -18,13 +18,13 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [darkMode, setDarkMode] = useState(false);
 
-  // Initialize theme globally ONCE
+  // Initialize theme globally ONCE (defer state to avoid sync setState-in-effect lint / flash)
   useEffect(() => {
     const saved = localStorage.getItem("theme");
     const theme = saved === "dark" ? "dark" : "light";
 
     document.documentElement.setAttribute("data-theme", theme);
-    setDarkMode(theme === "dark");
+    queueMicrotask(() => setDarkMode(theme === "dark"));
   }, []);
 
   const toggleTheme = () => {

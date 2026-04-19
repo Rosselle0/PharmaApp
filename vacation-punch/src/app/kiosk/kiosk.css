@@ -1101,6 +1101,77 @@
     letter-spacing: 0.06em;
 }
 
+/* Auth modals — dark theme (PIN follow-up: OTP / password) */
+[data-theme="dark"] .kiosk-auth-overlay {
+    background: rgba(6, 11, 26, 0.82);
+}
+
+[data-theme="dark"] .kiosk-auth-panel {
+    background: linear-gradient(180deg, #111827 0%, #0f172a 100%);
+    color: #e6ebf3;
+    border-color: rgba(160, 180, 220, 0.14);
+    box-shadow: 0 28px 90px rgba(0, 0, 0, 0.65);
+}
+
+[data-theme="dark"] .kiosk-auth-title {
+    color: #e6ebf3;
+}
+
+[data-theme="dark"] .kiosk-auth-desc {
+    color: rgba(226, 232, 240, 0.72);
+}
+
+[data-theme="dark"] .kiosk-auth-label {
+    color: rgba(226, 232, 240, 0.78);
+}
+
+[data-theme="dark"] .kiosk-auth-input {
+    background: rgba(0, 0, 0, 0.38);
+    color: #f1f5f9;
+    border-color: rgba(148, 163, 184, 0.22);
+}
+
+[data-theme="dark"] .kiosk-auth-input::placeholder {
+    color: #64748b;
+}
+
+[data-theme="dark"] .kiosk-auth-input:focus {
+    border-color: rgba(76, 141, 255, 0.55);
+    box-shadow: 0 0 0 4px rgba(76, 141, 255, 0.18);
+}
+
+[data-theme="dark"] .kiosk-auth-alert {
+    background: rgba(239, 68, 68, 0.14);
+    border-color: rgba(239, 68, 68, 0.28);
+    color: #fecaca;
+}
+
+[data-theme="dark"] .kiosk-auth-btnPrimary {
+    background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+    color: #fff;
+}
+
+[data-theme="dark"] .kiosk-auth-btnSecondary {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    color: #e2e8f0;
+}
+
+[data-theme="dark"] .kiosk-auth-btnSecondary:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+[data-theme="dark"] .kiosk-auth-close {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(226, 232, 240, 0.78);
+}
+
+[data-theme="dark"] .kiosk-auth-close:hover,
+[data-theme="dark"] .kiosk-auth-close:focus-visible {
+    background: rgba(255, 255, 255, 0.12);
+    color: #f8fafc;
+}
+
 /* BRAND LOGO IN CENTER SPACE */
 
 @keyframes brandReveal {

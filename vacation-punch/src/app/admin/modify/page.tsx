@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import type { KioskSecondFactorMode } from "@prisma/client";
 import { KIOSK_MODE_OPTIONS_FR } from "@/lib/kioskSecondFactorUi";
 import { validateKioskPasswordPolicy } from "@/lib/kioskPasswordPolicy";
@@ -31,8 +30,6 @@ function onlyDigits(v: string, max = 10) {
 }
 
 export default function ModifyAccountsPage() {
-  const router = useRouter();
-
   const [items, setItems] = useState<Account[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Account | null>(null);

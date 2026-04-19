@@ -1,17 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState, Suspense } from "react";
-import Link from "next/link";
 import "./settings.css";
 import KioskSidebar from "@/components/KioskSidebar";
+import { useTheme } from "@/components/ThemeProvider";
 import type { KioskSecondFactorMode } from "@prisma/client";
 import { KIOSK_MODE_OPTIONS_FR } from "@/lib/kioskSecondFactorUi";
 import { validateKioskPasswordPolicy } from "@/lib/kioskPasswordPolicy";
 import { KioskPasswordRequirementsHint } from "@/components/KioskPasswordRequirementsHint";
 import { PasswordRevealField } from "@/components/PasswordRevealField";
 import "@/app/admin/admin-kiosk-fields.css";
-
-type ThemeMode = "light" | "dark";
 
 const KIOSK_MODE_OPTIONS = KIOSK_MODE_OPTIONS_FR;
 
@@ -75,8 +73,9 @@ function readEmployeeCodeFromUrlOrStorage(): string | null {
 }
 
 export default function SettingsPage() {
-  // THEME & AVAILABILITY STATES
-  const [darkMode, setDarkMode] = useState(false);
+  const { darkMode, toggleTheme } = useTheme();
+
+  // AVAILABILITY STATES
   const [isAvailOpen, setIsAvailOpen] = useState(false);
   const [week, setWeek] = useState<DayAvailability[]>(() => defaultWeek());
   const [availError, setAvailError] = useState<string | null>(null);
@@ -109,11 +108,6 @@ export default function SettingsPage() {
 
   // Fetch employee info on mount
   useEffect(() => {
-    const savedTheme = (localStorage.getItem("theme") as ThemeMode | null) ?? "light";
-    const isDark = savedTheme === "dark";
-    setDarkMode(isDark);
-    document.documentElement.setAttribute("data-theme", savedTheme);
-
     const cachedName = (localStorage.getItem("kiosk_employee_name") ?? "").trim();
     if (cachedName) setEmployeeFullName(cachedName);
 
@@ -160,14 +154,6 @@ export default function SettingsPage() {
       }
     })();
   }, []);
-
-  // Theme toggle
-  const toggleTheme = () => {
-    const newMode: ThemeMode = darkMode ? "light" : "dark";
-    setDarkMode(!darkMode);
-    document.documentElement.setAttribute("data-theme", newMode);
-    localStorage.setItem("theme", newMode);
-  };
 
   async function sendEmailVerification() {
     setEmailMsg(null);

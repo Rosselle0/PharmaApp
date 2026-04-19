@@ -1046,6 +1046,11 @@ function firstWord(v: string | null | undefined) {
                   value={loginOtp}
                   onChange={(e) => setLoginOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
                   placeholder="000000"
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter") return;
+                    e.preventDefault();
+                    if (loginOtp.length === 6 && !loginOtpBusy) void verifyLoginOtp();
+                  }}
                 />
                 {loginOtpMsg ? <div className="kiosk-auth-alert">{loginOtpMsg}</div> : null}
                 <div className="kiosk-auth-actions">
@@ -1150,6 +1155,11 @@ function firstWord(v: string | null | undefined) {
                   value={loginOtp}
                   onChange={(e) => setLoginOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
                   placeholder="000000"
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter") return;
+                    e.preventDefault();
+                    if (!loginOtpBusy) void verifyOtpAndPassword();
+                  }}
                 />
                 <label className="kiosk-auth-label" htmlFor="kiosk-both-pw">
                   Mot de passe kiosque
