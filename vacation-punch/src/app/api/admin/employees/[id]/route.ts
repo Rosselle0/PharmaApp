@@ -5,6 +5,11 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Department, Role } from "@prisma/client";
+import type { KioskSecondFactorMode } from "@prisma/client";
+import { hashPassword } from "@/lib/passwordHash";
+import { DEFAULT_MANAGER_KIOSK_PASSWORD } from "@/lib/kioskDefaults";
+import { parseKioskSecondFactorMode, validateKioskSecondFactorConfig } from "@/lib/kioskSecondFactor";
+import { validateKioskPasswordPolicy } from "@/lib/kioskPasswordPolicy";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -49,6 +54,41 @@ export async function PATCH(req: NextRequest, context: Ctx) {
       return NextResponse.json({ error: "Email invalide" }, { status: 400 });
     }
 
+    const existingRow = await prisma.employee.findUnique({
+      where: { id },
+      select: { kioskPasswordHash: true, kioskSecondFactorMode: true },
+    });
+
+    let nextHash: string | null = existingRow?.kioskPasswordHash ?? null;
+    let nextMode: KioskSecondFactorMode =
+      existingRow?.kioskSecondFactorMode ?? "EMAIL_OTP";
+
+    if (body.kioskSecondFactorMode !== undefined && body.kioskSecondFactorMode !== null) {
+      const p = parseKioskSecondFactorMode(body.kioskSecondFactorMode);
+      if (p) nextMode = p;
+    }
+
+    const clearKiosk = Boolean(body.clearKioskPassword);
+    const explicitPw =
+      typeof body.kioskPassword === "string" ? String(body.kioskPassword).trim() : "";
+
+    if (clearKiosk) {
+      nextHash = null;
+    } else if (explicitPw.length > 0) {
+      const pwCheck = validateKioskPasswordPolicy(explicitPw);
+      if (!pwCheck.ok) {
+        return NextResponse.json({ error: pwCheck.error }, { status: 400 });
+      }
+      nextHash = hashPassword(explicitPw);
+    } else if (role === Role.MANAGER && !nextHash) {
+      nextHash = hashPassword(DEFAULT_MANAGER_KIOSK_PASSWORD);
+    }
+
+    const cfg = validateKioskSecondFactorConfig(email, nextHash, nextMode);
+    if (!cfg.ok) {
+      return NextResponse.json({ error: cfg.error }, { status: 400 });
+    }
+
     const updated = await prisma.employee.update({
       where: { id },
       data: {
@@ -60,6 +100,8 @@ export async function PATCH(req: NextRequest, context: Ctx) {
         role,
         paidBreak30,
         isActive: body.isActive === undefined ? undefined : Boolean(body.isActive),
+        kioskSecondFactorMode: nextMode,
+        kioskPasswordHash: nextHash,
       },
       select: {
         id: true,
@@ -71,6 +113,8 @@ export async function PATCH(req: NextRequest, context: Ctx) {
         role: true,
         paidBreak30: true,
         isActive: true,
+        kioskSecondFactorMode: true,
+        kioskPasswordHash: true,
       },
     });
 
@@ -85,6 +129,8 @@ export async function PATCH(req: NextRequest, context: Ctx) {
         role: updated.role,
         paid30: updated.paidBreak30,
         isActive: updated.isActive,
+        kioskSecondFactorMode: updated.kioskSecondFactorMode,
+        hasKioskPassword: !!updated.kioskPasswordHash?.length,
       },
     });
   } catch (e: any) {

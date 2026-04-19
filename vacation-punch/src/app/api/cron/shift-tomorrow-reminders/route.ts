@@ -29,6 +29,7 @@ export async function GET(req: Request) {
   const windowStart = new Date(now.getTime() - 12 * 60 * 60 * 1000);
   const windowEnd = new Date(now.getTime() + 72 * 60 * 60 * 1000);
 
+  // Fenêtre large en UTC puis filtre métier ci‑dessous : on ne garde que « demain » en APP_TZ.
   const shifts = await prisma.shift.findMany({
     where: {
       status: ShiftStatus.PLANNED,
@@ -46,6 +47,8 @@ export async function GET(req: Request) {
     },
   });
 
+  // Uniquement les quarts qui *commencent demain* (jour civil APP_TZ) + email renseigné.
+  // Aucun envoi aux autres employés (pas de diffusion globale).
   const candidates = shifts.filter(
     (s) => Boolean(s.employee.email?.trim()) && ymdInTZ(s.startTime) === tomorrowYmd
   );
@@ -99,6 +102,8 @@ export async function GET(req: Request) {
   const errors: string[] = [];
 
   for (const bundle of byEmployee.values()) {
+    if (!bundle.shifts.length) continue;
+
     const sent = await sendTomorrowShiftsReminderEmail({
       to: bundle.email,
       firstName: bundle.firstName,

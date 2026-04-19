@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 import KioskSidebar from "@/components/KioskSidebar";
+import { PasswordRevealField } from "@/components/PasswordRevealField";
 import "./kiosk.css";
 
 type ApiActif = {
@@ -47,6 +48,8 @@ type OvertimePrompt = {
 
 const PIN_LEN = 4;
 
+type KioskLoginPhase = "otp" | "password" | "otp_password";
+
 type KioskClientProps = {
   isAdminLogged: boolean;
   isManagerLogged: boolean;
@@ -72,8 +75,10 @@ export default function KioskClient({
 
   const [autoSubmitting, setAutoSubmitting] = useState(false);
   const [blockedCode, setBlockedCode] = useState<string | null>(null);
-  const [awaitingOtpCode, setAwaitingOtpCode] = useState<string | null>(null);
+  const [pendingKioskPin, setPendingKioskPin] = useState<string | null>(null);
+  const [loginPhase, setLoginPhase] = useState<KioskLoginPhase | null>(null);
   const [loginOtp, setLoginOtp] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
   const [loginOtpMsg, setLoginOtpMsg] = useState<string | null>(null);
   const [loginOtpBusy, setLoginOtpBusy] = useState(false);
   const [otpSending, setOtpSending] = useState(false);
@@ -418,10 +423,23 @@ function firstWord(v: string | null | undefined) {
   useEffect(() => {
     if (isPrivilegedLogged || employeeLogged || autoSubmitting) return;
     const clean = employeeCode.replace(/\D/g, "").slice(0, PIN_LEN);
-    if (clean.length !== PIN_LEN || blockedCode === clean || awaitingOtpCode === clean) return;
+    if (clean.length !== PIN_LEN || blockedCode === clean || pendingKioskPin === clean) return;
     setAutoSubmitting(true);
     employeeConfirm(clean).finally(() => setAutoSubmitting(false));
-  }, [employeeCode, isPrivilegedLogged, employeeLogged, autoSubmitting, blockedCode, awaitingOtpCode]);
+  }, [employeeCode, isPrivilegedLogged, employeeLogged, autoSubmitting, blockedCode, pendingKioskPin]);
+
+  /** Close OTP / password step and return to PIN entry without re-triggering auto-submit. */
+  function dismissKioskAuth() {
+    const clean =
+      pendingKioskPin ?? employeeCode.replace(/\D/g, "").slice(0, PIN_LEN);
+    if (clean.length === PIN_LEN) setBlockedCode(clean);
+    setPendingKioskPin(null);
+    setLoginPhase(null);
+    setLoginOtp("");
+    setLoginPassword("");
+    setLoginOtpMsg(null);
+    setLoginOtpBusy(false);
+  }
 
   async function employeeConfirm(forcedCode?: string) {
     const clean = (forcedCode ?? employeeCode).replace(/\D/g, "").slice(0, PIN_LEN);
@@ -444,22 +462,48 @@ function firstWord(v: string | null | undefined) {
       data = await res.json().catch(() => null);
     } catch {
       setPinError(true);
-      setLoginOtpMsg("Erreur réseau.");
+      showToast("Erreur réseau.");
       return;
     } finally {
       setOtpSending(false);
     }
 
     if (data?.requiresOtp) {
-      setAwaitingOtpCode(clean);
+      setBlockedCode(null);
+      setPendingKioskPin(clean);
+      setLoginPhase("otp");
       setLoginOtp("");
+      setLoginPassword("");
       setLoginOtpMsg(data?.message ?? "Code envoyé par email.");
+      setPinError(false);
+      return;
+    }
+
+    if (data?.requiresOtpAndPassword) {
+      setBlockedCode(null);
+      setPendingKioskPin(clean);
+      setLoginPhase("otp_password");
+      setLoginOtp("");
+      setLoginPassword("");
+      setLoginOtpMsg(data?.message ?? "Code envoyé à votre email.");
+      setPinError(false);
+      return;
+    }
+
+    if (data?.requiresPassword) {
+      setBlockedCode(null);
+      setPendingKioskPin(clean);
+      setLoginPhase("password");
+      setLoginOtp("");
+      setLoginPassword("");
+      setLoginOtpMsg(null);
       setPinError(false);
       return;
     }
 
     if (!res.ok) {
       setPinError(true);
+      if (data?.error) showToast(String(data.error));
       return;
     }
 
@@ -467,6 +511,7 @@ function firstWord(v: string | null | undefined) {
     const first = data?.employee?.firstName ?? "";
     const displayName = first.trim();
 
+    setBlockedCode(null);
     setPinError(false);
     setPinSuccess(true);
     setPinFlash(true);
@@ -476,8 +521,10 @@ function firstWord(v: string | null | undefined) {
       setEmployeeLogged(true);
       setEmployeeCodeConfirmed(clean);
       setEmployeeName(displayName);
-      setAwaitingOtpCode(null);
+      setPendingKioskPin(null);
+      setLoginPhase(null);
       setLoginOtp("");
+      setLoginPassword("");
       setLoginOtpMsg(null);
       saveEmployeeSession(clean, displayName, roleFromApi);
       setKioskRole(roleFromApi);
@@ -486,8 +533,9 @@ function firstWord(v: string | null | undefined) {
   }
 
   async function verifyLoginOtp() {
-    const clean = awaitingOtpCode ?? employeeCode.replace(/\D/g, "").slice(0, PIN_LEN);
-    if (clean.length !== PIN_LEN) return;
+    const clean =
+      pendingKioskPin ?? employeeCode.replace(/\D/g, "").slice(0, PIN_LEN);
+    if (clean.length !== PIN_LEN || loginPhase !== "otp") return;
     if (loginOtp.length !== 6) {
       setLoginOtpMsg("Entrez le code à 6 chiffres.");
       return;
@@ -511,7 +559,6 @@ function firstWord(v: string | null | undefined) {
       const first = data?.employee?.firstName ?? "";
       const displayName = first.trim();
 
-      // Keep same premium green success animation as regular PIN login.
       setPinError(false);
       setPinSuccess(true);
       setPinFlash(true);
@@ -522,8 +569,116 @@ function firstWord(v: string | null | undefined) {
         setEmployeeName(displayName);
         saveEmployeeSession(clean, displayName, roleFromApi);
         setKioskRole(roleFromApi);
-        setAwaitingOtpCode(null);
+        setPendingKioskPin(null);
+        setLoginPhase(null);
         setLoginOtp("");
+        setLoginPassword("");
+        setLoginOtpMsg(null);
+        router.replace("/kiosk");
+      }, 650);
+    } catch {
+      setLoginOtpMsg("Erreur réseau.");
+    } finally {
+      setLoginOtpBusy(false);
+    }
+  }
+
+  async function verifyLoginPasswordOnly() {
+    const clean =
+      pendingKioskPin ?? employeeCode.replace(/\D/g, "").slice(0, PIN_LEN);
+    if (clean.length !== PIN_LEN || loginPhase !== "password") return;
+    if (!loginPassword.trim()) {
+      setLoginOtpMsg("Entrez votre mot de passe.");
+      return;
+    }
+
+    setLoginOtpBusy(true);
+    setLoginOtpMsg(null);
+    try {
+      const res = await fetch("/api/kiosk/unlock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: clean, password: loginPassword }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) {
+        setLoginOtpMsg(data?.error ?? "Connexion refusée.");
+        return;
+      }
+
+      const roleFromApi = String(data?.employee?.role ?? "EMPLOYEE").toUpperCase();
+      const first = data?.employee?.firstName ?? "";
+      const displayName = first.trim();
+
+      setPinError(false);
+      setPinSuccess(true);
+      setPinFlash(true);
+      setTimeout(() => setPinFlash(false), 650);
+      setTimeout(() => {
+        setEmployeeLogged(true);
+        setEmployeeCodeConfirmed(clean);
+        setEmployeeName(displayName);
+        saveEmployeeSession(clean, displayName, roleFromApi);
+        setKioskRole(roleFromApi);
+        setPendingKioskPin(null);
+        setLoginPhase(null);
+        setLoginOtp("");
+        setLoginPassword("");
+        setLoginOtpMsg(null);
+        router.replace("/kiosk");
+      }, 650);
+    } catch {
+      setLoginOtpMsg("Erreur réseau.");
+    } finally {
+      setLoginOtpBusy(false);
+    }
+  }
+
+  async function verifyOtpAndPassword() {
+    const clean =
+      pendingKioskPin ?? employeeCode.replace(/\D/g, "").slice(0, PIN_LEN);
+    if (clean.length !== PIN_LEN || loginPhase !== "otp_password") return;
+    if (loginOtp.length !== 6 || !loginPassword.trim()) {
+      setLoginOtpMsg("Code à 6 chiffres et mot de passe requis.");
+      return;
+    }
+
+    setLoginOtpBusy(true);
+    setLoginOtpMsg(null);
+    try {
+      const res = await fetch("/api/kiosk/unlock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: clean,
+          otp: loginOtp,
+          password: loginPassword,
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) {
+        setLoginOtpMsg(data?.error ?? "Vérification échouée.");
+        return;
+      }
+
+      const roleFromApi = String(data?.employee?.role ?? "EMPLOYEE").toUpperCase();
+      const first = data?.employee?.firstName ?? "";
+      const displayName = first.trim();
+
+      setPinError(false);
+      setPinSuccess(true);
+      setPinFlash(true);
+      setTimeout(() => setPinFlash(false), 650);
+      setTimeout(() => {
+        setEmployeeLogged(true);
+        setEmployeeCodeConfirmed(clean);
+        setEmployeeName(displayName);
+        saveEmployeeSession(clean, displayName, roleFromApi);
+        setKioskRole(roleFromApi);
+        setPendingKioskPin(null);
+        setLoginPhase(null);
+        setLoginOtp("");
+        setLoginPassword("");
         setLoginOtpMsg(null);
         router.replace("/kiosk");
       }, 650);
@@ -560,8 +715,10 @@ function firstWord(v: string | null | undefined) {
     setPinFlash(false);
     setAutoSubmitting(false);
     setBlockedCode(null);
-    setAwaitingOtpCode(null);
+    setPendingKioskPin(null);
+    setLoginPhase(null);
     setLoginOtp("");
+    setLoginPassword("");
     setLoginOtpMsg(null);
 
     await Promise.all([loadActifs(), loadPunchState()]);
@@ -644,8 +801,10 @@ function firstWord(v: string | null | undefined) {
     setPinFlash(false);
     setAutoSubmitting(false);
     setBlockedCode(null);
-    setAwaitingOtpCode(null);
+    setPendingKioskPin(null);
+    setLoginPhase(null);
     setLoginOtp("");
+    setLoginPassword("");
     setLoginOtpMsg(null);
 
     router.replace("/kiosk");
@@ -838,8 +997,10 @@ function firstWord(v: string | null | undefined) {
                     setEmployeeCodeConfirmed(null);
                     setEmployeeName(null);
                     setPinError(false);
-                    setAwaitingOtpCode(null);
+                    setPendingKioskPin(null);
+                    setLoginPhase(null);
                     setLoginOtp("");
+                    setLoginPassword("");
                     setLoginOtpMsg(null);
                   }}
                 >
@@ -857,30 +1018,172 @@ function firstWord(v: string | null | undefined) {
             </>
           )}
 
-          {!isAnyLogged && awaitingOtpCode && (
-            <div className="modal-overlay">
-              <div className="modal-card">
-                <h3 className="modal-title">Vérification email</h3>
-                <p className="modal-sub">Entre le code reçu par email pour terminer la connexion.</p>
+          {!isAnyLogged && pendingKioskPin && loginPhase === "otp" && (
+            <div className="kiosk-auth-overlay" role="dialog" aria-modal="true" aria-labelledby="kiosk-otp-title">
+              <div className="kiosk-auth-panel">
+                <button
+                  type="button"
+                  className="kiosk-auth-close"
+                  onClick={dismissKioskAuth}
+                  aria-label="Fermer"
+                >
+                  ✕
+                </button>
+                <div className="kiosk-auth-panelHead">
+                  <h3 id="kiosk-otp-title" className="kiosk-auth-title">
+                    Code par email
+                  </h3>
+                  <p className="kiosk-auth-desc">Entre le code à 6 chiffres envoyé à ton courriel pour terminer la connexion.</p>
+                </div>
+                <label className="kiosk-auth-label" htmlFor="kiosk-otp-input">
+                  Code de vérification
+                </label>
                 <input
-                  className="input"
+                  id="kiosk-otp-input"
+                  className="kiosk-auth-input"
                   inputMode="numeric"
+                  autoComplete="one-time-code"
                   value={loginOtp}
                   onChange={(e) => setLoginOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  placeholder="Code 6 chiffres"
+                  placeholder="000000"
                 />
-                {loginOtpMsg ? <div className="alert error" style={{ marginTop: 10 }}>{loginOtpMsg}</div> : null}
-                <div className="otpActions">
-                  <button className="primary" type="button" disabled={loginOtpBusy} onClick={verifyLoginOtp}>
-                    {loginOtpBusy ? "..." : "Vérifier"}
-                  </button>
+                {loginOtpMsg ? <div className="kiosk-auth-alert">{loginOtpMsg}</div> : null}
+                <div className="kiosk-auth-actions">
                   <button
-                    className="secondary"
+                    className="kiosk-auth-btn kiosk-auth-btnSecondary"
                     type="button"
                     disabled={loginOtpBusy || otpSending}
-                    onClick={() => employeeConfirm(awaitingOtpCode)}
+                    onClick={() => employeeConfirm(pendingKioskPin ?? undefined)}
                   >
-                    {otpSending ? "Envoi..." : "Renvoyer code"}
+                    {otpSending ? "Envoi…" : "Renvoyer le code"}
+                  </button>
+                  <button
+                    className="kiosk-auth-btn kiosk-auth-btnPrimary"
+                    type="button"
+                    disabled={loginOtpBusy}
+                    onClick={verifyLoginOtp}
+                  >
+                    {loginOtpBusy ? "…" : "Vérifier"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!isAnyLogged && pendingKioskPin && loginPhase === "password" && (
+            <div className="kiosk-auth-overlay" role="dialog" aria-modal="true" aria-labelledby="kiosk-pw-title">
+              <div className="kiosk-auth-panel">
+                <button
+                  type="button"
+                  className="kiosk-auth-close"
+                  onClick={dismissKioskAuth}
+                  aria-label="Fermer"
+                >
+                  ✕
+                </button>
+                <div className="kiosk-auth-panelHead">
+                  <h3 id="kiosk-pw-title" className="kiosk-auth-title">
+                    Mot de passe kiosque
+                  </h3>
+                  <p className="kiosk-auth-desc">
+                    Saisis le mot de passe défini dans les paramètres (ou fourni par l’administration).
+                  </p>
+                </div>
+                <label className="kiosk-auth-label" htmlFor="kiosk-pw-input">
+                  Mot de passe
+                </label>
+                <PasswordRevealField
+                  id="kiosk-pw-input"
+                  inputClassName="kiosk-auth-input"
+                  autoComplete="current-password"
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  placeholder="••••••••"
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter") return;
+                    e.preventDefault();
+                    if (!loginOtpBusy) void verifyLoginPasswordOnly();
+                  }}
+                />
+                {loginOtpMsg ? <div className="kiosk-auth-alert">{loginOtpMsg}</div> : null}
+                <div className="kiosk-auth-actions kiosk-auth-actions--stack">
+                  <button
+                    className="kiosk-auth-btn kiosk-auth-btnPrimary"
+                    type="button"
+                    disabled={loginOtpBusy}
+                    onClick={verifyLoginPasswordOnly}
+                  >
+                    {loginOtpBusy ? "…" : "Continuer"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!isAnyLogged && pendingKioskPin && loginPhase === "otp_password" && (
+            <div className="kiosk-auth-overlay" role="dialog" aria-modal="true" aria-labelledby="kiosk-both-title">
+              <div className="kiosk-auth-panel">
+                <button
+                  type="button"
+                  className="kiosk-auth-close"
+                  onClick={dismissKioskAuth}
+                  aria-label="Fermer"
+                >
+                  ✕
+                </button>
+                <div className="kiosk-auth-panelHead">
+                  <h3 id="kiosk-both-title" className="kiosk-auth-title">
+                    Courriel et mot de passe
+                  </h3>
+                  <p className="kiosk-auth-desc">
+                    Un code a été envoyé à ton courriel. Entre le code et ton mot de passe kiosque.
+                  </p>
+                </div>
+                <label className="kiosk-auth-label" htmlFor="kiosk-both-otp">
+                  Code à 6 chiffres
+                </label>
+                <input
+                  id="kiosk-both-otp"
+                  className="kiosk-auth-input"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  value={loginOtp}
+                  onChange={(e) => setLoginOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  placeholder="000000"
+                />
+                <label className="kiosk-auth-label" htmlFor="kiosk-both-pw">
+                  Mot de passe kiosque
+                </label>
+                <PasswordRevealField
+                  id="kiosk-both-pw"
+                  inputClassName="kiosk-auth-input"
+                  autoComplete="current-password"
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  placeholder="••••••••"
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter") return;
+                    e.preventDefault();
+                    if (!loginOtpBusy) void verifyOtpAndPassword();
+                  }}
+                />
+                {loginOtpMsg ? <div className="kiosk-auth-alert">{loginOtpMsg}</div> : null}
+                <div className="kiosk-auth-actions">
+                  <button
+                    className="kiosk-auth-btn kiosk-auth-btnSecondary"
+                    type="button"
+                    disabled={loginOtpBusy || otpSending}
+                    onClick={() => employeeConfirm(pendingKioskPin ?? undefined)}
+                  >
+                    {otpSending ? "Envoi…" : "Renvoyer le code"}
+                  </button>
+                  <button
+                    className="kiosk-auth-btn kiosk-auth-btnPrimary"
+                    type="button"
+                    disabled={loginOtpBusy}
+                    onClick={verifyOtpAndPassword}
+                  >
+                    {loginOtpBusy ? "…" : "Vérifier"}
                   </button>
                 </div>
               </div>
@@ -1122,12 +1425,12 @@ function firstWord(v: string | null | undefined) {
             />
 
             <label className="label" style={{ marginTop: 10 }}>Mot de passe</label>
-            <input
-              className="input"
+            <PasswordRevealField
+              inputClassName="input"
               value={adminPassword}
-              type="password"
               onChange={(e) => setAdminPassword(e.target.value)}
               disabled={adminLoading}
+              autoComplete="current-password"
               onKeyDown={(e) => {
                 if (e.key === "Enter") adminLogin();
               }}

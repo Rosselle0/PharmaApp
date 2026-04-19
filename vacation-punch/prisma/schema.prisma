@@ -39,6 +39,12 @@ model User {
   @@index([companyId, department])
 }
 
+enum KioskSecondFactorMode {
+  EMAIL_OTP
+  PASSWORD
+  EMAIL_AND_PASSWORD
+}
+
 model Employee {
   id           String @id @default(uuid())
   companyId    String
@@ -50,6 +56,11 @@ model Employee {
 
   role       Role       @default(EMPLOYEE) // <-- AJOUTE ÇA
   department Department @default(FLOOR) // <-- GARDE ÇA (Option A)
+
+  /// Second factor after PIN at the kiosk: email OTP, password, or email + password.
+  kioskSecondFactorMode KioskSecondFactorMode @default(EMAIL_OTP)
+  /// scrypt hash (see src/lib/passwordHash.ts); never exposed to client.
+  kioskPasswordHash     String?
 
   paidBreak30 Boolean  @default(false)
   /// Après une sortie au kiosque, pointages bloqués jusqu’au lendemain (minuit APP_TZ) ou déverrouillage patron (Journaux).

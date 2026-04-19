@@ -892,6 +892,215 @@
     }
 }
 
+/* ============ Kiosk login second-factor (light card on dark UI) ============ */
+.kiosk-auth-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 5000;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    background: rgba(6, 11, 26, 0.62);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    animation: kioskAuthFade 0.2s ease both;
+}
+
+@keyframes kioskAuthFade {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.kiosk-auth-panel {
+    position: relative;
+    width: min(420px, 100%);
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    color: #0f172a;
+    border-radius: 20px;
+    padding: 22px 22px 20px;
+    box-shadow:
+        0 4px 6px -1px rgba(15, 23, 42, 0.06),
+        0 24px 48px -12px rgba(15, 23, 42, 0.28),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    animation: kioskAuthPop 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.kiosk-auth-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 2;
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 10px;
+    background: rgba(15, 23, 42, 0.06);
+    color: #64748b;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.kiosk-auth-close:hover,
+.kiosk-auth-close:focus-visible {
+    background: rgba(15, 23, 42, 0.1);
+    color: #0f172a;
+    outline: none;
+}
+
+@keyframes kioskAuthPop {
+    from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.kiosk-auth-panelHead {
+    margin-bottom: 16px;
+    padding-right: 36px;
+}
+
+.kiosk-auth-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: #0f172a;
+}
+
+.kiosk-auth-desc {
+    margin: 8px 0 0;
+    font-size: 14px;
+    line-height: 1.45;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.kiosk-auth-label {
+    display: block;
+    margin-top: 12px;
+    margin-bottom: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #475569;
+    letter-spacing: 0.02em;
+}
+
+.kiosk-auth-input {
+    width: 100%;
+    height: 46px;
+    border-radius: 12px;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    background: #fff;
+    color: #0f172a;
+    padding: 0 14px;
+    font-size: 16px;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.kiosk-auth-input::placeholder {
+    color: #94a3b8;
+}
+
+.kiosk-auth-input:focus {
+    border-color: rgba(37, 99, 235, 0.55);
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+}
+
+.kiosk-auth-alert {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 650;
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.22);
+    color: #b91c1c;
+}
+
+.kiosk-auth-actions {
+    margin-top: 18px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.kiosk-auth-actions--stack {
+    grid-template-columns: 1fr;
+}
+
+@media (max-width: 420px) {
+    .kiosk-auth-actions {
+        grid-template-columns: 1fr;
+    }
+}
+
+.kiosk-auth-btn {
+    height: 46px;
+    border-radius: 12px;
+    font-weight: 800;
+    font-size: 14px;
+    cursor: pointer;
+    border: none;
+    transition: transform 0.12s ease, filter 0.15s ease;
+}
+
+.kiosk-auth-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.kiosk-auth-btn:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+.kiosk-auth-btnPrimary {
+    background: linear-gradient(180deg, #2563eb, #1d4ed8);
+    color: #fff;
+    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.35);
+}
+
+.kiosk-auth-btnPrimary:hover:not(:disabled) {
+    filter: brightness(1.05);
+}
+
+.kiosk-auth-btnSecondary {
+    background: #f1f5f9;
+    color: #0f172a;
+    border: 1px solid rgba(15, 23, 42, 0.1);
+}
+
+.kiosk-auth-btnSecondary:hover:not(:disabled) {
+    background: #e2e8f0;
+}
+
+.kiosk-auth-divider {
+    margin: 14px 0 6px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
 /* BRAND LOGO IN CENTER SPACE */
 
 @keyframes brandReveal {

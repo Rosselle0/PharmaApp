@@ -490,6 +490,19 @@ body{
   flex-wrap: wrap;
 }
 
+/* Kiosk second factor (admin edit) */
+.m-kioskBlock {
+  margin-top: 6px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+.m-kioskTitle {
+  font-weight: 800;
+  font-size: 15px;
+  margin: 0 0 12px;
+  color: var(--text);
+}
+
 /* Responsive */
 @media (max-width: 780px) {
   .m-grid { grid-template-columns: 1fr; }

@@ -4,8 +4,16 @@ import { useEffect, useMemo, useState, Suspense } from "react";
 import Link from "next/link";
 import "./settings.css";
 import KioskSidebar from "@/components/KioskSidebar";
+import type { KioskSecondFactorMode } from "@prisma/client";
+import { KIOSK_MODE_OPTIONS_FR } from "@/lib/kioskSecondFactorUi";
+import { validateKioskPasswordPolicy } from "@/lib/kioskPasswordPolicy";
+import { KioskPasswordRequirementsHint } from "@/components/KioskPasswordRequirementsHint";
+import { PasswordRevealField } from "@/components/PasswordRevealField";
+import "@/app/admin/admin-kiosk-fields.css";
 
 type ThemeMode = "light" | "dark";
+
+const KIOSK_MODE_OPTIONS = KIOSK_MODE_OPTIONS_FR;
 
 type DayKey = "SUN" | "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT";
 
@@ -82,10 +90,19 @@ export default function SettingsPage() {
   const [emailBusy, setEmailBusy] = useState(false);
   const [emailMsg, setEmailMsg] = useState<string | null>(null);
 
+  const [kioskMode, setKioskMode] = useState<KioskSecondFactorMode>("EMAIL_OTP");
+  const [kioskHasPassword, setKioskHasPassword] = useState(false);
+  const [kioskHasEmail, setKioskHasEmail] = useState(false);
+  const [kioskNewPw, setKioskNewPw] = useState("");
+  const [kioskConfirmPw, setKioskConfirmPw] = useState("");
+  const [kioskCurrentPw, setKioskCurrentPw] = useState("");
+  const [kioskBusy, setKioskBusy] = useState(false);
+  const [kioskMsg, setKioskMsg] = useState<string | null>(null);
+
   // KIOSK / EMPLOYEE STATES
   const [kioskRole, setKioskRole] = useState<string | null>(null);
   const [employeeLogged, setEmployeeLogged] = useState(false);
-const [employeeCode, setEmployeeCode] = useState<string | null>(null);
+  const [employeeCode, setEmployeeCode] = useState<string | null>(null);
 
   // Derived state for sidebar privileges
   const isPrivilegedLogged = kioskRole === "ADMIN" || kioskRole === "MANAGER";
@@ -126,6 +143,22 @@ const [employeeCode, setEmployeeCode] = useState<string | null>(null);
         setKioskRole(role);
       } catch { }
     })();
+
+    (async () => {
+      try {
+        const res = await fetch(`/api/settings/kiosk-login?code=${encodeURIComponent(code)}`, {
+          cache: "no-store",
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data?.ok) return;
+        const m = String(data?.mode ?? "EMAIL_OTP") as KioskSecondFactorMode;
+        setKioskMode(KIOSK_MODE_OPTIONS.some((o) => o.value === m) ? m : "EMAIL_OTP");
+        setKioskHasPassword(Boolean(data?.hasPassword));
+        setKioskHasEmail(Boolean(data?.hasEmail));
+      } catch {
+        // ignore
+      }
+    })();
   }, []);
 
   // Theme toggle
@@ -156,6 +189,71 @@ const [employeeCode, setEmployeeCode] = useState<string | null>(null);
       setEmailMsg("Erreur reseau.");
     } finally {
       setEmailBusy(false);
+    }
+  }
+
+  async function saveKioskLoginSettings() {
+    const code = readEmployeeCodeFromUrlOrStorage();
+    if (!code) {
+      setKioskMsg("Code employé introuvable.");
+      return;
+    }
+
+    setKioskMsg(null);
+    const mustSetPw =
+      (kioskMode === "PASSWORD" || kioskMode === "EMAIL_AND_PASSWORD") &&
+      !kioskHasPassword &&
+      (!kioskNewPw.trim() || kioskNewPw !== kioskConfirmPw);
+
+    if (mustSetPw) {
+      setKioskMsg(
+        !kioskNewPw.trim()
+          ? "Choisis un mot de passe valide et confirme-le."
+          : "La confirmation ne correspond pas au nouveau mot de passe."
+      );
+      return;
+    }
+
+    if (kioskNewPw && kioskNewPw !== kioskConfirmPw) {
+      setKioskMsg("La confirmation ne correspond pas au nouveau mot de passe.");
+      return;
+    }
+
+    if (kioskNewPw.trim()) {
+      const pv = validateKioskPasswordPolicy(kioskNewPw);
+      if (!pv.ok) {
+        setKioskMsg(pv.error);
+        return;
+      }
+    }
+
+    setKioskBusy(true);
+    try {
+      const res = await fetch("/api/settings/kiosk-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code,
+          mode: kioskMode,
+          newPassword: kioskNewPw.trim() || undefined,
+          currentPassword: kioskCurrentPw.trim() || undefined,
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setKioskMsg(data?.error ?? "Erreur enregistrement.");
+        return;
+      }
+      setKioskMsg("Réglages kiosque enregistrés.");
+      setKioskHasPassword(Boolean(data?.hasPassword));
+      setKioskHasEmail(Boolean(data?.hasEmail));
+      setKioskNewPw("");
+      setKioskConfirmPw("");
+      setKioskCurrentPw("");
+    } catch {
+      setKioskMsg("Erreur réseau.");
+    } finally {
+      setKioskBusy(false);
     }
   }
 
@@ -409,6 +507,90 @@ const [employeeCode, setEmployeeCode] = useState<string | null>(null);
                 }}
               >
                 Ajouter mes disponibilités
+              </button>
+            </div>
+
+            <div className="settings-card">
+              <h2 className="settings-card-title">Connexion kiosque (après le PIN)</h2>
+              <p className="settings-subtitle" style={{ marginBottom: 12 }}>
+                Après le code à 4 chiffres, une étape supplémentaire est toujours requise : code email,
+                mot de passe, ou les deux selon le mode choisi.
+              </p>
+
+              <label className="email-change-label">Mode de vérification</label>
+              <select
+                className="email-change-input"
+                value={kioskMode}
+                onChange={(e) => setKioskMode(e.target.value as KioskSecondFactorMode)}
+              >
+                {KIOSK_MODE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              <p className="profile-role" style={{ marginTop: 8 }}>
+                {KIOSK_MODE_OPTIONS.find((o) => o.value === kioskMode)?.hint ?? ""}
+              </p>
+
+              {!kioskHasEmail && (kioskMode === "EMAIL_OTP" || kioskMode === "EMAIL_AND_PASSWORD") ? (
+                <div className="email-change-msg" style={{ marginTop: 10 }}>
+                  Ajoute un email ci-dessus pour utiliser ce mode.
+                </div>
+              ) : null}
+
+              {(kioskMode === "PASSWORD" || kioskMode === "EMAIL_AND_PASSWORD") && (
+                <div style={{ marginTop: 16 }}>
+                  <label className="email-change-label">
+                    {kioskHasPassword ? "Mot de passe actuel (pour modifier)" : ""}
+                  </label>
+                  {kioskHasPassword ? (
+                    <PasswordRevealField
+                      inputClassName="email-change-input"
+                      autoComplete="current-password"
+                      value={kioskCurrentPw}
+                      onChange={(e) => setKioskCurrentPw(e.target.value)}
+                      placeholder="Mot de passe actuel"
+                    />
+                  ) : null}
+
+                  <div className="labelRow" style={{ marginTop: 10 }}>
+                    <label className="email-change-label" style={{ margin: 0 }}>
+                      {kioskHasPassword ? "Nouveau mot de passe" : "Mot de passe kiosque"}
+                    </label>
+                    <KioskPasswordRequirementsHint id="settings-kiosk-pw-req" />
+                  </div>
+                  <PasswordRevealField
+                    inputClassName="email-change-input"
+                    autoComplete="new-password"
+                    value={kioskNewPw}
+                    onChange={(e) => setKioskNewPw(e.target.value)}
+                    placeholder="8+ caractères, 1 chiffre, 1 caractère spécial"
+                  />
+
+                  <label className="email-change-label" style={{ marginTop: 10 }}>
+                    Confirmer
+                  </label>
+                  <PasswordRevealField
+                    inputClassName="email-change-input"
+                    autoComplete="new-password"
+                    value={kioskConfirmPw}
+                    onChange={(e) => setKioskConfirmPw(e.target.value)}
+                    placeholder="Confirmer le mot de passe"
+                  />
+                </div>
+              )}
+
+              {kioskMsg ? <div className="email-change-msg" style={{ marginTop: 12 }}>{kioskMsg}</div> : null}
+
+              <button
+                className="theme-toggle-btn"
+                type="button"
+                style={{ marginTop: 14 }}
+                disabled={kioskBusy}
+                onClick={saveKioskLoginSettings}
+              >
+                {kioskBusy ? "..." : "Enregistrer la connexion kiosque"}
               </button>
             </div>
 

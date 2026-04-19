@@ -5,6 +5,11 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Department, Role } from "@prisma/client";
 import { getCompanyId } from "@/lib/company";
+import { hashPassword } from "@/lib/passwordHash";
+import { DEFAULT_MANAGER_KIOSK_PASSWORD } from "@/lib/kioskDefaults";
+import type { KioskSecondFactorMode } from "@prisma/client";
+import { parseKioskSecondFactorMode, validateKioskSecondFactorConfig } from "@/lib/kioskSecondFactor";
+import { validateKioskPasswordPolicy } from "@/lib/kioskPasswordPolicy";
 
 function normalizeDepartment(dep: any): Department {
   const v = String(dep ?? "").toUpperCase();
@@ -44,6 +49,8 @@ export async function GET() {
       role: true,          // ✅ ADD THIS
       paidBreak30: true,
       isActive: true,
+      kioskSecondFactorMode: true,
+      kioskPasswordHash: true,
     },
   });
 
@@ -58,6 +65,8 @@ export async function GET() {
       paid30: e.paidBreak30,
       role: e.role,        // ✅ REAL ROLE
       isActive: e.isActive,
+      kioskSecondFactorMode: e.kioskSecondFactorMode,
+      hasKioskPassword: !!e.kioskPasswordHash?.length,
     })),
   });
 }
@@ -98,6 +107,30 @@ export async function POST(req: Request) {
 
     const companyId = await getCompanyId();
 
+    const clearKiosk = Boolean(body.clearKioskPassword);
+    const explicitPw = typeof body.kioskPassword === "string" ? String(body.kioskPassword).trim() : "";
+    let nextHash: string | null = null;
+    if (clearKiosk) {
+      nextHash = null;
+    } else if (explicitPw.length > 0) {
+      const pwCheck = validateKioskPasswordPolicy(explicitPw);
+      if (!pwCheck.ok) {
+        return NextResponse.json({ error: pwCheck.error }, { status: 400 });
+      }
+      nextHash = hashPassword(explicitPw);
+    } else if (role === Role.MANAGER) {
+      nextHash = hashPassword(DEFAULT_MANAGER_KIOSK_PASSWORD);
+    }
+
+    const parsedMode = parseKioskSecondFactorMode(body.kioskSecondFactorMode);
+    const mode: KioskSecondFactorMode =
+      parsedMode ?? (email ? "EMAIL_OTP" : nextHash ? "PASSWORD" : "EMAIL_OTP");
+
+    const cfg = validateKioskSecondFactorConfig(email, nextHash, mode);
+    if (!cfg.ok) {
+      return NextResponse.json({ error: cfg.error }, { status: 400 });
+    }
+
     const created = await prisma.employee.create({
       data: {
         companyId,
@@ -109,6 +142,8 @@ export async function POST(req: Request) {
         role,               // ✅ STORE ROLE
         paidBreak30,
         isActive: true,
+        kioskSecondFactorMode: mode,
+        kioskPasswordHash: nextHash,
       },
       select: {
         id: true,
@@ -121,14 +156,26 @@ export async function POST(req: Request) {
         paidBreak30: true,
         isActive: true,
         createdAt: true,
+        kioskSecondFactorMode: true,
+        kioskPasswordHash: true,
       },
     });
 
     return NextResponse.json(
       {
         employee: {
-          ...created,
+          id: created.id,
+          firstName: created.firstName,
+          lastName: created.lastName,
+          email: created.email,
+          employeeCode: created.employeeCode,
+          department: created.department,
+          role: created.role,
           paid30: created.paidBreak30,
+          isActive: created.isActive,
+          createdAt: created.createdAt,
+          kioskSecondFactorMode: created.kioskSecondFactorMode,
+          hasKioskPassword: !!created.kioskPasswordHash?.length,
         },
       },
       { status: 201 }

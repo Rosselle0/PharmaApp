@@ -1,0 +1,70 @@
+/* Shared: kiosk fields in admin create / modify */
+
+.kiosk-pw-hintWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.kiosk-pw-hintBtn {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 1px solid rgba(37, 99, 235, 0.35);
+  background: rgba(37, 99, 235, 0.08);
+  color: #2563eb;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: help;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.kiosk-pw-hintBtn:hover,
+.kiosk-pw-hintBtn:focus-visible {
+  background: rgba(37, 99, 235, 0.16);
+  outline: none;
+}
+
+.kiosk-pw-hintPopover {
+  display: none;
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 10px);
+  transform: translateX(-50%);
+  width: min(280px, 70vw);
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: #0f172a;
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
+  z-index: 20;
+  pointer-events: none;
+}
+
+.kiosk-pw-hintWrap:hover .kiosk-pw-hintPopover,
+.kiosk-pw-hintWrap:focus-within .kiosk-pw-hintPopover {
+  display: block;
+}
+
+.labelRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 12px;
+  margin-bottom: 6px;
+}
+
+.labelReq::after {
+  content: " *";
+  color: #dc2626;
+  font-weight: 800;
+}

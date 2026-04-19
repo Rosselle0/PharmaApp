@@ -2,6 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import type { KioskSecondFactorMode } from "@prisma/client";
+import { KIOSK_MODE_OPTIONS_FR } from "@/lib/kioskSecondFactorUi";
+import { validateKioskPasswordPolicy } from "@/lib/kioskPasswordPolicy";
+import { KioskPasswordRequirementsHint } from "@/components/KioskPasswordRequirementsHint";
+import { PasswordRevealField } from "@/components/PasswordRevealField";
+import "@/app/admin/admin-kiosk-fields.css";
 import "./modify.css";
 
 type Role = "EMPLOYEE" | "MANAGER" | "ADMIN";
@@ -16,6 +22,8 @@ type Account = {
   role: Role; // your API hardcodes EMPLOYEE if you don't have roles
   department: Department;
   paid30: boolean;
+  kioskSecondFactorMode: KioskSecondFactorMode;
+  hasKioskPassword: boolean;
 };
 
 function onlyDigits(v: string, max = 10) {
@@ -32,6 +40,7 @@ export default function ModifyAccountsPage() {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [q, setQ] = useState("");
+  const [kioskPw, setKioskPw] = useState("");
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -64,7 +73,11 @@ export default function ModifyAccountsPage() {
       }
 
       const data = await res.json();
-      const list: Account[] = data.employees ?? [];
+      const list: Account[] = (data.employees ?? []).map((e: Account) => ({
+        ...e,
+        kioskSecondFactorMode: e.kioskSecondFactorMode ?? "EMAIL_OTP",
+        hasKioskPassword: Boolean(e.hasKioskPassword),
+      }));
       setItems(list);
 
       setSelectedId((prev) => {
@@ -87,6 +100,7 @@ export default function ModifyAccountsPage() {
   useEffect(() => {
     if (selected) setDraft({ ...selected });
     else setDraft(null);
+    setKioskPw("");
   }, [selectedId, items]);
 
   async function save() {
@@ -100,13 +114,30 @@ export default function ModifyAccountsPage() {
 
     setLoading(true);
     setMsg(null);
+
+    if (kioskPw.trim()) {
+      const pv = validateKioskPasswordPolicy(kioskPw.trim());
+      if (!pv.ok) {
+        setMsg(pv.error);
+        setLoading(false);
+        return;
+      }
+    }
+
     try {
       const res = await fetch(`/api/admin/employees/${draft.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...draft,
+          firstName: draft.firstName,
+          lastName: draft.lastName,
+          email: draft.email,
           employeeCode: onlyDigits(draft.employeeCode),
+          department: draft.department,
+          role: draft.role,
+          paid30: draft.paid30,
+          kioskSecondFactorMode: draft.kioskSecondFactorMode,
+          ...(kioskPw.trim() ? { kioskPassword: kioskPw.trim() } : {}),
         }),
       });
 
@@ -262,7 +293,15 @@ export default function ModifyAccountsPage() {
               </div>
 
               <div className="m-field span2">
-                <label>Email</label>
+                <label className={draft.kioskSecondFactorMode === "EMAIL_OTP" || draft.kioskSecondFactorMode === "EMAIL_AND_PASSWORD" ? "labelReq" : undefined}>
+                  Courriel
+                  {draft.kioskSecondFactorMode !== "EMAIL_OTP" &&
+                  draft.kioskSecondFactorMode !== "EMAIL_AND_PASSWORD" ? (
+                    <span className="m-hint" style={{ display: "inline", marginLeft: 6, fontWeight: 600 }}>
+                      (optionnel)
+                    </span>
+                  ) : null}
+                </label>
                 <input
                   type="email"
                   value={draft.email ?? ""}
@@ -301,6 +340,58 @@ export default function ModifyAccountsPage() {
                   <option value="ADMIN">Admin</option>
                 </select>
                 <div className="m-hint">MVP: si tu n’as pas role en DB, ça sert juste à l’UI.</div>
+              </div>
+
+              <div className="m-field span2 m-kioskBlock">
+                <div className="m-kioskTitle">Connexion kiosque (après le PIN)</div>
+                <label>Mode de vérification</label>
+                <select
+                  value={draft.kioskSecondFactorMode}
+                  onChange={(e) =>
+                    setDraft({ ...draft, kioskSecondFactorMode: e.target.value as KioskSecondFactorMode })
+                  }
+                >
+                  {KIOSK_MODE_OPTIONS_FR.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+                <div className="m-hint">
+                  {KIOSK_MODE_OPTIONS_FR.find((o) => o.value === draft.kioskSecondFactorMode)?.hint ?? ""}
+                </div>
+                {!draft.email?.trim() &&
+                (draft.kioskSecondFactorMode === "EMAIL_OTP" ||
+                  draft.kioskSecondFactorMode === "EMAIL_AND_PASSWORD") ? (
+                  <div className="m-hint" style={{ color: "#b45309", marginTop: 6 }}>
+                    Ajoute un courriel ci-dessus pour ce mode, ou passe au mode « Mot de passe » seul.
+                  </div>
+                ) : null}
+
+                {(draft.kioskSecondFactorMode === "PASSWORD" ||
+                  draft.kioskSecondFactorMode === "EMAIL_AND_PASSWORD") && (
+                  <>
+                    <div className="labelRow" style={{ marginTop: 12 }}>
+                      <label style={{ margin: 0 }}>Mot de passe kiosque</label>
+                      <KioskPasswordRequirementsHint id={`edit-kiosk-pw-${draft.id}`} />
+                    </div>
+                    <PasswordRevealField
+                      autoComplete="new-password"
+                      value={kioskPw}
+                      onChange={(e) => setKioskPw(e.target.value)}
+                      placeholder={
+                        draft.hasKioskPassword
+                          ? "Nouveau mot de passe — vide = inchangé"
+                          : "8+ caractères, 1 chiffre, 1 caractère spécial"
+                      }
+                    />
+                    {draft.hasKioskPassword ? (
+                      <div className="m-hint">Un mot de passe est déjà enregistré pour ce compte.</div>
+                    ) : (
+                      <div className="m-hint">Requis pour les modes basés sur le mot de passe.</div>
+                    )}
+                  </>
+                )}
               </div>
 
               <div className="m-field span2">

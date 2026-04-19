@@ -271,6 +271,36 @@
   transform: none;
 }
 
+.kiosk-admin-section {
+  padding-top: 16px;
+  margin-top: 8px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.kiosk-admin-heading {
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 12px;
+  color: var(--text-main);
+}
+
+.hint.warn {
+  color: #b45309;
+  margin-top: 10px;
+  font-size: 13px;
+}
+
+.kiosk-mt {
+  display: block;
+  margin-top: 14px;
+}
+
+.hint-inline {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--hint-color);
+}
+
 /* RESPONSIVE */
 @media (max-width: 780px) {
   .grid {
