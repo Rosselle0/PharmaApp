@@ -31,10 +31,10 @@ export async function GET() {
 
   const companyId = await getOrCreateDefaultCompanyId();
 
+  const meta = authUser.user_metadata as Record<string, unknown> | undefined;
   const name =
-    (authUser.user_metadata as any)?.name ??
-    (authUser.user_metadata as any)?.full_name ??
-    null;
+    (typeof meta?.name === "string" ? meta.name : null) ??
+    (typeof meta?.full_name === "string" ? meta.full_name : null);
 
   // Try authUserId first
   let appUser = await prisma.user.findUnique({ where: { authUserId: authUser.id } });

@@ -118,7 +118,6 @@ async function sendLoginOtpResponse(req: Request, employee: EmployeeUnlock, flag
     return NextResponse.json({ ok: false, error: sent.error }, { status: 503 });
   }
 
-  const { secureCookie } = secureCookieFlags(req);
   const body = flags.combined
     ? {
         ok: false,

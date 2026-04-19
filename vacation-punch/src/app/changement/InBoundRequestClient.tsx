@@ -36,7 +36,6 @@ function fmtTime(dt: string) {
 
 export default function InboundRequestsClient({
   initial,
-  code,
 }: {
   initial: InboundReq[];
   code?: string;

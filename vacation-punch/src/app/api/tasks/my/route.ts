@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { messageFromUnknown } from "@/lib/unknownError";
 
 function startOfDayUTC(ymd: string) {
   // ymd = "YYYY-MM-DD"
@@ -76,8 +77,8 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ assignments });
 
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("GET /api/tasks/my failed:", e);
-    return NextResponse.json({ error: e?.message ?? "Server error" }, { status: 500 });
+    return NextResponse.json({ error: messageFromUnknown(e) || "Server error" }, { status: 500 });
   }
 }

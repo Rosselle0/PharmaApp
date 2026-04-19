@@ -1,5 +1,4 @@
 import "./requests.css";
-import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { VacationStatus } from "@prisma/client";
 import { getPrivilegedContextOrRedirect } from "@/lib/adminContext";

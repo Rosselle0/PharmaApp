@@ -1,0 +1,123 @@
+﻿
+C:\Users\Rosselle\Documents\GitHub\PharmaApp\vacation-punch\src\app\admin\creation-t\ui.tsx
+   31:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   36:26  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   40:38  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   49:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   55:31  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  137:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  152:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  204:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  258:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  277:37  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  368:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  385:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  410:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  467:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  549:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Rosselle\Documents\GitHub\PharmaApp\vacation-punch\src\app\admin\logs\AdminLogsClient.tsx
+  200:29  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  208:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Rosselle\Documents\GitHub\PharmaApp\vacation-punch\src\app\admin\modify\page.tsx
+   84:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  148:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  168:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Rosselle\Documents\GitHub\PharmaApp\vacation-punch\src\app\admin\requests\_helper.ts
+  30:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  31:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Rosselle\Documents\GitHub\PharmaApp\vacation-punch\src\app\api\admin\logs\pharmacist-sign\route.ts
+  60:15  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Rosselle\Documents\GitHub\PharmaApp\vacation-punch\src\app\api\admin\logs\punch-correction\route.ts
+  259:15  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Rosselle\Documents\GitHub\PharmaApp\vacation-punch\src\app\api\admin\logs\review\route.ts
+  126:15  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Rosselle\Documents\GitHub\PharmaApp\vacation-punch\src\app\api\admin\logs\route.ts
+  158:43  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  340:64  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  340:89  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  431:15  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Rosselle\Documents\GitHub\PharmaApp\vacation-punch\src\app\api\admin\punch-unlock\route.ts
+  41:15  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Rosselle\Documents\GitHub\PharmaApp\vacation-punch\src\app\api\admin\schedule\employees-working\route.ts
+  58:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  77:15  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Rosselle\Documents\GitHub\PharmaApp\vacation-punch\src\app\api\assign-tasks\route.ts
+  178:15  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Rosselle\Documents\GitHub\PharmaApp\vacation-punch\src\app\api\kiosk\actifs\route.ts
+   99:41  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  188:15  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Rosselle\Documents\GitHub\PharmaApp\vacation-punch\src\app\api\me\route.ts
+  35:32  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  36:32  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Rosselle\Documents\GitHub\PharmaApp\vacation-punch\src\app\api\settings\email\send-otp\route.ts
+  93:15  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Rosselle\Documents\GitHub\PharmaApp\vacation-punch\src\app\api\settings\email\verify-otp\route.ts
+  72:15  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Rosselle\Documents\GitHub\PharmaApp\vacation-punch\src\app\api\settings\me\route.ts
+  38:15  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Rosselle\Documents\GitHub\PharmaApp\vacation-punch\src\app\api\shift-change\requests\route.ts
+  30:18  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  86:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Rosselle\Documents\GitHub\PharmaApp\vacation-punch\src\app\api\tasks\my\[assignmentId]\tasks\[taskId]\route.ts
+  62:15  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Rosselle\Documents\GitHub\PharmaApp\vacation-punch\src\app\api\tasks\my\route.ts
+  79:15  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Rosselle\Documents\GitHub\PharmaApp\vacation-punch\src\app\api\templates\route.ts
+   45:15  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  123:15  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  148:15  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Rosselle\Documents\GitHub\PharmaApp\vacation-punch\src\app\changement\page.tsx
+  39:35  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  47:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  77:13  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Rosselle\Documents\GitHub\PharmaApp\vacation-punch\src\app\kiosk\KioskClient.tsx
+  455:15  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  765:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Rosselle\Documents\GitHub\PharmaApp\vacation-punch\src\app\kiosk\terminal-login\page.tsx
+  36:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Rosselle\Documents\GitHub\PharmaApp\vacation-punch\src\app\schedule\edit\page.tsx
+  131:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Rosselle\Documents\GitHub\PharmaApp\vacation-punch\src\app\schedule\edit\ui.tsx
+  616:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  646:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Rosselle\Documents\GitHub\PharmaApp\vacation-punch\src\app\task-list\page.tsx
+   32:26  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   42:24  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   55:40  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   59:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   71:39  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  133:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  139:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  170:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  173:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Rosselle\Documents\GitHub\PharmaApp\vacation-punch\src\app\vacation\page.tsx
+  9:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+Γ£û 66 problems (66 errors, 0 warnings)
+

@@ -85,10 +85,10 @@ export async function requirePrivilegedOrRedirect(): Promise<{
         const email = authUser.email;
         if (!email) redirect("/kiosk?reason=no_email");
 
+        const meta = authUser.user_metadata as Record<string, unknown> | undefined;
         const name =
-          (authUser.user_metadata as any)?.name ??
-          (authUser.user_metadata as any)?.full_name ??
-          null;
+          (typeof meta?.name === "string" ? meta.name : null) ??
+          (typeof meta?.full_name === "string" ? meta.full_name : null);
 
         let me = await prisma.user.findUnique({
           where: { authUserId: authUser.id },

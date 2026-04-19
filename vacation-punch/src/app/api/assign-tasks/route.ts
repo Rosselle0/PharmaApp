@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { messageFromUnknown } from "@/lib/unknownError";
 
 type IncomingItem = { text: string; required?: boolean };
 
@@ -175,7 +176,7 @@ export async function POST(req: Request) {
         });
 
     return NextResponse.json({ assignment: saved });
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message ?? "Assign failed" }, { status: 500 });
+  } catch (e: unknown) {
+    return NextResponse.json({ error: messageFromUnknown(e) || "Assign failed" }, { status: 500 });
   }
 }

@@ -3,17 +3,15 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { messageFromUnknown } from "@/lib/unknownError";
 
-const PunchTypes = [
-  "CLOCK_IN",
-  "CLOCK_OUT",
-  "BREAK_START",
-  "BREAK_END",
-  "LUNCH_START",
-  "LUNCH_END",
-] as const;
-
-type PunchType = (typeof PunchTypes)[number];
+type PunchType =
+  | "CLOCK_IN"
+  | "CLOCK_OUT"
+  | "BREAK_START"
+  | "BREAK_END"
+  | "LUNCH_START"
+  | "LUNCH_END";
 type UiState = "WORKING" | "BREAK" | "LUNCH" | "LEFT";
 type PunchState = "OUT" | "IN" | "ON_BREAK" | "ON_LUNCH";
 
@@ -96,7 +94,7 @@ export async function GET(req: Request) {
   // Vercel-side memory cache (per instance) to reduce DB load.
   // Kiosk UI polls frequently; caching prevents connection storms.
   const g = globalThis as unknown as {
-    __actifsCache?: { ts: number; data: any };
+    __actifsCache?: { ts: number; data: unknown };
   };
   const nowMs = Date.now();
   const TTL_MS = 8000;
@@ -185,13 +183,13 @@ export async function GET(req: Request) {
     const result = { ok: true, actifs };
     g.__actifsCache = { ts: nowMs, data: result };
     return NextResponse.json(result);
-  } catch (e: any) {
+  } catch (e: unknown) {
     // If DB is temporarily overloaded, serve last cached value if available.
     if (g.__actifsCache?.data) {
       return NextResponse.json(g.__actifsCache.data);
     }
     return NextResponse.json(
-      { ok: false, error: e?.message ?? "Erreur actives" },
+      { ok: false, error: messageFromUnknown(e) || "Erreur actives" },
       { status: 500 }
     );
   }

@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { messageFromUnknown } from "@/lib/unknownError";
 
 function startOfDayUTC(ymd: string) {
   const [y, m, d] = ymd.split("-").map(Number);
@@ -54,8 +55,18 @@ export async function GET(req: Request) {
       orderBy: { startTime: "asc" },
     });
 
+    type WorkingEmp = {
+      id: string;
+      firstName: string;
+      lastName: string;
+      employeeCode: string;
+      department: string;
+      startISO: string;
+      endISO: string;
+    };
+
     // Deduplicate employees + keep earliest shift window for display
-    const map = new Map<string, any>();
+    const map = new Map<string, WorkingEmp>();
     for (const s of shifts) {
       if (!map.has(s.employeeId)) {
         map.set(s.employeeId, {
@@ -74,8 +85,8 @@ export async function GET(req: Request) {
       date: ymd,
       employees: Array.from(map.values()),
     });
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("employees-working error:", e);
-    return NextResponse.json({ error: e?.message ?? "Server error" }, { status: 500 });
+    return NextResponse.json({ error: messageFromUnknown(e) || "Server error" }, { status: 500 });
   }
 }

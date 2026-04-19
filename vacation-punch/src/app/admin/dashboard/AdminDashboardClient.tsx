@@ -13,50 +13,50 @@ type Action = {
   roles: Role[];
 };
 
+const ADMIN_DASH_ACTIONS: Action[] = [
+  {
+    title: "Modifier compte",
+    desc: "Modifier les infos / rôles / statuts.",
+    href: "/admin/modify",
+    roles: ["ADMIN", "MANAGER"],
+  },
+  {
+    title: "Créer compte",
+    desc: "Créer un nouvel employé / utilisateur.",
+    href: "/admin/create-account",
+    roles: ["ADMIN", "MANAGER"],
+  },
+  {
+    title: "Création tâches",
+    desc: "Créer / gérer les tâches.",
+    href: "/admin/creation-t",
+    roles: ["ADMIN", "MANAGER"],
+  },
+  {
+    title: "Création horaire",
+    desc: "Modifier l’horaire (édition).",
+    href: "/schedule/edit",
+    roles: ["ADMIN", "MANAGER"],
+  },
+  {
+    title: "Demandes",
+    desc: "Approuver/refuser les demandes (vacances pour l’instant).",
+    href: "/admin/requests",
+    roles: ["ADMIN", "MANAGER"],
+  },
+
+  {
+    title: "Journaux",
+    desc: "Consulter l’historique des actions.",
+    href: "/admin/logs",
+    roles: ["ADMIN", "MANAGER"],
+  },
+];
+
 export default function AdminDashboardClient({ role }: { role: Role }) {
   const router = useRouter();
 
-  const actions: Action[] = [
-    {
-      title: "Modifier compte",
-      desc: "Modifier les infos / rôles / statuts.",
-      href: "/admin/modify",
-      roles: ["ADMIN", "MANAGER"],
-    },
-    {
-      title: "Créer compte",
-      desc: "Créer un nouvel employé / utilisateur.",
-      href: "/admin/create-account",
-      roles: ["ADMIN", "MANAGER"],
-    },
-    {
-      title: "Création tâches",
-      desc: "Créer / gérer les tâches.",
-      href: "/admin/creation-t",
-      roles: ["ADMIN", "MANAGER"],
-    },
-    {
-      title: "Création horaire",
-      desc: "Modifier l’horaire (édition).",
-      href: "/schedule/edit",
-      roles: ["ADMIN", "MANAGER"],
-    },
-    {
-      title: "Demandes",
-      desc: "Approuver/refuser les demandes (vacances pour l’instant).",
-      href: "/admin/requests",
-      roles: ["ADMIN", "MANAGER"],
-    },
-
-    {
-      title: "Journaux",
-      desc: "Consulter l’historique des actions.",
-      href: "/admin/logs",
-      roles: ["ADMIN", "MANAGER"],
-    },
-  ];
-
-  const allowed = useMemo(() => actions.filter((a) => a.roles.includes(role)), [role]);
+  const allowed = useMemo(() => ADMIN_DASH_ACTIONS.filter((a) => a.roles.includes(role)), [role]);
 
   return (
     <main className="adminDash">

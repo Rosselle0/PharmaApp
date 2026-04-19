@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { requireKioskManagerOrAdmin } from "@/lib/kioskAuth";
 import KioskSidebar from "@/components/KioskSidebar";
 import { getKioskEmployeeFromSession } from "@/lib/kioskEmployeeAuth";
+import { unpaidBreak30DeductionMinutes } from "@/lib/unpaidBreak30";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -366,7 +367,7 @@ export default async function SchedulePage({
                         for (const sh of list) {
                           if (sh.note === "VAC") continue;
                           const durationMinutes = Math.floor((+new Date(sh.endTime) - +new Date(sh.effectiveStartTime)) / 60000);
-                          const deductionMinutes = u.paidBreak30 ? 0 : 30;
+                          const deductionMinutes = unpaidBreak30DeductionMinutes(u.paidBreak30, durationMinutes);
                           totalMinutes += Math.max(0, durationMinutes - deductionMinutes);
                         }
 

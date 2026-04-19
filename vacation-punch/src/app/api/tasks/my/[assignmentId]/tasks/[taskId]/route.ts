@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { messageFromUnknown } from "@/lib/unknownError";
 
 type Params = { assignmentId: string; taskId: string };
 type Ctx = { params: Promise<Params> }; // <-- KEY: params is a Promise in your Next
@@ -59,10 +60,10 @@ export async function PATCH(req: Request, ctx: Ctx) {
     });
 
     return NextResponse.json({ task: updated });
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("PATCH task failed:", e);
     return NextResponse.json(
-      { error: e?.message ?? "Server error" },
+      { error: messageFromUnknown(e) || "Server error" },
       { status: 500 }
     );
   }

@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { messageFromUnknown } from "@/lib/unknownError";
 
 export async function GET(req: Request) {
   try {
@@ -35,10 +36,10 @@ export async function GET(req: Request) {
       email: employee.email ?? null,
       role: employee.role ?? null,
     });
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("GET /api/settings/me failed:", e);
     return NextResponse.json(
-      { ok: false, error: e?.message ?? "Server error" },
+      { ok: false, error: messageFromUnknown(e) || "Server error" },
       { status: 500 }
     );
   }

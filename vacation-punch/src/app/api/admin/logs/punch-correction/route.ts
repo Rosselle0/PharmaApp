@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requirePrivilegedOrRedirect } from "@/lib/privilgedAuth";
 import { PunchType } from "@prisma/client";
+import { messageFromUnknown } from "@/lib/unknownError";
 
 const PUNCH_TYPES: PunchType[] = [
   "CLOCK_IN",
@@ -173,7 +174,7 @@ export async function POST(req: Request) {
         existing.shiftId &&
         (await loadShiftForCompany(existing.shiftId, companyId));
 
-      let ctxPunches = shift
+      const ctxPunches = shift
         ? await punchesForShiftContext(shift)
         : await prisma.punchEvent.findMany({
             where: {
@@ -256,7 +257,7 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ ok: false, error: "Action inconnue." }, { status: 400 });
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message ?? "Erreur serveur" }, { status: 500 });
+  } catch (e: unknown) {
+    return NextResponse.json({ ok: false, error: messageFromUnknown(e) || "Erreur serveur" }, { status: 500 });
   }
 }

@@ -6,6 +6,7 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { requireEmployeeFromKioskOrCodeValue } from "@/lib/shiftChange/auth";
 import { hashOtp, readEmailChangeToken } from "@/lib/emailOtp";
+import { messageFromUnknown } from "@/lib/unknownError";
 
 export async function POST(req: Request) {
   try {
@@ -69,9 +70,9 @@ export async function POST(req: Request) {
       maxAge: 0,
     });
     return res;
-  } catch (e: any) {
+  } catch (e: unknown) {
     return NextResponse.json(
-      { ok: false, error: e?.message ?? "Erreur serveur." },
+      { ok: false, error: messageFromUnknown(e) || "Erreur serveur." },
       { status: 500 }
     );
   }

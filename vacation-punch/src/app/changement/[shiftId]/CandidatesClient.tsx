@@ -11,7 +11,6 @@ type SentReq = {
 
 export default function CandidatesClient({
   shiftId,
-  code,
   eligible,
   sent,
 }: {

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { expireStalePunchKioskLocksForEmployeeIds } from "@/lib/punch/kioskLockDay";
 import { requirePrivilegedOrRedirect } from "@/lib/privilgedAuth";
 import { ShiftStatus } from "@prisma/client";
+import { messageFromUnknown } from "@/lib/unknownError";
 
 function startOfDayUTC(ymd: string) {
   // Treat `ymd` as local-ish date string; convert to UTC day boundary safely.
@@ -18,10 +19,6 @@ function nextDayUTC(ymd: string) {
   const dt = startOfDayUTC(ymd);
   dt.setUTCDate(dt.getUTCDate() + 1);
   return dt;
-}
-
-function diffMinutes(a: Date, b: Date) {
-  return Math.max(0, Math.round((a.getTime() - b.getTime()) / 60000));
 }
 
 function roundUpToNext15Minutes(mins: number) {
@@ -155,7 +152,8 @@ export async function GET(req: Request) {
       if (!overtimeDecisionByShift.has(sid)) {
         if (action === "OVERTIME_ACCEPTED_BY_PHARMACIST") {
           overtimeDecisionByShift.set(sid, "ACCEPTED_BY_PHARMACIST");
-          const pharmacistId = (l.meta as any)?.pharmacistEmployeeId;
+          const meta = l.meta as Record<string, unknown> | null | undefined;
+          const pharmacistId = meta?.["pharmacistEmployeeId"];
           if (typeof pharmacistId === "string") pharmacistEmployeeIdByShift.set(sid, pharmacistId);
         } else if (action === "OVERTIME_REJECTED") overtimeDecisionByShift.set(sid, "REJECTED");
         else if (action === "OVERTIME_ACCEPTED" || action === "OVERTIME_REVIEWED") overtimeDecisionByShift.set(sid, "ACCEPTED");
@@ -337,7 +335,7 @@ export async function GET(req: Request) {
         lateStatus: "MISSING" | "OK" | "ACCEPTED" | "REJECTED" | "PENDING";
         overtimeStatus: "MISSING" | "OK" | "ACCEPTED" | "REJECTED" | "ACCEPTED_BY_PHARMACIST" | "PENDING";
         pharmacistEmployeeId: string | null;
-        punches: Array<{ id: string; employeeId: string; type: any; at: string; source: any }>;
+        punches: Array<{ id: string; employeeId: string; type: string; at: string; source: string }>;
       };
     });
 
@@ -428,8 +426,8 @@ export async function GET(req: Request) {
       })),
       meta,
     });
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message ?? "Admin logs failed" }, { status: 500 });
+  } catch (e: unknown) {
+    return NextResponse.json({ ok: false, error: messageFromUnknown(e) || "Admin logs failed" }, { status: 500 });
   }
 }
 

@@ -10,8 +10,9 @@ import { DEFAULT_MANAGER_KIOSK_PASSWORD } from "@/lib/kioskDefaults";
 import type { KioskSecondFactorMode } from "@prisma/client";
 import { parseKioskSecondFactorMode, validateKioskSecondFactorConfig } from "@/lib/kioskSecondFactor";
 import { validateKioskPasswordPolicy } from "@/lib/kioskPasswordPolicy";
+import { messageFromUnknown } from "@/lib/unknownError";
 
-function normalizeDepartment(dep: any): Department {
+function normalizeDepartment(dep: unknown): Department {
   const v = String(dep ?? "").toUpperCase();
   if (v === "CASH") return Department.CASH;
   if (v === "LAB") return Department.LAB;
@@ -19,7 +20,7 @@ function normalizeDepartment(dep: any): Department {
   return Department.FLOOR;
 }
 
-function normalizeRole(role: any): Role {
+function normalizeRole(role: unknown): Role {
   const v = String(role ?? "").toUpperCase();
   if (v === "ADMIN") return Role.ADMIN;
   if (v === "MANAGER") return Role.MANAGER;
@@ -180,10 +181,14 @@ export async function POST(req: Request) {
       },
       { status: 201 }
     );
-  } catch (e: any) {
-    if (e?.code === "P2002") {
+  } catch (e: unknown) {
+    const code =
+      typeof e === "object" && e !== null && "code" in e
+        ? String((e as { code?: string }).code)
+        : "";
+    if (code === "P2002") {
       return NextResponse.json({ error: "Employee code already exists" }, { status: 409 });
     }
-    return NextResponse.json({ error: e?.message ?? "Server error" }, { status: 500 });
+    return NextResponse.json({ error: messageFromUnknown(e) || "Server error" }, { status: 500 });
   }
 }

@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requirePrivilegedOrRedirect } from "@/lib/privilgedAuth";
+import { messageFromUnknown } from "@/lib/unknownError";
 
 export async function POST(req: Request) {
   try {
@@ -38,7 +39,7 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ ok: true });
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message ?? "Erreur serveur" }, { status: 500 });
+  } catch (e: unknown) {
+    return NextResponse.json({ ok: false, error: messageFromUnknown(e) || "Erreur serveur" }, { status: 500 });
   }
 }

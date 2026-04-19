@@ -26,10 +26,10 @@ export async function getAdminContextOrRedirect() {
 
   const companyId = await getDefaultCompanyId();
 
+  const meta = user.user_metadata as Record<string, unknown> | undefined;
   const name =
-    (user.user_metadata as any)?.name ??
-    (user.user_metadata as any)?.full_name ??
-    null;
+    (typeof meta?.name === "string" ? meta.name : null) ??
+    (typeof meta?.full_name === "string" ? meta.full_name : null);
 
   // SLEDGEHAMMER: any Supabase user is ADMIN in Prisma (creates row if missing)
   const me = await prisma.user.upsert({

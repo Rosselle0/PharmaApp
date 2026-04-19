@@ -1,4 +1,6 @@
 "use client";
+import { messageFromUnknown } from "@/lib/unknownError";
+import { unpaidBreak30DeductionMinutes } from "@/lib/unpaidBreak30";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -19,8 +21,8 @@ const BUSINESS_TIME_SLOTS: string[] = (() => {
 function nearestBusinessSlot(hhmm: string): string {
     const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());
     if (!m) return "08:00";
-    let h = Number(m[1]);
-    let min = Number(m[2]);
+    const h = Number(m[1]);
+    const min = Number(m[2]);
     if (!Number.isFinite(h) || !Number.isFinite(min)) return "08:00";
     const total = h * 60 + min;
     const first = 8 * 60;
@@ -257,7 +259,7 @@ function clampToBusinessHours(hhmm: string) {
     if (!m) return null;
 
     let h = Number(m[1]);
-    let min = Number(m[2]);
+    const min = Number(m[2]);
     if (!Number.isFinite(h) || !Number.isFinite(min) || min < 0 || min > 59) return null;
 
     // business range 8..21 (end can be 21:00)
@@ -458,7 +460,7 @@ export default function ScheduleEditorClient(props: {
             const a = new Date(s.startTime).getTime();
             const b = new Date(s.endTime).getTime();
             const rawMinutes = Math.floor((b - a) / 60000);
-            const deductionMinutes = paidBreak30 ? 0 : 30;
+            const deductionMinutes = unpaidBreak30DeductionMinutes(paidBreak30, rawMinutes);
             mins += Math.max(0, rawMinutes - deductionMinutes);
         }
         return mins / 60;
@@ -613,8 +615,8 @@ export default function ScheduleEditorClient(props: {
             });
 
             setOpen(false);
-        } catch (e: any) {
-            setMsg(e?.message ?? "Erreur");
+        } catch (e: unknown) {
+            setMsg(messageFromUnknown(e) || "Erreur");
         } finally {
             setSaving(false);
         }
@@ -638,13 +640,13 @@ export default function ScheduleEditorClient(props: {
 
         try {
             const res = await fetch(`/api/schedule/shifts/${existing.id}`, { method: "DELETE" });
-            const data = await res.json().catch(() => null);
+            const data = (await res.json().catch(() => null)) as { error?: string } | null;
             if (!res.ok) throw new Error(data?.error || "Delete failed");
 
             setShifts((prev) => prev.filter((s) => s.id !== existing.id));
             setOpen(false);
-        } catch (e: any) {
-            setMsg(e?.message ?? "Erreur");
+        } catch (e: unknown) {
+            setMsg(messageFromUnknown(e) || "Erreur");
         } finally {
             setSaving(false);
         }

@@ -7,6 +7,7 @@ import "./edit.css";
 
 import { unstable_noStore as noStore } from "next/cache";
 import { redirect } from "next/navigation";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import ScheduleEditorClient from "./ui";
 import { requireKioskManagerOrAdmin } from "@/lib/kioskAuth"; // <-- use your kiosk+supabase guard
@@ -128,7 +129,7 @@ async function applyRecurringFillMissing(companyId: string, weekStart: Date, wee
     daysYMD.push(ymdInTZ(d));
   }
 
-  const toCreate: any[] = [];
+  const toCreate: Prisma.ShiftCreateManyInput[] = [];
 
   for (const r of rules) {
     const dayYMD = daysYMD[r.dayOfWeek];

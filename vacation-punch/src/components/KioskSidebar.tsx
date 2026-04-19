@@ -10,47 +10,16 @@ type KioskSidebarProps = {
   employeeCode?: string | null;
 };
 
-function normalizeEmployeeCode(value: string | null | undefined): string | null {
-  const clean = String(value ?? "").replace(/\D/g, "");
-  return clean.length >= 4 ? clean : null;
-}
-
-function readStoredEmployeeCode(): string | null {
-  if (typeof window === "undefined") return null;
-  return normalizeEmployeeCode(
-    window.localStorage.getItem("kiosk_employee_code") ?? ""
-  );
-}
-
-function readEmployeeCodeFromUrl(): string | null {
-  if (typeof window === "undefined") return null;
-  const params = new URLSearchParams(window.location.search);
-  return normalizeEmployeeCode(params.get("code"));
-}
-
 export default function KioskSidebar({
   isPrivilegedLogged,
   employeeLogged,
-  employeeCode,
 }: KioskSidebarProps) {
   const path = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [effectiveEmployeeCode, setEffectiveEmployeeCode] = useState<string | null>(
-    normalizeEmployeeCode(employeeCode)
-  );
 
+  // Close drawer on route change (defer setState to satisfy react-hooks/set-state-in-effect)
   useEffect(() => {
-    const nextCode =
-      normalizeEmployeeCode(employeeCode) ??
-      readEmployeeCodeFromUrl() ??
-      readStoredEmployeeCode();
-
-    setEffectiveEmployeeCode(nextCode);
-  }, [employeeCode]);
-
-  // Close drawer on route change
-  useEffect(() => {
-    setMobileMenuOpen(false);
+    queueMicrotask(() => setMobileMenuOpen(false));
   }, [path]);
 
   // Close drawer when resizing to desktop

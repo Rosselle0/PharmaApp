@@ -1,5 +1,6 @@
 "use client";
 
+import { messageFromUnknown } from "@/lib/unknownError";
 import { useEffect, useMemo, useState, Suspense } from "react";
 import "./task-list.css";
 import KioskSidebar from "@/components/KioskSidebar";
@@ -29,8 +30,12 @@ function readEmployeeCodeFromUrlOrStorage(): string | null {
   return null;
 }
 
-function safeArray<T>(v: any): T[] {
-  return Array.isArray(v) ? v : [];
+function asRecord(v: unknown): Record<string, unknown> | null {
+  return typeof v === "object" && v !== null ? (v as Record<string, unknown>) : null;
+}
+
+function safeArray<T>(v: unknown): T[] {
+  return Array.isArray(v) ? (v as T[]) : [];
 }
 
 function firstWord(v: string | null | undefined): string {
@@ -39,46 +44,64 @@ function firstWord(v: string | null | undefined): string {
   return s.split(/\s+/)[0] ?? "";
 }
 
-function normTask(raw: any): Task | null {
-  const id = raw?.id ?? raw?.taskId ?? raw?.itemId;
-  const text = raw?.text ?? raw?.label ?? raw?.name ?? raw?.task;
+function normTask(raw: unknown): Task | null {
+  const r = asRecord(raw);
+  if (!r) return null;
+  const id = r["id"] ?? r["taskId"] ?? r["itemId"];
+  const text = r["text"] ?? r["label"] ?? r["name"] ?? r["task"];
   if (!id || !String(text ?? "").trim()) return null;
 
   return {
     id: String(id),
     text: String(text),
-    done: Boolean(raw?.done),
-    required: raw?.required === undefined ? true : Boolean(raw?.required),
+    done: Boolean(r["done"]),
+    required: r["required"] === undefined ? true : Boolean(r["required"]),
   };
 }
 
-function normalizeAssignments(payload: any): Assignment[] {
-  const rawAssignments =
-    payload?.assignments ?? payload?.data?.assignments ?? payload?.rows ?? payload?.data ?? payload ?? [];
+function normalizeAssignments(payload: unknown): Assignment[] {
+  let rawAssignments: unknown;
+  if (Array.isArray(payload)) {
+    rawAssignments = payload;
+  } else {
+    const p = asRecord(payload) ?? {};
+    rawAssignments =
+      p["assignments"] ??
+      asRecord(p["data"])?.["assignments"] ??
+      p["rows"] ??
+      p["data"] ??
+      payload ??
+      [];
+  }
 
-  return safeArray<any>(rawAssignments)
-    .map((a) => {
-      const id = a?.id ?? a?.assignmentId;
+  const rawArr = Array.isArray(rawAssignments) ? rawAssignments : [];
+
+  return rawArr
+    .map((aUnknown): Assignment | null => {
+      const a = asRecord(aUnknown);
+      if (!a) return null;
+      const id = a["id"] ?? a["assignmentId"];
       if (!id) return null;
 
-      const title = String(a?.title ?? a?.name ?? "Tâches");
-      const dateYMD = a?.dateYMD ?? a?.date ?? a?.ymd ?? null;
-      const startHHMM = a?.startHHMM ?? a?.start ?? null;
-      const endHHMM = a?.endHHMM ?? a?.end ?? null;
-      const notes = a?.notes ?? a?.note ?? a?.message ?? null;
+      const title = String(a["title"] ?? a["name"] ?? "Tâches");
+      const dateYMD = a["dateYMD"] ?? a["date"] ?? a["ymd"] ?? null;
+      const startHHMM = a["startHHMM"] ?? a["start"] ?? null;
+      const endHHMM = a["endHHMM"] ?? a["end"] ?? null;
+      const notes = a["notes"] ?? a["note"] ?? a["message"] ?? null;
 
-      const rawTasks = a?.tasks ?? a?.items ?? a?.taskItems ?? a?.assignmentItems ?? [];
-      const tasks: Task[] = safeArray<any>(rawTasks).map(normTask).filter(Boolean) as Task[];
+      const rawTasks = a["tasks"] ?? a["items"] ?? a["taskItems"] ?? a["assignmentItems"] ?? [];
+      const taskList = Array.isArray(rawTasks) ? rawTasks : [];
+      const tasks: Task[] = taskList.map(normTask).filter(Boolean) as Task[];
 
       return {
         id: String(id),
         title,
         dateYMD: dateYMD ? String(dateYMD).slice(0, 10) : undefined,
-        startHHMM,
-        endHHMM,
+        startHHMM: startHHMM as string | null | undefined,
+        endHHMM: endHHMM as string | null | undefined,
         notes: notes ? String(notes) : null,
         tasks,
-      } as Assignment;
+      };
     })
     .filter(Boolean) as Assignment[];
 }
@@ -130,14 +153,15 @@ export default function TaskListPage() {
       try {
         const res = await fetch(`/api/tasks/my?code=${encodeURIComponent(code!)}&date=${encodeURIComponent(dateYMD)}`, { cache: "no-store" });
         const text = await res.text();
-        let data: any = null;
+        let data: unknown = null;
         try { data = text ? JSON.parse(text) : null } catch {}
 
-        if (!res.ok) throw new Error(data?.error || "Erreur de chargement.");
+        const dr = asRecord(data);
+        if (!res.ok) throw new Error(String(dr?.["error"] ?? "Erreur de chargement."));
         const normalized = normalizeAssignments(data);
         if (!cancelled) setAssignments(normalized);
-      } catch (e: any) {
-        if (!cancelled) { setAssignments([]); setMsg(e?.message ?? "Erreur."); }
+      } catch (e: unknown) {
+        if (!cancelled) { setAssignments([]); setMsg(messageFromUnknown(e) || "Erreur."); }
       } finally { if (!cancelled) setLoading(false); }
     }
 
@@ -167,14 +191,15 @@ export default function TaskListPage() {
         body: JSON.stringify({ code, done: nextDone }),
       });
       const text = await res.text();
-      let data: any = null;
+      let data: unknown = null;
       try { data = text ? JSON.parse(text) : null } catch {}
-      if (!res.ok) throw new Error(data?.error || "Update failed");
-    } catch (e: any) {
+      const dr = asRecord(data);
+      if (!res.ok) throw new Error(String(dr?.["error"] ?? "Update failed"));
+    } catch (e: unknown) {
       setAssignments(prev =>
         prev.map(a => a.id !== assignmentId ? a : { ...a, tasks: a.tasks.map(t => t.id === taskId ? { ...t, done: !nextDone } : t) })
       );
-      setMsg(e?.message ?? "Erreur.");
+      setMsg(messageFromUnknown(e) || "Erreur.");
       setTimeout(() => setMsg(null), 1600);
     }
   }

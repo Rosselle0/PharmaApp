@@ -6,7 +6,7 @@ import VacationFormClient from "./VacationFormClient";
 import KioskSidebar from "@/components/KioskSidebar";
 import { getKioskEmployeeFromSession } from "@/lib/kioskEmployeeAuth";
 
-function statusLabel(status: any) {
+function statusLabel(status: unknown) {
   const s = String(status ?? "");
   switch (s) {
     case "PENDING":

@@ -10,14 +10,15 @@ import { hashPassword } from "@/lib/passwordHash";
 import { DEFAULT_MANAGER_KIOSK_PASSWORD } from "@/lib/kioskDefaults";
 import { parseKioskSecondFactorMode, validateKioskSecondFactorConfig } from "@/lib/kioskSecondFactor";
 import { validateKioskPasswordPolicy } from "@/lib/kioskPasswordPolicy";
+import { messageFromUnknown } from "@/lib/unknownError";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-function normalizeDepartment(dep: any): Department {
+function normalizeDepartment(dep: unknown): Department {
   return dep === "CASH" || dep === "LAB" || dep === "FLOOR" ? dep : Department.FLOOR;
 }
 
-function normalizeRole(role: any): Role {
+function normalizeRole(role: unknown): Role {
   return role === "ADMIN" || role === "MANAGER" || role === "EMPLOYEE" ? role : Role.EMPLOYEE;
 }
 
@@ -133,11 +134,15 @@ export async function PATCH(req: NextRequest, context: Ctx) {
         hasKioskPassword: !!updated.kioskPasswordHash?.length,
       },
     });
-  } catch (e: any) {
-    if (e?.code === "P2002") {
+  } catch (e: unknown) {
+    const code =
+      typeof e === "object" && e !== null && "code" in e
+        ? String((e as { code?: string }).code)
+        : "";
+    if (code === "P2002") {
       return NextResponse.json({ error: "Employee code already exists" }, { status: 409 });
     }
-    return NextResponse.json({ error: e?.message ?? "Server error" }, { status: 500 });
+    return NextResponse.json({ error: messageFromUnknown(e) || "Server error" }, { status: 500 });
   }
 }
 
@@ -146,7 +151,7 @@ export async function DELETE(_req: NextRequest, context: Ctx) {
     const { id } = await context.params;
     await prisma.employee.delete({ where: { id } });
     return NextResponse.json({ ok: true });
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message ?? "Server error" }, { status: 500 });
+  } catch (e: unknown) {
+    return NextResponse.json({ error: messageFromUnknown(e) || "Server error" }, { status: 500 });
   }
 }

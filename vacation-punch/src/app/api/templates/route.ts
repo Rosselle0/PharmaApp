@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { messageFromUnknown } from "@/lib/unknownError";
 
 /* ---------------- TYPES ---------------- */
 
@@ -42,9 +43,9 @@ export async function GET() {
     });
 
     return NextResponse.json({ templates });
-  } catch (e: any) {
+  } catch (e: unknown) {
     return NextResponse.json(
-      { error: e.message ?? "Failed to load templates" },
+      { error: messageFromUnknown(e) || "Failed to load templates" },
       { status: 500 }
     );
   }
@@ -120,9 +121,9 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ template: created });
-  } catch (e: any) {
+  } catch (e: unknown) {
     return NextResponse.json(
-      { error: e.message ?? "Template save failed" },
+      { error: messageFromUnknown(e) || "Template save failed" },
       { status: 500 }
     );
   }
@@ -145,9 +146,9 @@ export async function DELETE(req: Request) {
     await prisma.taskTemplate.delete({ where: { id } });
 
     return NextResponse.json({ ok: true });
-  } catch (e: any) {
+  } catch (e: unknown) {
     return NextResponse.json(
-      { error: e.message ?? "Delete failed" },
+      { error: messageFromUnknown(e) || "Delete failed" },
       { status: 500 }
     );
   }

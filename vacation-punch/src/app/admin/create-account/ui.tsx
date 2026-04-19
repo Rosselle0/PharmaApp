@@ -60,7 +60,6 @@ export default function CreateAccountPage() {
     email,
     role,
     kioskPw,
-    kioskMode,
   ]);
 
   async function create() {

@@ -1,5 +1,6 @@
 "use client";
 
+import { messageFromUnknown } from "@/lib/unknownError";
 import { Fragment, useEffect, useMemo, useState } from "react";
 
 type Department = "CASH" | "LAB" | "FLOOR";
@@ -197,7 +198,8 @@ export default function AdminLogsClient() {
 
         if (cancelled) return;
         if (!res.ok || !json || !("ok" in json)) {
-          setError((json as any)?.error ?? "Erreur de chargement");
+          const errBody = json as { error?: string } | null;
+          setError(errBody?.error ?? "Erreur de chargement");
           setData(null);
           setLoading(false);
           return;
@@ -205,9 +207,9 @@ export default function AdminLogsClient() {
 
         setData(json);
         setSelectedEmployeeId((prev) => prev ?? json.employees?.[0]?.id ?? null);
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (cancelled) return;
-        setError(e?.message ?? "Erreur de chargement");
+        setError(messageFromUnknown(e) || "Erreur de chargement");
         setData(null);
       } finally {
         if (!cancelled) setLoading(false);

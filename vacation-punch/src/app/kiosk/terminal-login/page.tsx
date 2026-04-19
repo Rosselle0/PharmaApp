@@ -1,5 +1,6 @@
 "use client";
 
+import { messageFromUnknown } from "@/lib/unknownError";
 import { useState } from "react";
 import Link from "next/link";
 
@@ -33,8 +34,8 @@ export default function TerminalLoginPage() {
 
       // Cookie is httpOnly; just reload a protected page.
       window.location.href = "/kiosk/punch";
-    } catch (e: any) {
-      setError(e?.message ?? "Erreur réseau.");
+    } catch (e: unknown) {
+      setError(messageFromUnknown(e) || "Erreur réseau.");
     } finally {
       setLoading(false);
     }

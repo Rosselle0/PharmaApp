@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@prisma/client";
+import { messageFromUnknown } from "@/lib/unknownError";
 
 function onlyDigits(v: string) {
   return String(v ?? "").replace(/\D/g, "");
@@ -57,8 +58,8 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ ok: true, pharmacistName: `${pharmacist.firstName} ${pharmacist.lastName}`.trim() });
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message ?? "Pharmacien sign failed" }, { status: 500 });
+  } catch (e: unknown) {
+    return NextResponse.json({ ok: false, error: messageFromUnknown(e) || "Pharmacien sign failed" }, { status: 500 });
   }
 }
 

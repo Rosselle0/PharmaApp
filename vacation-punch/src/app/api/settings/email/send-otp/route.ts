@@ -11,6 +11,7 @@ import {
   normalizeEmail,
 } from "@/lib/emailOtp";
 import { sendEmailOtp } from "@/lib/mailer";
+import { messageFromUnknown } from "@/lib/unknownError";
 
 function otpCode() {
   return String(Math.floor(100000 + Math.random() * 900000));
@@ -90,9 +91,9 @@ export async function POST(req: Request) {
     });
 
     return res;
-  } catch (e: any) {
+  } catch (e: unknown) {
     return NextResponse.json(
-      { ok: false, error: e?.message ?? "Erreur serveur." },
+      { ok: false, error: messageFromUnknown(e) || "Erreur serveur." },
       { status: 500 }
     );
   }

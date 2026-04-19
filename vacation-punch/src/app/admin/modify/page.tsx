@@ -8,6 +8,7 @@ import { KioskPasswordRequirementsHint } from "@/components/KioskPasswordRequire
 import { PasswordRevealField } from "@/components/PasswordRevealField";
 import "@/app/admin/admin-kiosk-fields.css";
 import "./modify.css";
+import { messageFromUnknown } from "@/lib/unknownError";
 
 type Role = "EMPLOYEE" | "MANAGER" | "ADMIN";
 type Department = "FLOOR" | "CASH" | "LAB";
@@ -81,10 +82,10 @@ export default function ModifyAccountsPage() {
         if (prev && list.some((x) => x.id === prev)) return prev;
         return list[0]?.id ?? null;
       });
-    } catch (e: any) {
+    } catch (e: unknown) {
       setItems([]);
       setSelectedId(null);
-      setMsg(e?.message ?? "Erreur (API)");
+      setMsg(messageFromUnknown(e) || "Erreur (API)");
     } finally {
       setLoading(false);
     }
@@ -98,7 +99,7 @@ export default function ModifyAccountsPage() {
     if (selected) setDraft({ ...selected });
     else setDraft(null);
     setKioskPw("");
-  }, [selectedId, items]);
+  }, [selected]);
 
   async function save() {
     if (!draft) return;
@@ -145,8 +146,8 @@ export default function ModifyAccountsPage() {
 
       setMsg("✅ Sauvegardé.");
       await load();
-    } catch (e: any) {
-      setMsg(e?.message ?? "Erreur");
+    } catch (e: unknown) {
+      setMsg(messageFromUnknown(e) || "Erreur");
     } finally {
       setLoading(false);
     }
@@ -165,8 +166,8 @@ export default function ModifyAccountsPage() {
       setMsg("🗑️ Supprimé.");
       setSelectedId(null);
       await load();
-    } catch (e: any) {
-      setMsg(e?.message ?? "Erreur");
+    } catch (e: unknown) {
+      setMsg(messageFromUnknown(e) || "Erreur");
     } finally {
       setLoading(false);
     }

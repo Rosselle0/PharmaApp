@@ -27,8 +27,8 @@ export async function DELETE(_req: Request, ctx: Ctx) {
   const shiftId = String(id ?? "").trim();
   if (!shiftId) return NextResponse.json({ error: "Invalid id" }, { status: 400 });
 
-  // Best: auth.companyId. If your guard doesn't return it, fall back to your default company.
-  const companyId = (auth as any).companyId ?? (await getDefaultCompanyId());
+  const companyId =
+    auth.ok && auth.via === "kiosk" ? auth.companyId : await getDefaultCompanyId();
 
   // ✅ scope check: shift must belong to this company
   const shift = await prisma.shift.findFirst({

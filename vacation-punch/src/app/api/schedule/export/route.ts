@@ -2,6 +2,7 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Department, ShiftStatus } from "@prisma/client";
+import { unpaidBreak30DeductionMinutes } from "@/lib/unpaidBreak30";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -265,9 +266,12 @@ function drawWeekTable(
       const text = list
         .map((sh) => {
           if (sh.note === "VAC") return "VAC";
-          const rawHours = hoursBetween(new Date(sh.startTime), new Date(sh.endTime));
-          const deductionHours = emp.paidBreak30 ? 0 : 0.5; // 30 min unpaid break
-          weeklyTotal += Math.max(0, rawHours - deductionHours);
+          const start = new Date(sh.startTime);
+          const end = new Date(sh.endTime);
+          const grossMinutes = Math.floor((end.getTime() - start.getTime()) / 60000);
+          const rawHours = hoursBetween(start, end);
+          const deductionMinutes = unpaidBreak30DeductionMinutes(emp.paidBreak30, grossMinutes);
+          weeklyTotal += Math.max(0, rawHours - deductionMinutes / 60);
           return formatShiftRange(new Date(sh.startTime), new Date(sh.endTime));
         })
         .join(" / ");

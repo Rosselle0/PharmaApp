@@ -2,6 +2,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireEmployeeFromKioskOrCode } from "@/lib/shiftChange/auth";
 import { sendShiftChangeAcceptedEmail, sendShiftChangeRequestEmail } from "@/lib/mailer";
@@ -27,11 +28,11 @@ export async function GET(req: Request) {
   const shiftId = String(url.searchParams.get("shiftId") ?? "").trim();
 
   if (scope === "sent") {
-    const where: any = {
+    const where: Prisma.ShiftChangeRequestWhereInput = {
       companyId: auth.companyId,
       requesterEmployeeId: auth.employeeId,
+      ...(shiftId ? { shiftId } : {}),
     };
-    if (shiftId) where.shiftId = shiftId;
 
     const sent = await prisma.shiftChangeRequest.findMany({
       where,
@@ -83,7 +84,7 @@ export async function POST(req: Request) {
 
   // normalize candidate ids to string[]
   const candidateEmployeeIds: string[] = Array.isArray(rawIds)
-    ? rawIds.map((x: any) => String(x).trim()).filter(Boolean)
+    ? rawIds.map((x: unknown) => String(x).trim()).filter(Boolean)
     : rawIds
       ? [String(rawIds).trim()].filter(Boolean)
       : [];
@@ -382,7 +383,7 @@ export async function PATCH(req: Request) {
     }
 
     return NextResponse.json({ ok: true });
-  } catch (e) {
+  } catch {
     // last-resort
     return NextResponse.json({ ok: false, error: "Erreur serveur" }, { status: 500 });
   }

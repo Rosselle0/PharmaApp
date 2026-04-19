@@ -1,11 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useState, Suspense } from "react";
+import { useCallback, useEffect, useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 import KioskSidebar from "@/components/KioskSidebar";
 import { PasswordRevealField } from "@/components/PasswordRevealField";
+import { messageFromUnknown } from "@/lib/unknownError";
 import "./kiosk.css";
+
+type KioskUnlockJson = {
+  requiresOtp?: boolean;
+  requiresOtpAndPassword?: boolean;
+  requiresPassword?: boolean;
+  message?: string;
+  error?: string;
+  employee?: { role?: string; firstName?: string };
+  ok?: boolean;
+};
 
 type ApiActif = {
   employeeId: string;
@@ -87,7 +98,7 @@ export default function KioskClient({
   const [pinSuccess, setPinSuccess] = useState(false);
   const [pinFlash, setPinFlash] = useState(false);
 
-  const [kioskRole, setKioskRole] = useState<string | null>(null);
+  const [, setKioskRole] = useState<string | null>(null);
 
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [adminEmail, setAdminEmail] = useState("");
@@ -123,16 +134,6 @@ export default function KioskClient({
   const isAnyLogged = isPrivilegedLogged || employeeLogged;
 
   const employeeCodeClean = employeeCode.replace(/\D/g, "").slice(0, PIN_LEN);
-
-  const canAccessEmployeePages = useMemo(
-    () => isPrivilegedLogged || (employeeLogged && employeeCodeClean.length === PIN_LEN),
-    [isPrivilegedLogged, employeeLogged, employeeCodeClean]
-  );
-
-  const canAccessLogs = useMemo(() => {
-    if (isPrivilegedLogged) return true;
-    return employeeLogged && (kioskRole === "ADMIN" || kioskRole === "MANAGER");
-  }, [isPrivilegedLogged, employeeLogged, kioskRole]);
 
   const [actifs, setActifs] = useState<ActiveRow[]>([]);
   const [actifsErr, setActifsErr] = useState<string | null>(null);
@@ -174,7 +175,7 @@ function firstWord(v: string | null | undefined) {
 
   const effectivePunchCode = employeeCodeConfirmed || (employeeLogged ? employeeCodeClean : "") || privilegedCode || "";
 
-  async function loadPunchState() {
+  const loadPunchState = useCallback(async () => {
     if (!effectivePunchCode || effectivePunchCode.length !== PIN_LEN) {
       setPunchStatus(null);
       setPunchStateErr(null);
@@ -208,7 +209,7 @@ function firstWord(v: string | null | undefined) {
     } catch {
       setPunchStateErr("Erreur réseau punch.");
     }
-  }
+  }, [effectivePunchCode]);
 
   function getDisplayedMs(status: PunchStatus | null, nowMs: number) {
     if (!status) return 0;
@@ -219,7 +220,7 @@ function firstWord(v: string | null | undefined) {
     return 0;
   }
 
-  async function loadActifs() {
+  const loadActifs = useCallback(async () => {
     try {
       setActifsErr(null);
       // IMPORTANT:
@@ -244,7 +245,7 @@ function firstWord(v: string | null | undefined) {
     } catch {
       setActifsErr("Erreur réseau (actifs).");
     }
-  }
+  }, []);
 
   async function punch(type: PunchAction) {
     try {
@@ -331,7 +332,7 @@ function firstWord(v: string | null | undefined) {
     loadActifs();
     const t = window.setInterval(loadActifs, 10000); // reduce DB load on Vercel
     return () => window.clearInterval(t);
-  }, []);
+  }, [loadActifs]);
 
   useEffect(() => {
     if (!isAnyLogged) {
@@ -347,7 +348,7 @@ function firstWord(v: string | null | undefined) {
       window.clearInterval(refresh);
       window.clearInterval(tick);
     };
-  }, [isAnyLogged, effectivePunchCode]);
+  }, [isAnyLogged, effectivePunchCode, loadPunchState]);
 
   function maskedPinBoxes(value: string) {
     const digits = value.slice(0, PIN_LEN);
@@ -426,6 +427,7 @@ function firstWord(v: string | null | undefined) {
     if (clean.length !== PIN_LEN || blockedCode === clean || pendingKioskPin === clean) return;
     setAutoSubmitting(true);
     employeeConfirm(clean).finally(() => setAutoSubmitting(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- employeeConfirm is a large handler; deps above gate when it runs
   }, [employeeCode, isPrivilegedLogged, employeeLogged, autoSubmitting, blockedCode, pendingKioskPin]);
 
   /** Close OTP / password step and return to PIN entry without re-triggering auto-submit. */
@@ -452,14 +454,14 @@ function firstWord(v: string | null | undefined) {
 
     setOtpSending(true);
     let res: Response;
-    let data: any = null;
+    let data: KioskUnlockJson | null = null;
     try {
       res = await fetch("/api/kiosk/unlock", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code: clean }),
       });
-      data = await res.json().catch(() => null);
+      data = (await res.json().catch(() => null)) as KioskUnlockJson | null;
     } catch {
       setPinError(true);
       showToast("Erreur réseau.");
@@ -762,8 +764,8 @@ function firstWord(v: string | null | undefined) {
 
       router.replace("/kiosk");
       setShowAdminModal(false);
-    } catch (err: any) {
-      setAdminError(err.message || "Erreur réseau.");
+    } catch (err: unknown) {
+      setAdminError(messageFromUnknown(err) || "Erreur réseau.");
     } finally {
       setAdminLoading(false);
     }
@@ -898,6 +900,7 @@ function firstWord(v: string | null | undefined) {
           {isAnyLogged && (
             <div className="loggedWrap">
               <div className="loggedBrand">
+                {/* eslint-disable-next-line @next/next/no-img-element -- static local asset */}
                 <img src="/Logo-ACC.png" alt="Accès Pharma" className="brandLogo" draggable={false} />
               </div>
 

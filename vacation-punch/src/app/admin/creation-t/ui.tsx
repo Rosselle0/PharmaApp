@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { messageFromUnknown } from "@/lib/unknownError";
 import "./creation-t.css";
 
 type TemplateItem = { text: string; required: boolean };
@@ -28,39 +29,67 @@ function ymd(d = new Date()) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-function normStr(v: any) {
+function normStr(v: unknown) {
   if (v === null || v === undefined) return "";
   return String(v);
 }
 
-function safeArray<T>(v: any): T[] {
+function safeArrayUnknown(v: unknown): unknown[] {
   return Array.isArray(v) ? v : [];
 }
 
-function normalizeTemplates(payload: any): Template[] {
-  const raw =
-    payload?.templates ??
-    payload?.data?.templates ??
-    payload?.rows ??
-    payload?.data ??
-    payload ??
-    [];
+function safeArray<T>(v: unknown): T[] {
+  return Array.isArray(v) ? (v as T[]) : [];
+}
 
-  return safeArray<any>(raw)
-    .map((t) => {
-      const id = t?.id ?? t?.templateId ?? t?.e_id ?? t?.uuid;
-      const title = t?.title ?? t?.name ?? t?.templateTitle ?? "";
-      const itemsRaw = t?.items ?? t?.tasks ?? t?.lines ?? t?.templateItems ?? [];
+function asRecord(v: unknown): Record<string, unknown> | null {
+  return typeof v === "object" && v !== null ? (v as Record<string, unknown>) : null;
+}
 
-      const items = safeArray<any>(itemsRaw)
-        .map((x) => ({
-          text: normStr(x?.text ?? x?.label ?? x?.task ?? x?.name).trim(),
-          required: x?.required === undefined ? true : Boolean(x?.required),
-        }))
+function normalizeTemplates(payload: unknown): Template[] {
+  let rawUnknown: unknown;
+  if (Array.isArray(payload)) {
+    rawUnknown = payload;
+  } else {
+    const p = asRecord(payload) ?? {};
+    rawUnknown =
+      p["templates"] ??
+      asRecord(p["data"])?.["templates"] ??
+      p["rows"] ??
+      p["data"] ??
+      payload ??
+      [];
+  }
+
+  const rawArray = safeArrayUnknown(rawUnknown);
+
+  return rawArray
+    .map((tUnknown): Template | null => {
+      const t = asRecord(tUnknown);
+      if (!t) return null;
+      const id = t["id"] ?? t["templateId"] ?? t["e_id"] ?? t["uuid"];
+      const title = t["title"] ?? t["name"] ?? t["templateTitle"] ?? "";
+      const itemsRaw =
+        t["items"] ??
+        t["tasks"] ??
+        t["lines"] ??
+        t["templateItems"] ??
+        [];
+
+      const items = safeArrayUnknown(itemsRaw)
+        .map((xUnknown) => {
+          const x = asRecord(xUnknown);
+          const textSrc = x ? x["text"] ?? x["label"] ?? x["task"] ?? x["name"] : "";
+          const reqVal = x?.["required"];
+          return {
+            text: normStr(textSrc).trim(),
+            required: reqVal === undefined ? true : Boolean(reqVal),
+          };
+        })
         .filter((x) => x.text.length > 0);
 
       if (!id || !String(title).trim()) return null;
-      return { id: String(id), title: String(title), items } as Template;
+      return { id: String(id), title: String(title), items };
     })
     .filter(Boolean) as Template[];
 }
@@ -134,26 +163,27 @@ export default function CreationTClient() {
         );
 
         const text = await res.text();
-        let data: any = null;
+        let data: unknown = null;
         try {
           data = text ? JSON.parse(text) : null;
         } catch {
           throw new Error(`Réponse non-JSON: ${text.slice(0, 120)}`);
         }
 
-        if (!res.ok) throw new Error(data?.error || "Failed to load working employees");
+        const d = asRecord(data);
+        if (!res.ok) throw new Error(String(d?.["error"] ?? "Failed to load working employees"));
 
-        const list = safeArray<WorkingEmployee>(data?.employees);
+        const list = safeArray<WorkingEmployee>(d?.["employees"]);
 
         if (!cancelled) {
           setWorkingEmployees(list);
           if (employeeId && !list.some((e) => e.id === employeeId)) setEmployeeId("");
         }
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (!cancelled) {
           setWorkingEmployees([]);
           setEmployeeId("");
-          setMsg(e?.message ?? "Erreur.");
+          setMsg(messageFromUnknown(e) || "Erreur.");
         }
       } finally {
         if (!cancelled) setLoadingWorking(false);
@@ -164,7 +194,7 @@ export default function CreationTClient() {
     return () => {
       cancelled = true;
     };
-  }, [dateYMD]);
+  }, [dateYMD]); // eslint-disable-line react-hooks/exhaustive-deps -- employeeId omitted; load is keyed by dateYMD only
 
   // -------------------
   // LOAD TEMPLATES
@@ -201,8 +231,8 @@ export default function CreationTClient() {
 
         setLoadingTemplates(false);
         return;
-      } catch (e: any) {
-        lastErr = `fetch/json failed :: ${e?.message ?? String(e)}`;
+      } catch (e: unknown) {
+        lastErr = `fetch/json failed :: ${messageFromUnknown(e)}`;
       }
     }
 
@@ -255,10 +285,12 @@ export default function CreationTClient() {
         );
         if (!res.ok) return;
 
-        const data: any = await res.json().catch(() => null);
+        const data = (await res.json().catch(() => null)) as unknown;
         if (cancelled) return;
 
-        const first = Array.isArray(data?.assignments) ? data.assignments[0] : null;
+        const da = asRecord(data);
+        const assignments = da?.["assignments"];
+        const first = Array.isArray(assignments) ? assignments[0] : null;
         if (!first) {
           setTab("custom");
           setCustomTitle("");
@@ -267,14 +299,18 @@ export default function CreationTClient() {
           return;
         }
 
-        const existingTasks = Array.isArray(first.tasks) ? first.tasks : [];
+        const fr = asRecord(first);
+        const existingTasks = Array.isArray(fr?.["tasks"]) ? fr["tasks"] : [];
 
         setTab("custom");
-        setCustomTitle(String(first.title ?? "Tâches"));
-        setAssignNotes(String(first.notes ?? ""));
+        setCustomTitle(String(fr?.["title"] ?? "Tâches"));
+        setAssignNotes(String(fr?.["notes"] ?? ""));
         setCustomLines(
           existingTasks.length
-            ? existingTasks.map((t: any) => ({ text: String(t.text ?? ""), required: !!t.required }))
+            ? existingTasks.map((tUnknown) => {
+                const t = asRecord(tUnknown);
+                return { text: String(t?.["text"] ?? ""), required: !!t?.["required"] };
+              })
             : [{ text: "", required: true }]
         );
       } catch {
@@ -365,7 +401,7 @@ export default function CreationTClient() {
       "/api/templates",
     ];
 
-    const payload: any = {
+    const payload: Record<string, unknown> = {
       id: tmplEditId || undefined,
       title: tmplEditTitle.trim(),
       items: cleanedTmplEditLines,
@@ -382,7 +418,7 @@ export default function CreationTClient() {
         });
 
         const text = await res.text();
-        let data: any = null;
+        let data: unknown = null;
         try {
           data = text ? JSON.parse(text) : null;
         } catch {
@@ -395,11 +431,15 @@ export default function CreationTClient() {
           continue;
         }
 
+        const dr = asRecord(data);
+        const tpl = asRecord(dr?.["template"]);
+        const innerData = asRecord(dr?.["data"]);
+        const innerTpl = asRecord(innerData?.["template"]);
         const newId =
-          data?.template?.id ??
-          data?.id ??
-          data?.templateId ??
-          data?.data?.template?.id ??
+          tpl?.["id"] ??
+          dr?.["id"] ??
+          dr?.["templateId"] ??
+          innerTpl?.["id"] ??
           null;
 
         setMsg("Template enregistré.");
@@ -407,8 +447,8 @@ export default function CreationTClient() {
         if (newId) setTmplEditId(String(newId));
         setBusySave(false);
         return;
-      } catch (e: any) {
-        lastError = `${url} -> fetch failed :: ${e?.message ?? String(e)}`;
+      } catch (e: unknown) {
+        lastError = `${url} -> fetch failed :: ${messageFromUnknown(e)}`;
       }
     }
 
@@ -464,8 +504,8 @@ export default function CreationTClient() {
         await reloadTemplates();
         setBusySave(false);
         return;
-      } catch (e: any) {
-        lastError = `${url} -> fetch failed :: ${e?.message ?? String(e)}`;
+      } catch (e: unknown) {
+        lastError = `${url} -> fetch failed :: ${messageFromUnknown(e)}`;
       }
     }
 
@@ -546,8 +586,8 @@ export default function CreationTClient() {
         }
         setBusyAssign(false);
         return;
-      } catch (e: any) {
-        lastError = `${url} -> fetch failed :: ${e?.message ?? String(e)}`;
+      } catch (e: unknown) {
+        lastError = `${url} -> fetch failed :: ${messageFromUnknown(e)}`;
       }
     }
 

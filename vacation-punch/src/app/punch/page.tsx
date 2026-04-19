@@ -1,27 +1,8 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
-import { requireEmployeeFromKioskOrCode } from "@/lib/shiftChange/auth";
 import PunchClient from "./PunchClient";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-type State = "OUT" | "IN" | "ON_BREAK" | "ON_LUNCH";
-
-function computeState(lastType: string | null): State {
-  switch (lastType) {
-    case "CLOCK_IN":
-    case "BREAK_END":
-    case "LUNCH_END":
-      return "IN";
-    case "BREAK_START":
-      return "ON_BREAK";
-    case "LUNCH_START":
-      return "ON_LUNCH";
-    default:
-      return "OUT";
-  }
-}
 
 export default async function PunchPage() {
   // NOTE: requireEmployeeFromKioskOrCode needs Request normally.

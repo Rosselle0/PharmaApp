@@ -119,8 +119,9 @@ export async function POST(req: Request) {
 
   // 🔐 enforce company ownership
   const companyId =
-    (auth as any).companyId ??
-    (await getDefaultCompany()).id;
+    auth.ok && auth.via === "kiosk"
+      ? auth.companyId
+      : (await getDefaultCompany()).id;
 
   const employee = await prisma.employee.findFirst({
     where: { id: employeeId, companyId, isActive: true },
@@ -288,8 +289,9 @@ export async function POST(req: Request) {
       },
     });
 
-  const ruleLocked = Boolean((shift as any)?.rule?.locked);
-  const { rule: _rule, ...rest } = shift as any;
+  const ruleLocked = Boolean(shift.rule?.locked);
+  const { rule, ...rest } = shift;
+  void rule;
   return NextResponse.json({
     shift: {
       ...rest,

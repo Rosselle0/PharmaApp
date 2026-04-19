@@ -11,7 +11,7 @@ export default async function ScheduleEditLayout({ children }: { children: React
   return (
     <div className="adminLayout">
       {/* AdminSidebar is a client component; passing server role is fine */}
-      <AdminSidebar role={res.role as any} />
+      <AdminSidebar role={res.role} />
       <main className="adminLayoutMain">{children}</main>
     </div>
   );

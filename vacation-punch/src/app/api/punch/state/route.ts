@@ -6,16 +6,13 @@ import { prisma, punchPrismaErrorUserMessage } from "@/lib/prisma";
 import { resolvePunchKioskLocked } from "@/lib/punch/kioskLockDay";
 import { requireEmployeeFromKioskOrCode, requireEmployeeFromKioskOrCodeValue } from "@/lib/shiftChange/auth";
 
-const PunchTypes = [
-  "CLOCK_IN",
-  "CLOCK_OUT",
-  "BREAK_START",
-  "BREAK_END",
-  "LUNCH_START",
-  "LUNCH_END",
-] as const;
-
-type PunchType = (typeof PunchTypes)[number];
+type PunchType =
+  | "CLOCK_IN"
+  | "CLOCK_OUT"
+  | "BREAK_START"
+  | "BREAK_END"
+  | "LUNCH_START"
+  | "LUNCH_END";
 type PunchState = "OUT" | "IN" | "ON_BREAK" | "ON_LUNCH";
 
 function diffMs(a: Date, b: Date) {

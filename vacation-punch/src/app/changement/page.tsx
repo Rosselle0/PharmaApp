@@ -32,23 +32,33 @@ async function getBaseUrl() {
   return `${proto}://${host}`;
 }
 
-function safeArray<T>(v: unknown): T[] {
-  return Array.isArray(v) ? v : [];
+function asRecord(v: unknown): Record<string, unknown> | null {
+  return typeof v === "object" && v !== null ? (v as Record<string, unknown>) : null;
 }
 
-function normalizeShifts(payload: any): ShiftRow[] {
-  const raw =
-    payload?.shifts ??
-    payload?.data?.shifts ??
-    payload?.rows ??
-    payload?.data ??
-    [];
+function normalizeShifts(payload: unknown): ShiftRow[] {
+  let raw: unknown;
+  if (Array.isArray(payload)) {
+    raw = payload;
+  } else {
+    const p = asRecord(payload) ?? {};
+    raw =
+      p["shifts"] ??
+      asRecord(p["data"])?.["shifts"] ??
+      p["rows"] ??
+      p["data"] ??
+      [];
+  }
 
-  return safeArray<any>(raw)
-    .map((s) => {
-      const id = s?.id;
-      const startTime = s?.startTime;
-      const endTime = s?.endTime;
+  const rawArr = Array.isArray(raw) ? raw : [];
+
+  return rawArr
+    .map((sUnknown): ShiftRow | null => {
+      const s = asRecord(sUnknown);
+      if (!s) return null;
+      const id = s["id"];
+      const startTime = s["startTime"];
+      const endTime = s["endTime"];
 
       if (!id || !startTime || !endTime) return null;
 
@@ -56,9 +66,9 @@ function normalizeShifts(payload: any): ShiftRow[] {
         id: String(id),
         startTime: String(startTime),
         endTime: String(endTime),
-        status: (s?.status ?? "PLANNED") as ShiftRow["status"],
-        note: s?.note == null ? null : String(s.note),
-      } as ShiftRow;
+        status: String(s["status"] ?? "PLANNED") as ShiftRow["status"],
+        note: s["note"] == null ? null : String(s["note"]),
+      };
     })
     .filter(Boolean) as ShiftRow[];
 }
@@ -74,7 +84,7 @@ async function getMyShifts(code?: string): Promise<ApiOk | ApiErr> {
   const res = await fetch(url.toString(), { cache: "no-store" });
   const text = await res.text();
 
-  let data: any = null;
+  let data: unknown = null;
 
   try {
     data = text ? JSON.parse(text) : null;
@@ -85,8 +95,9 @@ async function getMyShifts(code?: string): Promise<ApiOk | ApiErr> {
     };
   }
 
-  if (!res.ok || !data?.ok) {
-    return { ok: false, error: data?.error ?? `Erreur (${res.status})` };
+  const dr = asRecord(data);
+  if (!res.ok || !dr?.["ok"]) {
+    return { ok: false, error: String(dr?.["error"] ?? `Erreur (${res.status})`) };
   }
 
   const shifts = normalizeShifts(data);
