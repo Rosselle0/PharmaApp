@@ -2,6 +2,7 @@ import "./requests.css";
 import { prisma } from "@/lib/prisma";
 import { VacationStatus } from "@prisma/client";
 import { getPrivilegedContextOrRedirect } from "@/lib/adminContext";
+import ConfirmSubmitButton from "./ConfirmSubmitButton";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -64,7 +65,26 @@ export default async function AdminRequestsPage() {
         </div>
 
         <section className="card">
-          <h2 className="h2">Vacances — En attente</h2>
+          <div className="cardHeadRow">
+            <h2 className="h2">Vacances — En attente</h2>
+            {pendingVac.length > 0 ? (
+              <form
+                action={async () => {
+                  "use server";
+                  const { deleteVacationBucket } = await import("./action");
+                  await deleteVacationBucket("PENDING");
+                }}
+              >
+                <ConfirmSubmitButton
+                  className="btn danger iconOnly"
+                  title="Supprimer toutes les demandes en attente"
+                  confirmMessage="Supprimer toutes les demandes en attente ?"
+                >
+                  🗑
+                </ConfirmSubmitButton>
+              </form>
+            ) : null}
+          </div>
           {pendingVac.length === 0 ? (
             <div className="muted">Aucune demande en attente.</div>
           ) : (
@@ -114,6 +134,21 @@ export default async function AdminRequestsPage() {
                             Refuser
                           </button>
                         </form>
+                        <form
+                          action={async () => {
+                            "use server";
+                            const { deleteVacationRequest } = await import("./action");
+                            await deleteVacationRequest(r.id);
+                          }}
+                        >
+                          <ConfirmSubmitButton
+                            className="btn danger iconOnly"
+                            title="Supprimer cette demande"
+                            confirmMessage="Supprimer cette demande ?"
+                          >
+                            🗑
+                          </ConfirmSubmitButton>
+                        </form>
                       </div>
                     </td>
                   </tr>
@@ -124,7 +159,26 @@ export default async function AdminRequestsPage() {
         </section>
 
         <section className="card">
-          <h2 className="h2">Vacances — Récentes</h2>
+          <div className="cardHeadRow">
+            <h2 className="h2">Vacances — Récentes</h2>
+            {recentVac.length > 0 ? (
+              <form
+                action={async () => {
+                  "use server";
+                  const { deleteVacationBucket } = await import("./action");
+                  await deleteVacationBucket("RECENT");
+                }}
+              >
+                <ConfirmSubmitButton
+                  className="btn danger iconOnly"
+                  title="Supprimer toutes les demandes récentes"
+                  confirmMessage="Supprimer toutes les demandes récentes ?"
+                >
+                  🗑
+                </ConfirmSubmitButton>
+              </form>
+            ) : null}
+          </div>
           {recentVac.length === 0 ? (
             <div className="muted">Aucune décision récente.</div>
           ) : (
@@ -153,21 +207,36 @@ export default async function AdminRequestsPage() {
 
                       </td>
                       <td style={{ textAlign: "right" }}>
-                        {r.status === "APPROVED" ? (
+                        <div className="actions">
+                          {r.status === "APPROVED" ? (
+                            <form
+                              action={async () => {
+                                "use server";
+                                const { cancelApprovedVacation } = await import("./action");
+                                await cancelApprovedVacation(r.id);
+                              }}
+                            >
+                              <button className="btn danger compactAction" type="submit">
+                                Annuler l’approbation
+                              </button>
+                            </form>
+                          ) : null}
                           <form
                             action={async () => {
                               "use server";
-                              const { cancelApprovedVacation } = await import("./action");
-                              await cancelApprovedVacation(r.id);
+                              const { deleteVacationRequest } = await import("./action");
+                              await deleteVacationRequest(r.id);
                             }}
                           >
-                            <button className="btn danger" type="submit">
-                              Annuler l’approbation
-                            </button>
+                            <ConfirmSubmitButton
+                              className="btn danger iconOnly"
+                              title="Supprimer cette demande"
+                              confirmMessage="Supprimer cette demande ?"
+                            >
+                              🗑
+                            </ConfirmSubmitButton>
                           </form>
-                        ) : (
-                          <span className="muted">—</span>
-                        )}
+                        </div>
                       </td>
                     </tr>
                   ))}

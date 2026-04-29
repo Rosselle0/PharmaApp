@@ -136,6 +136,18 @@
   letter-spacing: -0.01em;
 }
 
+.requestsScope .cardHeadRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.requestsScope .cardHeadRow .h2 {
+  margin: 0;
+}
+
 .requestsScope .muted {
   color: var(--ap-muted);
 }
@@ -172,6 +184,25 @@
 .requestsScope .btn:active {
   transform: translateY(0px);
   box-shadow: 0 6px 14px rgba(10, 16, 32, 0.07);
+}
+
+.requestsScope .btn.iconOnly {
+  min-width: 42px;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.requestsScope .btn.compactAction {
+  min-width: 0;
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.2;
 }
 
 .requestsScope .btn.primary {
@@ -290,6 +321,7 @@
   .requestsScope .head { align-items: flex-start; flex-direction: column; }
   .requestsScope .row { justify-content: flex-start; }
   .requestsScope .btn { min-width: 140px; }
+  .requestsScope .btn.compactAction { min-width: 0; }
   .requestsScope .tableWrap { overflow-x: auto; }
   .requestsScope .table { min-width: 0 !important; }
 }

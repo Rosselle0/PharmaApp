@@ -204,3 +204,53 @@ export async function cancelApprovedVacation(requestId: string) {
   redirect("/admin/requests");
 }
 
+export async function deleteVacationRequest(requestId: string) {
+  const { companyIds } = await getPrivilegedContextOrRedirect();
+
+  await prisma.$transaction(async (tx) => {
+    const req = await tx.vacationRequest.findUnique({
+      where: { id: requestId },
+      include: { employee: { select: { companyId: true } } },
+    });
+
+    if (!req) return;
+    if (!companyIds.includes(req.employee.companyId)) throw new Error("Mauvaise compagnie.");
+
+    await tx.shift.deleteMany({ where: { vacationRequestId: req.id } });
+    await tx.vacationRequest.delete({ where: { id: req.id } });
+  });
+
+  revalidatePath("/admin/requests");
+  revalidatePath("/schedule");
+  redirect("/admin/requests");
+}
+
+export async function deleteVacationBucket(bucket: "PENDING" | "RECENT") {
+  const { companyIds } = await getPrivilegedContextOrRedirect();
+
+  const statuses =
+    bucket === "PENDING"
+      ? [VacationStatus.PENDING]
+      : [VacationStatus.APPROVED, VacationStatus.REJECTED, VacationStatus.CANCELLED];
+
+  const reqs = await prisma.vacationRequest.findMany({
+    where: {
+      status: { in: statuses },
+      employee: { companyId: { in: companyIds } },
+    },
+    select: { id: true },
+  });
+
+  const ids = reqs.map((r) => r.id);
+  if (ids.length > 0) {
+    await prisma.$transaction(async (tx) => {
+      await tx.shift.deleteMany({ where: { vacationRequestId: { in: ids } } });
+      await tx.vacationRequest.deleteMany({ where: { id: { in: ids } } });
+    });
+  }
+
+  revalidatePath("/admin/requests");
+  revalidatePath("/schedule");
+  redirect("/admin/requests");
+}
+

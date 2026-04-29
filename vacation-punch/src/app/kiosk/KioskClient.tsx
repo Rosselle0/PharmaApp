@@ -355,29 +355,43 @@ function firstWord(v: string | null | undefined) {
     return Array.from({ length: PIN_LEN }, (_, i) => digits[i] ?? "");
   }
 
+  function kioskGet(key: string) {
+    if (typeof window === "undefined") return "";
+    return window.sessionStorage.getItem(key) ?? "";
+  }
+
+  function kioskSet(key: string, value: string) {
+    if (typeof window === "undefined") return;
+    window.sessionStorage.setItem(key, value);
+  }
+
+  function kioskRemove(key: string) {
+    if (typeof window === "undefined") return;
+    window.sessionStorage.removeItem(key);
+  }
+
   function saveEmployeeSession(code: string, name: string | null, role: string) {
     const r = String(role ?? "").toUpperCase();
-    localStorage.setItem("kiosk_employee_logged", "1");
-    localStorage.setItem("kiosk_employee_code", code);
-    localStorage.setItem("kiosk_employee_name", name ?? "");
-    localStorage.setItem("kiosk_role", r);
+    kioskSet("kiosk_employee_logged", "1");
+    kioskSet("kiosk_employee_code", code);
+    kioskSet("kiosk_employee_name", name ?? "");
+    kioskSet("kiosk_role", r);
   }
 
   function clearEmployeeSession() {
-    localStorage.removeItem("kiosk_employee_logged");
-    localStorage.removeItem("kiosk_employee_code");
-    localStorage.removeItem("kiosk_employee_name");
-    localStorage.removeItem("kiosk_role");
+    kioskRemove("kiosk_employee_logged");
+    kioskRemove("kiosk_employee_code");
+    kioskRemove("kiosk_employee_name");
+    kioskRemove("kiosk_role");
   }
 
   useEffect(() => {
-    const storedRole = (localStorage.getItem("kiosk_role") ?? "").trim();
-    const storedLogged = localStorage.getItem("kiosk_employee_logged") === "1";
-    const storedCode = (localStorage.getItem("kiosk_employee_code") ?? "").trim();
-    const storedName = (localStorage.getItem("kiosk_employee_name") ?? "").trim();
+    const storedRole = kioskGet("kiosk_role").trim();
+    const storedLogged = kioskGet("kiosk_employee_logged") === "1";
+    const storedCode = kioskGet("kiosk_employee_code").trim();
+    const storedName = kioskGet("kiosk_employee_name").trim();
 
     setKioskRole(storedRole || null);
-
     if (storedLogged && storedCode) {
       setEmployeeLogged(true);
       setEmployeeCodeConfirmed(storedCode);
@@ -702,10 +716,10 @@ function firstWord(v: string | null | undefined) {
       // ignore
     }
 
-    localStorage.removeItem("kiosk_role");
-    localStorage.removeItem("kiosk_employee_logged");
-    localStorage.removeItem("kiosk_employee_code");
-    localStorage.removeItem("kiosk_employee_name");
+    kioskRemove("kiosk_role");
+    kioskRemove("kiosk_employee_logged");
+    kioskRemove("kiosk_employee_code");
+    kioskRemove("kiosk_employee_name");
 
     setKioskRole(null);
     setEmployeeLogged(false);
@@ -753,7 +767,7 @@ function firstWord(v: string | null | undefined) {
         throw new Error(`Accès refusé. Role=${role || "NONE"}`);
       }
 
-      localStorage.setItem("kiosk_role", role);
+      kioskSet("kiosk_role", role);
       setKioskRole(role);
 
       clearEmployeeSession();
@@ -788,10 +802,10 @@ function firstWord(v: string | null | undefined) {
       // ignore
     }
 
-    localStorage.removeItem("kiosk_role");
-    localStorage.removeItem("kiosk_employee_logged");
-    localStorage.removeItem("kiosk_employee_code");
-    localStorage.removeItem("kiosk_employee_name");
+    kioskRemove("kiosk_role");
+    kioskRemove("kiosk_employee_logged");
+    kioskRemove("kiosk_employee_code");
+    kioskRemove("kiosk_employee_name");
 
     setKioskRole(null);
     setEmployeeLogged(false);
