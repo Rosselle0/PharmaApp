@@ -149,7 +149,21 @@ export async function PATCH(req: NextRequest, context: Ctx) {
 export async function DELETE(_req: NextRequest, context: Ctx) {
   try {
     const { id } = await context.params;
-    await prisma.employee.delete({ where: { id } });
+    await prisma.$transaction(async (tx) => {
+      await tx.shiftChangeRequest.deleteMany({
+        where: {
+          OR: [{ requesterEmployeeId: id }, { candidateEmployeeId: id }],
+        },
+      });
+      await tx.taskAssignment.deleteMany({ where: { employeeId: id } });
+      await tx.punchEvent.updateMany({
+        where: { shift: { employeeId: id } },
+        data: { shiftId: null },
+      });
+      await tx.shift.deleteMany({ where: { employeeId: id } });
+      await tx.recurringShiftRule.deleteMany({ where: { employeeId: id } });
+      await tx.employee.delete({ where: { id } });
+    });
     return NextResponse.json({ ok: true });
   } catch (e: unknown) {
     return NextResponse.json({ error: messageFromUnknown(e) || "Server error" }, { status: 500 });

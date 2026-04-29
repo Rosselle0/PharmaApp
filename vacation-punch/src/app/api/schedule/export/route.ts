@@ -71,6 +71,12 @@ function monthLabel(d: Date) {
   });
 }
 
+function monthSpanLabel(start: Date, end: Date) {
+  const a = monthLabel(start);
+  const b = monthLabel(end);
+  return a === b ? a : `${a}-${b}`;
+}
+
 function hoursBetween(start: Date, end: Date) {
   return Math.max(0, (end.getTime() - start.getTime()) / 3600000);
 }
@@ -165,27 +171,33 @@ function drawWeekTable(
     employees: EmployeeLite[];
     byUserDay: Map<string, ShiftLite[]>;
     topY: number;
+    showTitle?: boolean;
   }
 ) {
-  const { weekStart, employees, byUserDay, topY } = opts;
+  const { weekStart, employees, byUserDay, topY, showTitle = false } = opts;
 
   const pageWidth = doc.page.width;
   const top = topY;
+  const maxTableHeight = 320;
 
   // proportions closer to the scanned sheet
-  const nameW = 102;
-  const dayW = 58;
+  const nameW = 88;
+  const dayW = 60;
   const totalW = 64;
-  const headerH = 24;
-  const rowH = 21;
+  const headerH = 25;
+  const dataRows = Math.max(1, employees.length + 1); // +1 footer row for weekly total
+  const rowH = Math.max(10, Math.min(21, (maxTableHeight - headerH * 2) / dataRows));
+  const scale = rowH / 21;
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const tableWidth = nameW + 7 * dayW + totalW;
-  const tableHeight = headerH * 2 + rowH * employees.length;
+  const tableHeight = headerH * 2 + rowH * dataRows;
   const left = (pageWidth - tableWidth) / 2;
 
   // single title only
-  drawCellText(doc, "Horaire", left, top - 28, tableWidth, "Helvetica", 12.5, "center");
+  if (showTitle) {
+    drawCellText(doc, "Horaire", left, 16, tableWidth, "Helvetica-Bold", 14, "center");
+  }
 
   // outer border
   doc.save();
@@ -207,7 +219,7 @@ function drawWeekTable(
   doc.moveTo(left, top + headerH).lineTo(left + tableWidth, top + headerH).stroke();
   doc.moveTo(left, top + headerH * 2).lineTo(left + tableWidth, top + headerH * 2).stroke();
 
-  for (let i = 0; i <= employees.length; i++) {
+  for (let i = 0; i <= dataRows; i++) {
     const yy = top + headerH * 2 + i * rowH;
     doc.moveTo(left, yy).lineTo(left + tableWidth, yy).stroke();
   }
@@ -217,7 +229,7 @@ function drawWeekTable(
   // top header
   let cx = left + nameW;
   for (let i = 0; i < 7; i++) {
-    drawCellText(doc, DAY_LABELS[i], cx, top + 6, dayW, "Helvetica-Bold", 8.9, "center");
+    drawCellText(doc, DAY_LABELS[i], cx, top + 6, dayW, "Helvetica-Bold", Math.max(7.1, 9.6 * scale), "center");
     cx += dayW;
   }
 
@@ -228,34 +240,35 @@ function drawWeekTable(
     top + 6,
     totalW,
     "Helvetica-Bold",
-    8.9,
+    Math.max(7.1, 9.6 * scale),
     "center"
   );
 
   // second header row
   drawCellText(
     doc,
-    monthLabel(weekStart),
+    monthSpanLabel(days[0], days[6]),
     left + 6,
-    top + headerH + 5,
+    top + headerH + 4.5,
     nameW - 10,
     "Helvetica-Bold",
-    8.7,
+    Math.max(7.1, 9.2 * scale),
     "left"
   );
 
   cx = left + nameW;
   for (let i = 0; i < 7; i++) {
-    drawCellText(doc, dayNum(days[i]), cx, top + headerH + 5, dayW, "Helvetica-Bold", 8.7, "center");
+    drawCellText(doc, dayNum(days[i]), cx, top + headerH + 4.5, dayW, "Helvetica-Bold", Math.max(7.1, 9.2 * scale), "center");
     cx += dayW;
   }
 
   // rows
+  let weekGrandTotal = 0;
   employees.forEach((emp, rowIdx) => {
-    const y = top + headerH * 2 + rowIdx * rowH + 5.5;
-    const fullName = `${emp.firstName} ${emp.lastName}`;
+    const y = top + headerH * 2 + rowIdx * rowH + 4.5;
+    const fullName = emp.firstName;
 
-    drawCellText(doc, fullName, left + 5, y, nameW - 8, "Helvetica", 8.8, "left");
+    drawCellText(doc, fullName, left + 4, y, nameW - 8, "Helvetica", Math.max(7, 9 * scale), "left");
 
     let weeklyTotal = 0;
 
@@ -280,7 +293,7 @@ function drawWeekTable(
       const cellW = dayW - 4;
 
       doc.font("Helvetica-Bold").fillColor(COLORS.text);
-      const fitted = fitText(doc, text, cellW, 7.9, 6.4);
+      const fitted = fitText(doc, text, cellW, Math.max(6.1, 8.6 * scale), 5.1);
 
       drawCellText(doc, text, cellX, y, cellW, "Helvetica-Bold", fitted, "center");
     });
@@ -292,15 +305,44 @@ function drawWeekTable(
       y,
       totalW,
       "Helvetica-Bold",
-      8.9,
+      Math.max(7.2, 9.6 * scale),
       "center"
     );
+    weekGrandTotal += weeklyTotal;
   });
+
+  // Footer row: week total
+  const footerY = top + headerH * 2 + employees.length * rowH + 4.5;
+  drawCellText(
+    doc,
+    "Total semaine",
+    left + 4,
+    footerY,
+    nameW + 7 * dayW - 8,
+    "Helvetica-Bold",
+    Math.max(7.2, 9.4 * scale),
+    "right"
+  );
+  drawCellText(
+    doc,
+    fmtHours(weekGrandTotal),
+    left + nameW + 7 * dayW,
+    footerY,
+    totalW,
+    "Helvetica-Bold",
+    Math.max(7.4, 9.8 * scale),
+    "center"
+  );
 }
 
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const week = String(url.searchParams.get("week") ?? "").trim();
+  const orderParam = String(url.searchParams.get("order") ?? "").trim();
+  const requestedOrder = orderParam
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
   const sectionParam = String(url.searchParams.get("section") ?? "CAISSE_LAB").toUpperCase();
   const section: "CAISSE_LAB" | "FLOOR" =
     sectionParam.includes("FLOOR") ? "FLOOR" : "CAISSE_LAB";
@@ -314,11 +356,15 @@ export async function GET(req: NextRequest) {
   const company = await getDefaultCompany();
   const companyId = company.id;
 
-  const employees = await prisma.employee.findMany({
+  const employeesRaw = await prisma.employee.findMany({
     where: { companyId, isActive: true, department: { in: departments } },
     orderBy: [{ department: "asc" }, { lastName: "asc" }, { firstName: "asc" }],
     select: { id: true, firstName: true, lastName: true, paidBreak30: true },
   });
+  const byId = new Map(employeesRaw.map((e) => [e.id, e]));
+  const requested = requestedOrder.map((id) => byId.get(id)).filter((e): e is EmployeeLite => Boolean(e));
+  const remaining = employeesRaw.filter((e) => !requestedOrder.includes(e.id));
+  const employees = requested.length > 0 ? [...requested, ...remaining] : employeesRaw;
 
   const shifts = await prisma.shift.findMany({
     where: {
@@ -357,7 +403,7 @@ export async function GET(req: NextRequest) {
     doc.on("error", reject);
   });
 
-  const employeesPerPage = 8;
+  const employeesPerPage = 16;
 
   for (let i = 0; i < employees.length; i += employeesPerPage) {
     const batch = employees.slice(i, i + employeesPerPage);
@@ -374,14 +420,16 @@ export async function GET(req: NextRequest) {
       weekStart: week1,
       employees: batch,
       byUserDay: byUserDay1,
-      topY: 78,
+      topY: 56,
+      showTitle: i === 0,
     });
 
     drawWeekTable(doc, {
       weekStart: week2,
       employees: batch,
       byUserDay: byUserDay2,
-      topY: 332,
+      topY: 422,
+      showTitle: false,
     });
   }
 

@@ -21,6 +21,19 @@ function emailLooksValid(raw: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t);
 }
 
+async function readApiErrorMessage(res: Response): Promise<string> {
+  const text = await res.text().catch(() => "");
+  if (!text) return "Erreur de création du compte.";
+  try {
+    const json = JSON.parse(text) as { error?: unknown; message?: unknown };
+    const value = json.error ?? json.message;
+    if (typeof value === "string" && value.trim()) return value.trim();
+  } catch {
+    // plain text fallback
+  }
+  return text.replace(/^error:\s*/i, "").trim() || "Erreur de création du compte.";
+}
+
 export default function CreateAccountPage() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -85,8 +98,7 @@ export default function CreateAccountPage() {
       });
 
       if (!res.ok) {
-        const t = await res.text();
-        throw new Error(t || "Create failed");
+        throw new Error(await readApiErrorMessage(res));
       }
 
       setMsg("Compte créé.");
@@ -100,7 +112,7 @@ export default function CreateAccountPage() {
       setKioskMode("EMAIL_OTP");
       setKioskPw("");
     } catch (e: unknown) {
-      setMsg(e instanceof Error ? e.message : "Erreur");
+      setMsg(e instanceof Error ? e.message : "Erreur de création du compte.");
     } finally {
       setLoading(false);
     }

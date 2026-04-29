@@ -2,7 +2,7 @@
 import { messageFromUnknown } from "@/lib/unknownError";
 import { unpaidBreak30DeductionMinutes } from "@/lib/unpaidBreak30";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 const TIME_SCROLL_ITEM_H = 32;
 const TIME_SCROLL_VIEW_H = 108;
@@ -296,10 +296,13 @@ export default function ScheduleEditorClient(props: {
     section: "CAISSE_LAB" | "FLOOR";
 }) {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const orderKey = `schedule-edit-order:${props.section}`;
 
-    function goSection(next: "CAISSE_LAB" | "FLOOR") {
+    function goSection(next: "CAISSE_LAB" | "FLOOR", order: string[]) {
+        const orderParam = order.join(",");
         router.push(
-            `/schedule/edit?week=${encodeURIComponent(props.weekStartYMD)}&section=${encodeURIComponent(next)}`
+            `/schedule/edit?week=${encodeURIComponent(props.weekStartYMD)}&section=${encodeURIComponent(next)}&order=${encodeURIComponent(orderParam)}`
         );
     }
 
@@ -324,6 +327,8 @@ export default function ScheduleEditorClient(props: {
     const [initialRepeatWeekly, setInitialRepeatWeekly] = useState(false);
     const [initialLocked, setInitialLocked] = useState(false);
     const [activeTimeCol, setActiveTimeCol] = useState<"start" | "end">("start");
+    const [employeeOrder, setEmployeeOrder] = useState<string[]>(() => props.employees.map((e) => e.id));
+    const [dragEmployeeId, setDragEmployeeId] = useState<string | null>(null);
     const activeTimeColRef = useRef(activeTimeCol);
     activeTimeColRef.current = activeTimeCol;
     const hourDigitBufRef = useRef("");
@@ -420,6 +425,44 @@ export default function ScheduleEditorClient(props: {
         setInitialLocked(false);
     }, [props.shifts, props.weekStartYMD]);
 
+    useEffect(() => {
+        const ids = props.employees.map((e) => e.id);
+        const fromQuery = (searchParams.get("order") ?? "")
+            .split(",")
+            .map((x) => x.trim())
+            .filter(Boolean);
+        const queryResolved = fromQuery.filter((id) => ids.includes(id));
+        const queryOrder =
+            queryResolved.length > 0
+                ? [...queryResolved, ...ids.filter((id) => !queryResolved.includes(id))]
+                : null;
+
+        let storedOrder: string[] | null = null;
+        if (typeof window !== "undefined") {
+            const raw = localStorage.getItem(orderKey) ?? "";
+            const parsed = raw
+                .split(",")
+                .map((x) => x.trim())
+                .filter(Boolean);
+            const kept = parsed.filter((id) => ids.includes(id));
+            if (kept.length > 0) {
+                storedOrder = [...kept, ...ids.filter((id) => !kept.includes(id))];
+            }
+        }
+
+        setEmployeeOrder((prev) => {
+            if (queryOrder) return queryOrder;
+            if (storedOrder) return storedOrder;
+            const kept = prev.filter((id) => ids.includes(id));
+            return [...kept, ...ids.filter((id) => !kept.includes(id))];
+        });
+    }, [props.employees, orderKey, searchParams]);
+
+    useEffect(() => {
+        if (typeof window === "undefined" || employeeOrder.length === 0) return;
+        localStorage.setItem(orderKey, employeeOrder.join(","));
+    }, [employeeOrder, orderKey]);
+
     const availabilityByEmpDay = useMemo(() => {
         const map = new Map<string, AvailabilityRule>();
         for (const rule of props.availability) {
@@ -451,6 +494,26 @@ export default function ScheduleEditorClient(props: {
         }
         return map;
     }, [props.employees]);
+
+    const orderedEmployees = useMemo(() => {
+        const byId = new Map(props.employees.map((e) => [e.id, e]));
+        return employeeOrder
+            .map((id) => byId.get(id))
+            .filter((e): e is Employee => Boolean(e));
+    }, [employeeOrder, props.employees]);
+
+    function reorderEmployees(dragId: string, targetId: string) {
+        if (!dragId || !targetId || dragId === targetId) return;
+        setEmployeeOrder((prev) => {
+            const from = prev.indexOf(dragId);
+            const to = prev.indexOf(targetId);
+            if (from < 0 || to < 0) return prev;
+            const next = [...prev];
+            next.splice(from, 1);
+            next.splice(to, 0, dragId);
+            return next;
+        });
+    }
 
     function calcTotalHours(employeeId: string) {
         let mins = 0;
@@ -654,9 +717,10 @@ export default function ScheduleEditorClient(props: {
 
     const prevWeek = ymdLocal(new Date(weekStart.getTime() - 7 * 86400000));
     const nextWeek = ymdLocal(new Date(weekStart.getTime() + 7 * 86400000));
+    const orderParam = encodeURIComponent(employeeOrder.join(","));
     const exportHref = `/api/schedule/export?week=${encodeURIComponent(props.weekStartYMD)}&section=${encodeURIComponent(
         props.section
-    )}`;
+    )}&order=${orderParam}`;
 
     return (
         <main className="page scheduleScope">
@@ -670,7 +734,7 @@ export default function ScheduleEditorClient(props: {
                             <button
                                 type="button"
                                 className="btn"
-                                onClick={() => goSection("CAISSE_LAB")}
+                                onClick={() => goSection("CAISSE_LAB", employeeOrder)}
                                 style={
                                     props.section === "CAISSE_LAB"
                                         ? {
@@ -687,7 +751,7 @@ export default function ScheduleEditorClient(props: {
                             <button
                                 type="button"
                                 className="btn"
-                                onClick={() => goSection("FLOOR")}
+                                onClick={() => goSection("FLOOR", employeeOrder)}
                                 style={
                                     props.section === "FLOOR"
                                         ? {
@@ -714,14 +778,14 @@ export default function ScheduleEditorClient(props: {
                     >
                         <a
                             className="btn"
-                            href={`/schedule/edit?week=${encodeURIComponent(prevWeek)}&section=${encodeURIComponent(props.section)}`}
+                            href={`/schedule/edit?week=${encodeURIComponent(prevWeek)}&section=${encodeURIComponent(props.section)}&order=${orderParam}`}
                         >
                             ← Semaine précédente
                         </a>
 
                         <a
                             className="btn"
-                            href={`/schedule/edit?week=${encodeURIComponent(nextWeek)}&section=${encodeURIComponent(props.section)}`}
+                            href={`/schedule/edit?week=${encodeURIComponent(nextWeek)}&section=${encodeURIComponent(props.section)}&order=${orderParam}`}
                         >
                             Semaine suivante →
                         </a>
@@ -780,10 +844,24 @@ export default function ScheduleEditorClient(props: {
                             </thead>
 
                             <tbody>
-                                {props.employees.map((emp) => (
-                                    <tr key={emp.id}>
+                                {orderedEmployees.map((emp) => (
+                                    <tr
+                                        key={emp.id}
+                                        draggable
+                                        onDragStart={() => setDragEmployeeId(emp.id)}
+                                        onDragEnd={() => setDragEmployeeId(null)}
+                                        onDragOver={(e) => e.preventDefault()}
+                                        onDrop={() => {
+                                            if (dragEmployeeId) reorderEmployees(dragEmployeeId, emp.id);
+                                            setDragEmployeeId(null);
+                                        }}
+                                        className={dragEmployeeId === emp.id ? "scheduleDragRow" : undefined}
+                                    >
                                         <td className="td sticky">
-                                            <div className="name">{emp.firstName} {emp.lastName}</div>
+                                            <div className="name">
+                                                <span className="scheduleDragHandle" aria-hidden="true">≡</span>
+                                                {emp.firstName} {emp.lastName}
+                                            </div>
                                             <div className="muted">
                                                 {emp.department === "CASH"
                                                     ? "Caisse"

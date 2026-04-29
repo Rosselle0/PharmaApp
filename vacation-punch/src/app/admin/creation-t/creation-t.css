@@ -266,13 +266,24 @@
 
 .ctLine{
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: auto 1fr auto auto;
   gap: 10px;
   align-items: center;
   padding: 10px;
   border-radius: 14px;
   border: 1px solid var(--ct-line-border);
   background: var(--ct-line-bg);
+}
+
+.ctDragHandle{
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  border: 1px solid var(--ct-iconbtn-border);
+  background: var(--ct-iconbtn-bg);
+  color: var(--ct-iconbtn-text);
+  cursor: grab;
+  font-weight: 900;
 }
 
 .ctLineInput{

@@ -46,6 +46,15 @@ function asRecord(v: unknown): Record<string, unknown> | null {
   return typeof v === "object" && v !== null ? (v as Record<string, unknown>) : null;
 }
 
+function reorderTemplateItems(list: TemplateItem[], fromIndex: number, toIndex: number): TemplateItem[] {
+  if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return list;
+  const next = [...list];
+  const [item] = next.splice(fromIndex, 1);
+  if (!item) return list;
+  next.splice(toIndex, 0, item);
+  return next;
+}
+
 function normalizeTemplates(payload: unknown): Template[] {
   let rawUnknown: unknown;
   if (Array.isArray(payload)) {
@@ -125,6 +134,7 @@ export default function CreationTClient() {
   // custom assignment editor (independent — no bleed)
   const [customTitle, setCustomTitle] = useState("");
   const [customLines, setCustomLines] = useState<TemplateItem[]>([{ text: "", required: true }]);
+  const [dragCustomIndex, setDragCustomIndex] = useState<number | null>(null);
 
   // -------------------
   // TEMPLATE EDITOR STATE (right panel only)
@@ -132,6 +142,7 @@ export default function CreationTClient() {
   const [tmplEditId, setTmplEditId] = useState("");
   const [tmplEditTitle, setTmplEditTitle] = useState("");
   const [tmplEditLines, setTmplEditLines] = useState<TemplateItem[]>([{ text: "", required: true }]);
+  const [dragTemplateIndex, setDragTemplateIndex] = useState<number | null>(null);
 
   const [busySave, setBusySave] = useState(false);
   const [busyAssign, setBusyAssign] = useState(false);
@@ -748,7 +759,20 @@ export default function CreationTClient() {
                       <div className="ctEmpty">Aucune tâche.</div>
                     ) : (
                       customLines.map((l, idx) => (
-                        <div className="ctLine" key={idx}>
+                        <div
+                          className="ctLine"
+                          key={idx}
+                          draggable
+                          onDragStart={() => setDragCustomIndex(idx)}
+                          onDragEnd={() => setDragCustomIndex(null)}
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={() => {
+                            if (dragCustomIndex === null) return;
+                            setCustomLines((prev) => reorderTemplateItems(prev, dragCustomIndex, idx));
+                            setDragCustomIndex(null);
+                          }}
+                        >
+                          <button type="button" className="ctDragHandle" aria-label="Réordonner tâche">≡</button>
                           <input
                             className="ctLineInput"
                             value={l.text}
@@ -864,7 +888,20 @@ export default function CreationTClient() {
                     <div className="ctEmpty">Aucune tâche.</div>
                   ) : (
                     tmplEditLines.map((l, idx) => (
-                      <div className="ctLine" key={idx}>
+                      <div
+                        className="ctLine"
+                        key={idx}
+                        draggable
+                        onDragStart={() => setDragTemplateIndex(idx)}
+                        onDragEnd={() => setDragTemplateIndex(null)}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={() => {
+                          if (dragTemplateIndex === null) return;
+                          setTmplEditLines((prev) => reorderTemplateItems(prev, dragTemplateIndex, idx));
+                          setDragTemplateIndex(null);
+                        }}
+                      >
+                        <button type="button" className="ctDragHandle" aria-label="Réordonner tâche">≡</button>
                         <input
                           className="ctLineInput"
                           value={l.text}

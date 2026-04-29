@@ -30,6 +30,19 @@ function onlyDigits(v: string, max = 10) {
   return v.replace(/\D/g, "").slice(0, max);
 }
 
+async function readApiErrorMessage(res: Response): Promise<string> {
+  const text = await res.text().catch(() => "");
+  if (!text) return "Erreur serveur.";
+  try {
+    const json = JSON.parse(text) as { error?: unknown; message?: unknown };
+    const value = json.error ?? json.message;
+    if (typeof value === "string" && value.trim()) return value.trim();
+  } catch {
+    // fallback below
+  }
+  return text.replace(/^error:\s*/i, "").trim() || "Erreur serveur.";
+}
+
 export default function ModifyAccountsPage() {
   const [items, setItems] = useState<Account[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -140,8 +153,7 @@ export default function ModifyAccountsPage() {
       });
 
       if (!res.ok) {
-        const t = await res.text().catch(() => "");
-        throw new Error(t || "Save failed");
+        throw new Error(await readApiErrorMessage(res));
       }
 
       setMsg("✅ Sauvegardé.");
@@ -160,8 +172,7 @@ export default function ModifyAccountsPage() {
     try {
       const res = await fetch(`/api/admin/employees/${id}`, { method: "DELETE" });
       if (!res.ok) {
-        const t = await res.text().catch(() => "");
-        throw new Error(t || "Delete failed");
+        throw new Error(await readApiErrorMessage(res));
       }
       setMsg("🗑️ Supprimé.");
       setSelectedId(null);

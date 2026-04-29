@@ -41,12 +41,17 @@ function roundUpToNext15Minutes(d: Date) {
   return x;
 }
 
-function roundToNearest0or5(d: Date) {
+function roundToNearest15Minutes(d: Date) {
   const x = new Date(d);
   x.setSeconds(0, 0);
   const mins = x.getMinutes();
-  const nearest = Math.round(mins / 5) * 5;
-  x.setMinutes(Math.min(59, Math.max(0, nearest)));
+  const nearest = Math.round(mins / 15) * 15;
+  if (nearest === 60) {
+    x.setHours(x.getHours() + 1);
+    x.setMinutes(0);
+  } else {
+    x.setMinutes(Math.max(0, nearest));
+  }
   return x;
 }
 
@@ -174,7 +179,12 @@ export async function POST(req: Request) {
     where: { id: employeeId },
     select: { punchKioskLocked: true },
   });
-  const kioskLocked = await resolvePunchKioskLocked(employeeId, Boolean(empRow?.punchKioskLocked), new Date());
+  if (!isPunchType(type)) {
+    return NextResponse.json({ ok: false, error: "Type de punch invalide" }, { status: 400 });
+  }
+  const now = new Date();
+  const punchAt = type === "CLOCK_IN" || type === "CLOCK_OUT" ? roundToNearest15Minutes(now) : now;
+  const kioskLocked = await resolvePunchKioskLocked(employeeId, Boolean(empRow?.punchKioskLocked), punchAt);
   if (kioskLocked) {
     return NextResponse.json(
       {
@@ -187,13 +197,8 @@ export async function POST(req: Request) {
     );
   }
 
-  if (!isPunchType(type)) {
-    return NextResponse.json({ ok: false, error: "Type de punch invalide" }, { status: 400 });
-  }
-
-  const now = new Date();
-  const nowYmd = ymdInTZ(now);
-  const nowTime = now.getTime();
+  const nowYmd = ymdInTZ(punchAt);
+  const nowTime = punchAt.getTime();
 
   const history = await prisma.punchEvent.findMany({
     where: { employeeId },
@@ -201,7 +206,7 @@ export async function POST(req: Request) {
     select: { type: true, at: true, shiftId: true },
   });
 
-  const status = getShiftStatus(history as Array<{ type: PunchType; at: Date }>);
+  const status = getShiftStatus(history as Array<{ type: PunchType; at: Date }>, punchAt);
 
   // Determine active shift (for BREAK/LUNCH punches). We only reliably attach shiftId to CLOCK_IN/CLOCK_OUT.
   const lastClockInWithShiftId =
@@ -232,8 +237,8 @@ export async function POST(req: Request) {
       where: {
         employeeId,
         status: { in: [VacationStatus.PENDING, VacationStatus.APPROVED] },
-        startDate: { lte: now },
-        endDate: { gte: now },
+        startDate: { lte: punchAt },
+        endDate: { gte: punchAt },
       },
       select: { id: true },
     });
@@ -325,14 +330,14 @@ export async function POST(req: Request) {
 
     // No planned shift: auto-create one on CLOCK_IN/CLOCK_OUT so schedule can display it.
     const availableRule = await prisma.availabilityRule.findFirst({
-      where: { employeeId, dayOfWeek: dayOfWeekInTZ(now) },
+      where: { employeeId, dayOfWeek: dayOfWeekInTZ(punchAt) },
       select: { available: true },
     });
     const isAvailable = Boolean(availableRule?.available);
     const autoNote = isAvailable ? "PUNCH_AUTO" : "PUNCH_AUTO_UNAVAILABLE";
 
     if (type === "CLOCK_IN") {
-      const shiftStart = roundUpToNext15Minutes(now);
+      const shiftStart = roundUpToNext15Minutes(punchAt);
       const shiftEnd = new Date(shiftStart.getTime() + 8 * 60 * 60 * 1000);
       const created = await prisma.shift.create({
         data: {
@@ -351,7 +356,7 @@ export async function POST(req: Request) {
     // If someone tries CLOCK_OUT without an existing planned shift, still create a minimal shift.
     const createdStart = new Date(nowTime - 8 * 60 * 60 * 1000);
     const shiftStart = roundUpToNext15Minutes(createdStart);
-    const shiftEnd = roundToNearest0or5(now);
+    const shiftEnd = roundToNearest15Minutes(punchAt);
     const created = await prisma.shift.create({
       data: {
         employeeId,
@@ -381,7 +386,7 @@ export async function POST(req: Request) {
     data: {
       employeeId,
       type,
-      at: now,
+      at: punchAt,
       source: terminal.dev ? "WEB" : "WEB",
       shiftId: type === "BREAK_START" || type === "BREAK_END" || type === "LUNCH_START" || type === "LUNCH_END" ? lastClockInWithShiftId : chosenShiftId,
     },
@@ -396,14 +401,17 @@ export async function POST(req: Request) {
 
   // If this was an auto-created shift, update its endTime on CLOCK_OUT so schedule shows the real range.
   if (type === "CLOCK_OUT" && isAuto && chosenShiftId) {
-    const end = roundToNearest0or5(now);
+    const end = roundToNearest15Minutes(punchAt);
     await prisma.shift.update({
       where: { id: chosenShiftId },
       data: { endTime: end },
     });
   }
 
-  const nextStatus = getShiftStatus([...history as Array<{ type: PunchType; at: Date }>, { type, at: now }], now);
+  const nextStatus = getShiftStatus(
+    [...history as Array<{ type: PunchType; at: Date }>, { type, at: punchAt }],
+    punchAt
+  );
 
   // Overtime popup triggered when CLOCK_OUT is after the planned shift end.
   let overtime: { shiftId: string; overtimeMinutes: number } | null = null;
@@ -421,7 +429,7 @@ export async function POST(req: Request) {
   return NextResponse.json({
     ok: true,
     ...nextStatus,
-    punchedAt: now.toISOString(),
+    punchedAt: punchAt.toISOString(),
     overtime,
   });
   } catch (e) {
