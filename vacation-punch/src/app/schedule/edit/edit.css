@@ -479,6 +479,108 @@
   border-color: rgba(248, 113, 113, 0.32);
 }
 
+.scheduleScope .mobileEditDays {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .scheduleScope .mobileEditDays {
+    display: grid;
+    gap: 10px;
+    padding: 10px 12px 12px;
+  }
+
+  .scheduleScope .mobileEditDayCard {
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.88);
+    overflow: hidden;
+  }
+
+  .scheduleScope .mobileEditDaySummary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  .scheduleScope .mobileEditDaySummary::-webkit-details-marker {
+    display: none;
+  }
+
+  .scheduleScope .mobileEditDayTitle {
+    font-size: 14px;
+    font-weight: 800;
+    color: #0f172a;
+  }
+
+  .scheduleScope .mobileEditDayCount {
+    font-size: 12px;
+    color: #64748b;
+    font-weight: 700;
+  }
+
+  .scheduleScope .mobileEditDayBody {
+    border-top: 1px solid rgba(15, 23, 42, 0.08);
+    padding: 8px 10px;
+    display: grid;
+    gap: 8px;
+  }
+
+  .scheduleScope .mobileEditEmployeeRow {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 12px;
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    border-radius: 12px;
+    background: #f8fbff;
+  }
+
+  .scheduleScope .mobileEditEmployeeName {
+    font-size: 14px;
+    font-weight: 800;
+    color: #0f172a;
+  }
+
+  .scheduleScope .mobileEditEmployeeDept {
+    margin-top: 2px;
+    font-size: 12px;
+    color: #64748b;
+    font-weight: 600;
+  }
+
+  .scheduleScope .mobileEditEmployeeShifts {
+    margin-top: 6px;
+    font-size: 12px;
+    color: #1e293b;
+    font-weight: 700;
+  }
+
+  .scheduleScope .mobileEditAddBtn {
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    border: 1px solid rgba(37, 99, 235, 0.35);
+    background: rgba(37, 99, 235, 0.12);
+    color: #1d4ed8;
+    font-size: 20px;
+    line-height: 1;
+    font-weight: 900;
+    cursor: pointer;
+  }
+
+  .scheduleScope .mobileEditEmpty {
+    font-size: 13px;
+    color: #64748b;
+    padding: 6px 4px;
+  }
+}
+
 .scheduleScope .scheduleDragRow {
   opacity: 0.65;
 }

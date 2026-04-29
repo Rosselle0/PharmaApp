@@ -41,6 +41,15 @@ function roundUpToNext15Minutes(d: Date) {
   return x;
 }
 
+function roundDownTo15Minutes(d: Date) {
+  const x = new Date(d);
+  x.setSeconds(0, 0);
+  const mins = x.getMinutes();
+  const prev = Math.floor(mins / 15) * 15;
+  x.setMinutes(Math.max(0, prev));
+  return x;
+}
+
 function roundToNearest15Minutes(d: Date) {
   const x = new Date(d);
   x.setSeconds(0, 0);
@@ -183,7 +192,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "Type de punch invalide" }, { status: 400 });
   }
   const now = new Date();
-  const punchAt = type === "CLOCK_IN" || type === "CLOCK_OUT" ? roundToNearest15Minutes(now) : now;
+  const punchAt =
+    type === "CLOCK_IN"
+      ? roundDownTo15Minutes(now) // never future, prevents break/lunch ordering bugs
+      : type === "CLOCK_OUT"
+      ? roundToNearest15Minutes(now)
+      : now;
   const kioskLocked = await resolvePunchKioskLocked(employeeId, Boolean(empRow?.punchKioskLocked), punchAt);
   if (kioskLocked) {
     return NextResponse.json(

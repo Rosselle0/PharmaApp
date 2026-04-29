@@ -287,6 +287,14 @@ function makeLocalDateTime(dayYMD: string, hhmm: string) {
     return d;
 }
 
+function formatShiftRange(startIso: string, endIso: string) {
+    const a = new Date(startIso);
+    const b = new Date(endIso);
+    const hh = (d: Date) =>
+        d.toLocaleTimeString("fr-CA", { hour: "2-digit", minute: "2-digit", hour12: false });
+    return `${hh(a)}–${hh(b)}`;
+}
+
 export default function ScheduleEditorClient(props: {
     weekStartYMD: string;
     daysYMD: string[];
@@ -501,6 +509,25 @@ export default function ScheduleEditorClient(props: {
             .map((id) => byId.get(id))
             .filter((e): e is Employee => Boolean(e));
     }, [employeeOrder, props.employees]);
+
+    const mobileDays = useMemo(() => {
+        return days.map((day, i) => {
+            const dayYmd = ymdLocal(day);
+            const dayOfWeek = day.getDay();
+            const availableEmployees = orderedEmployees
+                .filter((emp) => availabilityByEmpDay.get(`${emp.id}:${dayOfWeek}`)?.available)
+                .map((emp) => {
+                    const shifts = byEmpDay.get(`${emp.id}:${dayYmd}`) ?? [];
+                    return { emp, shifts };
+                });
+            return {
+                key: dayYmd,
+                day,
+                dayLabel: DAY_LABELS[i],
+                availableEmployees,
+            };
+        });
+    }, [days, orderedEmployees, availabilityByEmpDay, byEmpDay]);
 
     function reorderEmployees(dragId: string, targetId: string) {
         if (!dragId || !targetId || dragId === targetId) return;
@@ -767,15 +794,7 @@ export default function ScheduleEditorClient(props: {
                         </div>
                     </div>
 
-                    <div
-                        className="row"
-                        style={{
-                            display: "flex",
-                            justifyContent: "flex-end",
-                            gap: 10,
-                            flexWrap: "wrap",
-                        }}
-                    >
+                    <div className="headNav row">
                         <a
                             className="btn"
                             href={`/schedule/edit?week=${encodeURIComponent(prevWeek)}&section=${encodeURIComponent(props.section)}&order=${orderParam}`}
@@ -815,6 +834,61 @@ export default function ScheduleEditorClient(props: {
                             Semaine du {weekStart.toLocaleDateString("fr-CA")}
                         </div>
                         <div className="meta">Admin editor</div>
+                    </div>
+
+                    <div className="mobileEditDays">
+                        {mobileDays.map((d) => (
+                            <details key={d.key} className="mobileEditDayCard">
+                                <summary className="mobileEditDaySummary">
+                                    <span className="mobileEditDayTitle">
+                                        {d.dayLabel} {d.day.toLocaleDateString("fr-CA")}
+                                    </span>
+                                    <span className="mobileEditDayCount">
+                                        {d.availableEmployees.length} disponible(s)
+                                    </span>
+                                </summary>
+                                <div className="mobileEditDayBody">
+                                    {d.availableEmployees.length === 0 ? (
+                                        <div className="mobileEditEmpty">Aucun employé disponible cette journée.</div>
+                                    ) : (
+                                        d.availableEmployees.map(({ emp, shifts }) => (
+                                            <div key={emp.id} className="mobileEditEmployeeRow">
+                                                <div>
+                                                    <div className="mobileEditEmployeeName">
+                                                        {emp.firstName} {emp.lastName}
+                                                    </div>
+                                                    <div className="mobileEditEmployeeDept">
+                                                        {emp.department === "CASH"
+                                                            ? "Caisse"
+                                                            : emp.department === "LAB"
+                                                            ? "Lab"
+                                                            : "Plancher"}
+                                                    </div>
+                                                    <div className="mobileEditEmployeeShifts">
+                                                        {shifts.length
+                                                            ? shifts
+                                                                  .map((s) =>
+                                                                      s.note === "VAC"
+                                                                          ? "VAC"
+                                                                          : formatShiftRange(s.startTime, s.endTime)
+                                                                  )
+                                                                  .join(" / ")
+                                                            : "Aucun quart"}
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    className="mobileEditAddBtn"
+                                                    onClick={() => openCell(emp.id, d.day)}
+                                                >
+                                                    +
+                                                </button>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </details>
+                        ))}
                     </div>
 
                     <div className="tableWrap">

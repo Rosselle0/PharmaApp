@@ -579,7 +579,7 @@ export default function AdminLogsClient() {
                     </div>
                   ) : null}
 
-                  <div className="adminLogsTableWrap">
+                  <div className="adminLogsTableWrap adminLogsDesktopOnly">
                     <table className="adminLogsTable">
                       <thead>
                         <tr>
@@ -845,6 +845,217 @@ export default function AdminLogsClient() {
                       </tbody>
                     </table>
                   </div>
+
+                  <div className="adminLogsMobileOnly adminLogsMobileCards">
+                    {shiftsForSelected.length === 0 ? (
+                      <div className="adminLogsEmpty">Aucun shift trouvé sur cette période.</div>
+                    ) : (
+                      shiftsForSelected.map((s) => {
+                        const isOpen = expandedShiftId === s.id;
+                        const date = clampToDayISO(s.startTime);
+                        return (
+                          <div key={s.id} className={`adminLogsShiftCard ${isOpen ? "open" : ""}`}>
+                            <button
+                              type="button"
+                              className="adminLogsShiftCardHead"
+                              onClick={() => setExpandedShiftId(isOpen ? null : s.id)}
+                            >
+                              <div>
+                                <div className="adminLogsShiftDate">{date}</div>
+                                <div className="adminLogsShiftTime">
+                                  {new Date(s.effectiveStartTime ?? s.startTime).toLocaleTimeString("fr-CA", {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                    hour12: false,
+                                  })}{" "}
+                                  →{" "}
+                                  {new Date(s.endTime).toLocaleTimeString("fr-CA", {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                    hour12: false,
+                                  })}
+                                </div>
+                              </div>
+                              <span className="link">{isOpen ? "Masquer" : "Détails"} →</span>
+                            </button>
+
+                            <div className="adminLogsShiftBadges">
+                              {s.missingClockIn ? (
+                                <span className="tag danger">Entrée manquante</span>
+                              ) : s.lateMinutes && s.lateMinutes > 0 ? (
+                                s.lateStatus === "ACCEPTED" ? (
+                                  <span className="tag ok">{minutesToHuman(s.lateMinutes)}</span>
+                                ) : s.lateStatus === "REJECTED" ? (
+                                  <span className="tag danger">Retard rejeté</span>
+                                ) : (
+                                  <span className="tag warn">{minutesToHuman(s.lateMinutes)}</span>
+                                )
+                              ) : (
+                                <span className="tag ok">Retard: OK</span>
+                              )}
+
+                              {s.missingClockOut ? (
+                                <span className="tag danger">Sortie manquante</span>
+                              ) : s.overtimeMinutes && s.overtimeMinutes > 0 ? (
+                                s.overtimeStatus === "ACCEPTED" ? (
+                                  <span className="tag ok">Sup: {minutesToHuman(s.overtimeMinutes)}</span>
+                                ) : s.overtimeStatus === "ACCEPTED_BY_PHARMACIST" ? (
+                                  <span className="tag ok">Sup signée pharmacien</span>
+                                ) : s.overtimeStatus === "REJECTED" ? (
+                                  <span className="tag danger">Sup rejetée</span>
+                                ) : (
+                                  <span className="tag warn">Sup: {minutesToHuman(s.overtimeMinutes)}</span>
+                                )
+                              ) : (
+                                <span className="tag">Sup: —</span>
+                              )}
+                            </div>
+
+                            {isOpen && (
+                              <div className="adminLogsShiftExpand">
+                                <div className="expandGrid">
+                                  <div>
+                                    <div className="expandTitle">Événements de pointage</div>
+                                    {s.missingClockOut && s.punches.some((p) => p.type === "CLOCK_IN") ? (
+                                      <div className="adminForceOutBox">
+                                        <div className="adminForceOutTitle">Sortie oubliée</div>
+                                        <p className="adminForceOutHint">
+                                          Enregistrer une sortie manuelle (correction patron). Laissez l’heure par défaut ou ajustez.
+                                        </p>
+                                        <div className="adminForceOutRow">
+                                          <input
+                                            className="manualOvertimeInput adminPunchDatetime"
+                                            type="datetime-local"
+                                            value={forceOutAtByShiftId[s.id] ?? toDatetimeLocalValue(new Date().toISOString())}
+                                            onChange={(e) =>
+                                              setForceOutAtByShiftId((prev) => ({ ...prev, [s.id]: e.target.value }))
+                                            }
+                                          />
+                                          <button
+                                            type="button"
+                                            className="btnSmall okBtn"
+                                            disabled={punchCorrectionBusy === `force:${s.id}`}
+                                            onClick={() => void forceClockOut(s.id)}
+                                          >
+                                            {punchCorrectionBusy === `force:${s.id}` ? "…" : "Pointer la sortie"}
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ) : null}
+                                    <div className="expandList">
+                                      {s.punches.length === 0 ? (
+                                        <div className="muted">Aucun punch lié au shift.</div>
+                                      ) : (
+                                        [...s.punches].reverse().map((p) => {
+                                          const canEditTime = p.type === "CLOCK_IN" || p.type === "CLOCK_OUT";
+                                          return (
+                                            <div key={p.id} className="punchItem punchItemEditable">
+                                              <div className="punchItemTop">
+                                                <span className={`punchType type-${p.type}`}>{punchTypeLabel(p.type)}</span>
+                                                <span className="punchSrc">{punchSourceLabel(p.source)}</span>
+                                              </div>
+                                              {canEditTime ? (
+                                                <div className="punchEditRow">
+                                                  <input
+                                                    className="manualOvertimeInput adminPunchDatetime"
+                                                    type="datetime-local"
+                                                    value={punchAtDraftById[p.id] ?? toDatetimeLocalValue(p.at)}
+                                                    onChange={(e) =>
+                                                      setPunchAtDraftById((prev) => ({ ...prev, [p.id]: e.target.value }))
+                                                    }
+                                                  />
+                                                  <button
+                                                    type="button"
+                                                    className="btnSmall secondaryBtn"
+                                                    disabled={punchCorrectionBusy === `upd:${p.id}`}
+                                                    onClick={() => void updatePunchAt(p.id)}
+                                                  >
+                                                    {punchCorrectionBusy === `upd:${p.id}` ? "…" : "Appliquer"}
+                                                  </button>
+                                                </div>
+                                              ) : (
+                                                <span className="punchAt">
+                                                  {new Date(p.at).toLocaleTimeString("fr-CA", {
+                                                    hour: "2-digit",
+                                                    minute: "2-digit",
+                                                    hour12: false,
+                                                  })}
+                                                </span>
+                                              )}
+                                            </div>
+                                          );
+                                        })
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <div className="expandTitle">Actions</div>
+                                    <div className="expandActions">
+                                      {s.overtimeStatus === "PENDING" ? (
+                                        <>
+                                          <div className="manualOvertimeRow">
+                                            <label className="manualOvertimeLabel">Fin manuelle</label>
+                                            <input
+                                              className="manualOvertimeInput"
+                                              type="time"
+                                              value={
+                                                manualOvertimeEndByShiftId[s.id] ??
+                                                new Date(s.endTime).toLocaleTimeString("fr-CA", {
+                                                  hour: "2-digit",
+                                                  minute: "2-digit",
+                                                  hour12: false,
+                                                })
+                                              }
+                                              onChange={(e) =>
+                                                setManualOvertimeEndByShiftId((prev) => ({ ...prev, [s.id]: e.target.value }))
+                                              }
+                                            />
+                                          </div>
+                                          <button
+                                            type="button"
+                                            className="btnSmall okBtn"
+                                            disabled={
+                                              s.overtimeStatus !== "PENDING" || reviewBusyId === `OVERTIME:ACCEPT:${s.id}`
+                                            }
+                                            onClick={() =>
+                                              reviewShift(
+                                                s.id,
+                                                "OVERTIME",
+                                                "ACCEPT",
+                                                manualOvertimeEndByShiftId[s.id] ??
+                                                  new Date(s.endTime).toLocaleTimeString("fr-CA", {
+                                                    hour: "2-digit",
+                                                    minute: "2-digit",
+                                                    hour12: false,
+                                                  })
+                                              )
+                                            }
+                                          >
+                                            Heures sup vérifiées
+                                          </button>
+                                          <button
+                                            type="button"
+                                            className="btnSmall dangerBtn"
+                                            disabled={
+                                              s.overtimeStatus !== "PENDING" || reviewBusyId === `OVERTIME:REJECT:${s.id}`
+                                            }
+                                            onClick={() => reviewShift(s.id, "OVERTIME", "REJECT")}
+                                          >
+                                            Heures sup rejetées
+                                          </button>
+                                        </>
+                                      ) : null}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -898,7 +1109,7 @@ export default function AdminLogsClient() {
                     <div className="adminLogsDetailsSub">Acceptés / rejetés / annulés sur la période.</div>
                   </div>
 
-                  <div className="adminLogsTableWrap">
+                  <div className="adminLogsTableWrap adminLogsDesktopOnly">
                     <table className="adminLogsTable">
                       <thead>
                         <tr>
@@ -938,6 +1149,35 @@ export default function AdminLogsClient() {
                         )}
                       </tbody>
                     </table>
+                  </div>
+
+                  <div className="adminLogsMobileOnly adminLogsMobileCards">
+                    {data.shiftChangeRequests.length === 0 ? (
+                      <div className="adminLogsEmpty">Aucun changement sur cette période.</div>
+                    ) : (
+                      data.shiftChangeRequests.map((r) => (
+                        <div key={r.id} className="adminLogsChangeCard">
+                          <div className="adminLogsChangeTop">
+                            <span className={`tag ${r.status === "ACCEPTED" ? "ok" : r.status === "REJECTED" ? "danger" : "warn"}`}>
+                              {shiftChangeStatusLabel(r.status)}
+                            </span>
+                            <span className="muted">{r.decidedAt ? clampToDayISO(r.decidedAt) : "—"}</span>
+                          </div>
+                          <div className="adminLogsChangeLine">
+                            <b>Demandeur:</b> {r.requesterEmployee.firstName} {r.requesterEmployee.lastName}
+                          </div>
+                          <div className="adminLogsChangeLine">
+                            <b>Candidat:</b> {r.candidateEmployee.firstName} {r.candidateEmployee.lastName}
+                          </div>
+                          <div className="adminLogsChangeLine">
+                            <b>Quart:</b> {clampToDayISO(r.shift.startTime)}{" "}
+                            {new Date(r.shift.startTime).toLocaleTimeString("fr-CA", { hour: "2-digit", minute: "2-digit", hour12: false })}
+                            {" → "}
+                            {new Date(r.shift.endTime).toLocaleTimeString("fr-CA", { hour: "2-digit", minute: "2-digit", hour12: false })}
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               )}

@@ -44,6 +44,19 @@ function hmLocal(d: Date) {
   });
 }
 
+function roundMinutesToNearestQuarter(mins: number) {
+  if (!Number.isFinite(mins)) return 0;
+  return Math.max(0, Math.round(mins / 15) * 15);
+}
+
+function formatQuarterHours(totalMinutes: number) {
+  const quarterMinutes = roundMinutesToNearestQuarter(totalMinutes);
+  const whole = Math.floor(quarterMinutes / 60);
+  const rem = quarterMinutes % 60;
+  const suffix = rem === 0 ? "" : rem === 15 ? ".25" : rem === 30 ? ".5" : ".75";
+  return `${whole}${suffix}`;
+}
+
 function isAutoPunchShift(note: string | null) {
   return note === "PUNCH_AUTO" || note === "PUNCH_AUTO_UNAVAILABLE";
 }
@@ -231,11 +244,6 @@ export default async function SchedulePage({
     });
     byUserDay.set(key, arr);
   }
-
-  const hoursFmt = new Intl.NumberFormat("fr-CA", {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1,
-  });
 
   const prevWeek = ymdLocal(addDays(weekStart, -7));
   const nextWeek = ymdLocal(addDays(weekStart, 7));
@@ -425,7 +433,8 @@ export default async function SchedulePage({
                             if (sh.note === "VAC") continue;
                             const durationMinutes = Math.floor((+new Date(sh.endTime) - +new Date(sh.effectiveStartTime)) / 60000);
                             const deductionMinutes = unpaidBreak30DeductionMinutes(u.paidBreak30, durationMinutes);
-                            totalMinutes += Math.max(0, durationMinutes - deductionMinutes);
+                          const payableMinutes = Math.max(0, durationMinutes - deductionMinutes);
+                          totalMinutes += roundMinutesToNearestQuarter(payableMinutes);
                           }
 
                           return (
@@ -455,8 +464,6 @@ export default async function SchedulePage({
                           );
                         });
 
-                        const totalHours = totalMinutes / 60;
-
                         return (
                           <tr key={u.id}>
                             <td className="td nameCell">
@@ -471,7 +478,7 @@ export default async function SchedulePage({
                             </td>
                             {cells}
                             <td className="td">
-                              <b>{hoursFmt.format(totalHours)} h</b>
+                            <b>{formatQuarterHours(totalMinutes)} h</b>
                             </td>
                           </tr>
                         );

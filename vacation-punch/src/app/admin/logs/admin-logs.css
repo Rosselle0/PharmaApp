@@ -823,6 +823,10 @@
 .taskText { flex: 1; }
 .taskReq { color: var(--log-muted); font-size: 12px; font-weight: 900; }
 
+.adminLogsMobileOnly {
+  display: none;
+}
+
 @media (max-width: 980px) {
   .adminLogsGrid {
     grid-template-columns: 1fr;
@@ -861,6 +865,15 @@
     padding: 10px;
   }
 
+  .adminLogsEmployeeList {
+    max-height: none;
+  }
+
+  .adminLogsNav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .adminLogsTable {
     min-width: 0;
   }
@@ -872,6 +885,186 @@
 }
 
 @media (max-width: 720px) {
+  .adminLogs {
+    padding: 10px;
+  }
+
+  .adminLogsHeader {
+    margin-bottom: 8px;
+    gap: 8px;
+  }
+
+  .adminLogsTitle {
+    font-size: 20px;
+  }
+
+  .adminLogsSub {
+    font-size: 12px;
+  }
+
+  .adminLogsDateRow {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .adminLogsLabel {
+    min-width: 0;
+  }
+
+  .adminLogsInput {
+    width: 100%;
+  }
+
+  .adminLogsSide {
+    padding: 8px;
+    border-radius: 14px;
+    box-shadow: none;
+    background: transparent;
+    border: 0;
+    gap: 10px;
+  }
+
+  .adminLogsNav {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .adminLogsNavBtn {
+    height: 40px;
+    border-radius: 12px;
+    font-size: 12px;
+    padding: 0 10px;
+  }
+
+  .adminLogsSideHead {
+    padding: 2px 4px 0;
+  }
+
+  .adminLogsEmployeeList {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 4px 2px 8px;
+    max-height: none;
+    scroll-snap-type: x mandatory;
+  }
+
+  .adminLogsEmployee {
+    min-width: 220px;
+    max-width: 220px;
+    padding: 10px;
+    border-radius: 12px;
+    scroll-snap-align: start;
+  }
+
+  .adminLogsEmployeeName {
+    font-size: 13px;
+  }
+
+  .adminLogsEmployeeStats {
+    margin-top: 6px;
+    gap: 6px;
+  }
+
+  .badge,
+  .adminLogsDept {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+
+  .adminLogsPanel {
+    padding: 10px;
+    border-radius: 14px;
+  }
+
+  .adminLogsKpis {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .kpi {
+    padding: 8px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+  }
+
+  .adminLogsDesktopOnly {
+    display: none !important;
+  }
+
+  .adminLogsMobileOnly {
+    display: block;
+  }
+
+  .adminLogsMobileCards {
+    display: grid;
+    gap: 10px;
+  }
+
+  .adminLogsShiftCard,
+  .adminLogsChangeCard {
+    border: 1px solid var(--log-border);
+    border-radius: 16px;
+    background: var(--log-surface);
+    padding: 12px;
+  }
+
+  .adminLogsShiftCardHead {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: var(--log-ink);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    text-align: left;
+    padding: 0;
+  }
+
+  .adminLogsShiftDate {
+    font-size: 13px;
+    color: var(--log-muted);
+    font-weight: 900;
+  }
+
+  .adminLogsShiftTime {
+    font-size: 13px;
+    font-weight: 950;
+    margin-top: 2px;
+  }
+
+  .adminLogsShiftBadges {
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .adminLogsShiftExpand {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--log-border);
+  }
+
+  .adminLogsChangeTop {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+
+  .adminLogsChangeLine {
+    font-size: 13px;
+    line-height: 1.45;
+    margin-top: 4px;
+  }
+
   .availabilityCard,
   .taskCard {
     padding: 12px;

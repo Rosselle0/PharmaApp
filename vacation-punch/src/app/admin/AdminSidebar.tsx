@@ -162,7 +162,7 @@ export default function AdminSidebar({ role }: { role: PrivRole }) {
       </aside>
 
       <button className="adminSidebarMobileToggle" type="button" onClick={() => setMobileOpen(true)} aria-label="Open admin menu">
-        Menu
+        <span className="adminSidebarMobileToggleLogo" aria-hidden="true">P</span>
       </button>
 
       {mobileOpen ? (

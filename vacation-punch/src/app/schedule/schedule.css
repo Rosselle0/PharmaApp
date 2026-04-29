@@ -58,6 +58,23 @@
 }
 
 @media (max-width: 900px) {
+  .page.scheduleScope {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 64px 12px 28px !important;
+    box-sizing: border-box;
+  }
+
+  .page.scheduleScope > .shell {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
   .scheduleScope {
     flex-direction: column;
     width: 100%;
@@ -563,6 +580,75 @@
   .scheduleScope .tableWrap {
     display: none;
   }
+
+  /* Cleaner mobile layout for schedule + schedule/edit pages */
+  .scheduleScope .scheduleMain {
+    display: block;
+    padding: 14px 12px 28px;
+    background: linear-gradient(180deg, #dbe6ee, #cfdbe5);
+  }
+
+  .scheduleScope .shell {
+    width: 100%;
+    max-width: none !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0;
+    gap: 12px;
+  }
+
+  .scheduleScope .head {
+    display: grid;
+    gap: 12px;
+    margin-bottom: 4px;
+  }
+
+  .scheduleScope .headTitle,
+  .scheduleScope .headNav {
+    width: 100%;
+  }
+
+  .scheduleScope .headNav {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    justify-content: stretch !important;
+  }
+
+  .scheduleScope .headNav .btn,
+  .scheduleScope .headNav a.btn {
+    width: 100%;
+    flex: 1 1 calc(50% - 6px) !important;
+    min-height: 46px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .scheduleScope .sectionToggles {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .scheduleScope .sectionToggles .btn {
+    width: 100%;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .scheduleScope .pdfRow {
+    margin-top: 4px;
+    margin-bottom: 6px;
+  }
+
+  .scheduleScope .pdfBtn {
+    width: 100%;
+    min-height: 46px;
+    justify-content: center;
+  }
 }
 
 /* =========================================================
@@ -667,12 +753,11 @@
 
 @media (max-width: 900px) {
   [data-theme="dark"] .scheduleScope .head {
-    padding: 0;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-    box-shadow: none;
-    backdrop-filter: none;
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(8px);
   }
 }
 
