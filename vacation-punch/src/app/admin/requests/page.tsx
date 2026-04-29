@@ -1,6 +1,6 @@
 import "./requests.css";
 import { prisma } from "@/lib/prisma";
-import { VacationStatus } from "@prisma/client";
+import { Department, Prisma, VacationStatus } from "@prisma/client";
 import { getPrivilegedContextOrRedirect } from "@/lib/adminContext";
 import ConfirmSubmitButton from "./ConfirmSubmitButton";
 
@@ -38,16 +38,21 @@ export default async function AdminRequestsPage(props: { searchParams?: SearchPa
   const searchParams = props.searchParams ? await props.searchParams : undefined;
   const q = firstQueryValue(searchParams?.q).trim();
 
-  const searchFilter = q
-    ? {
-        OR: [
-          { employee: { firstName: { contains: q, mode: "insensitive" as const } } },
-          { employee: { lastName: { contains: q, mode: "insensitive" as const } } },
-          { employee: { department: { contains: q, mode: "insensitive" as const } } },
-          { reason: { contains: q, mode: "insensitive" as const } },
-        ],
-      }
-    : {};
+  const searchOr: Prisma.VacationRequestWhereInput[] = [];
+  if (q) {
+    searchOr.push(
+      { employee: { firstName: { contains: q, mode: "insensitive" } } },
+      { employee: { lastName: { contains: q, mode: "insensitive" } } },
+      { reason: { contains: q, mode: "insensitive" } },
+    );
+    const deptQuery = q.toUpperCase();
+    if (deptQuery === Department.FLOOR || deptQuery === Department.LAB || deptQuery === Department.CASH) {
+      searchOr.push({ employee: { department: deptQuery as Department } });
+    }
+  }
+
+  const searchFilter: Prisma.VacationRequestWhereInput =
+    searchOr.length > 0 ? { OR: searchOr } : {};
 
   const pendingVac = await prisma.vacationRequest.findMany({
     where: {

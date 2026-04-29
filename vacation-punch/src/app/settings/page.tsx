@@ -65,7 +65,7 @@ function readEmployeeCodeFromUrlOrStorage(): string | null {
   const urlCode = (params.get("code") ?? "").replace(/\D/g, "");
   if (urlCode.length >= 4) return urlCode;
 
-  const lsCode = (window.localStorage.getItem("kiosk_employee_code") ?? "")
+  const lsCode = (window.sessionStorage.getItem("kiosk_employee_code") ?? "")
     .replace(/\D/g, "");
 
   if (lsCode.length >= 4) return lsCode;
@@ -111,7 +111,7 @@ export default function SettingsPage() {
 
   // Fetch employee info on mount
   useEffect(() => {
-    const cachedName = (localStorage.getItem("kiosk_employee_name") ?? "").trim();
+    const cachedName = (window.sessionStorage.getItem("kiosk_employee_name") ?? "").trim();
     if (cachedName) setEmployeeFullName(cachedName);
 
     const code = readEmployeeCodeFromUrlOrStorage();
@@ -135,8 +135,8 @@ export default function SettingsPage() {
 
         setEmployeeFullName(name);
         setEmployeeEmail(email);
-        localStorage.setItem("kiosk_employee_name", name);
-        localStorage.setItem("kiosk_employee_code", code);
+        window.sessionStorage.setItem("kiosk_employee_name", name);
+        window.sessionStorage.setItem("kiosk_employee_code", code);
         setKioskRole(role);
       } catch { }
     })();

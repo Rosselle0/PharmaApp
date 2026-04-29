@@ -24,7 +24,7 @@ function readEmployeeCodeFromUrlOrStorage(): string | null {
   const urlCode = (params.get("code") ?? "").replace(/\D/g, "").slice(0, PIN_LEN);
   if (urlCode.length === PIN_LEN) return urlCode;
 
-  const lsCode = (localStorage.getItem("kiosk_employee_code") ?? "").replace(/\D/g, "").slice(0, PIN_LEN);
+  const lsCode = (window.sessionStorage.getItem("kiosk_employee_code") ?? "").replace(/\D/g, "").slice(0, PIN_LEN);
   if (lsCode.length === PIN_LEN) return lsCode;
 
   return null;
@@ -125,13 +125,13 @@ export default function TaskListPage() {
     const c = readEmployeeCodeFromUrlOrStorage();
     setCode(c);
 
-    const n = (localStorage.getItem("kiosk_employee_name") ?? "").trim();
+    const n = (window.sessionStorage.getItem("kiosk_employee_name") ?? "").trim();
     setEmployeeName(firstWord(n) || null);
 
-    const role = (localStorage.getItem("kiosk_role") ?? "").toUpperCase().trim() || null;
+    const role = (window.sessionStorage.getItem("kiosk_role") ?? "").toUpperCase().trim() || null;
     setKioskRole(role);
 
-    setEmployeeLogged(localStorage.getItem("kiosk_employee_logged") === "1");
+    setEmployeeLogged(window.sessionStorage.getItem("kiosk_employee_logged") === "1");
 
     if (!c) {
       setLoading(false);
