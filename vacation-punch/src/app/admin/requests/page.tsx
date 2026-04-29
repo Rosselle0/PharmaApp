@@ -26,13 +26,34 @@ function statusLabel(status: VacationStatus) {
   }
 }
 
-export default async function AdminRequestsPage() {
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+function firstQueryValue(v: string | string[] | undefined) {
+  if (Array.isArray(v)) return v[0] ?? "";
+  return v ?? "";
+}
+
+export default async function AdminRequestsPage(props: { searchParams?: SearchParams }) {
   const { companyIds } = await getPrivilegedContextOrRedirect();
+  const searchParams = props.searchParams ? await props.searchParams : undefined;
+  const q = firstQueryValue(searchParams?.q).trim();
+
+  const searchFilter = q
+    ? {
+        OR: [
+          { employee: { firstName: { contains: q, mode: "insensitive" as const } } },
+          { employee: { lastName: { contains: q, mode: "insensitive" as const } } },
+          { employee: { department: { contains: q, mode: "insensitive" as const } } },
+          { reason: { contains: q, mode: "insensitive" as const } },
+        ],
+      }
+    : {};
 
   const pendingVac = await prisma.vacationRequest.findMany({
     where: {
       status: VacationStatus.PENDING,
       employee: { companyId: { in: companyIds } },
+      ...searchFilter,
     },
     orderBy: { createdAt: "asc" },
     include: {
@@ -44,6 +65,7 @@ export default async function AdminRequestsPage() {
     where: {
       status: { in: [VacationStatus.APPROVED, VacationStatus.REJECTED, VacationStatus.CANCELLED] },
       employee: { companyId: { in: companyIds } },
+      ...searchFilter,
     },
     orderBy: { updatedAt: "desc" },
     take: 25,
@@ -63,6 +85,25 @@ export default async function AdminRequestsPage() {
 
           <div className="actions" />
         </div>
+
+        <form className="requestsSearchRow" method="get">
+          <input
+            className="requestsSearchInput"
+            type="search"
+            name="q"
+            defaultValue={q}
+            placeholder="Rechercher employé, département, raison..."
+            aria-label="Recherche demandes"
+          />
+          <button className="btn" type="submit">
+            Rechercher
+          </button>
+          {q ? (
+            <a className="btn" href="/admin/requests">
+              Effacer
+            </a>
+          ) : null}
+        </form>
 
         <section className="card">
           <div className="cardHeadRow">
@@ -88,73 +129,74 @@ export default async function AdminRequestsPage() {
           {pendingVac.length === 0 ? (
             <div className="muted">Aucune demande en attente.</div>
           ) : (
-
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Employé</th>
-                  <th>Période</th>
-                  <th>Raison</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {pendingVac.map((r) => (
-                  <tr key={r.id}>
-                    <td>
-                      <div className="cellTitle">{r.employee.firstName} {r.employee.lastName}</div>
-                      <div className="cellSub">{r.employee.department}</div>
-                    </td>
-
-                    <td>
-                      {fmt(r.startDate)} → {fmt(r.endDate)}
-                    </td>
-                    <td className="muted">{r.reason ?? "—"}</td>
-                    <td style={{ textAlign: "right" }}>
-                      <div className="actions">
-                        <form
-                          action={async () => {
-                            "use server";
-                            const { approveVacation } = await import("./action");
-                            await approveVacation(r.id);
-                          }}
-                        >
-                          <button className="btn" type="submit">
-                            Approuver
-                          </button>
-                        </form>
-                        <form
-                          action={async () => {
-                            "use server";
-                            const { rejectVacation } = await import("./action");
-                            await rejectVacation(r.id);
-                          }}
-                        >
-                          <button className="btn danger" type="submit">
-                            Refuser
-                          </button>
-                        </form>
-                        <form
-                          action={async () => {
-                            "use server";
-                            const { deleteVacationRequest } = await import("./action");
-                            await deleteVacationRequest(r.id);
-                          }}
-                        >
-                          <ConfirmSubmitButton
-                            className="btn danger iconOnly"
-                            title="Supprimer cette demande"
-                            confirmMessage="Supprimer cette demande ?"
-                          >
-                            🗑
-                          </ConfirmSubmitButton>
-                        </form>
-                      </div>
-                    </td>
+            <div className="tableWrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Employé</th>
+                    <th>Période</th>
+                    <th>Raison</th>
+                    <th></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {pendingVac.map((r) => (
+                    <tr key={r.id}>
+                      <td>
+                        <div className="cellTitle">{r.employee.firstName} {r.employee.lastName}</div>
+                        <div className="cellSub">{r.employee.department}</div>
+                      </td>
+
+                      <td>
+                        {fmt(r.startDate)} → {fmt(r.endDate)}
+                      </td>
+                      <td className="muted">{r.reason ?? "—"}</td>
+                      <td style={{ textAlign: "right" }}>
+                        <div className="actions">
+                          <form
+                            action={async () => {
+                              "use server";
+                              const { approveVacation } = await import("./action");
+                              await approveVacation(r.id);
+                            }}
+                          >
+                            <button className="btn" type="submit">
+                              Approuver
+                            </button>
+                          </form>
+                          <form
+                            action={async () => {
+                              "use server";
+                              const { rejectVacation } = await import("./action");
+                              await rejectVacation(r.id);
+                            }}
+                          >
+                            <button className="btn danger" type="submit">
+                              Refuser
+                            </button>
+                          </form>
+                          <form
+                            action={async () => {
+                              "use server";
+                              const { deleteVacationRequest } = await import("./action");
+                              await deleteVacationRequest(r.id);
+                            }}
+                          >
+                            <ConfirmSubmitButton
+                              className="btn danger iconOnly"
+                              title="Supprimer cette demande"
+                              confirmMessage="Supprimer cette demande ?"
+                            >
+                              🗑
+                            </ConfirmSubmitButton>
+                          </form>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </section>
 

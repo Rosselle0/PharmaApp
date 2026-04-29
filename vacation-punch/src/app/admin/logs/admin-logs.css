@@ -185,6 +185,27 @@
   font-size: 12px;
 }
 
+.adminLogsSearchWrap {
+  padding: 0 4px;
+}
+
+.adminLogsSearchInput {
+  width: 100%;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid var(--log-border);
+  background: var(--log-surface);
+  color: var(--log-ink);
+  padding: 0 12px;
+  outline: none;
+  font-weight: 700;
+}
+
+.adminLogsSearchInput:focus {
+  border-color: rgba(37, 99, 235, 0.6);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+
 .adminLogsEmployeeList {
   flex: 1;
   max-height: calc(100vh - 260px);
@@ -942,22 +963,30 @@
     padding: 2px 4px 0;
   }
 
+  .adminLogsSearchWrap {
+    padding: 0 2px;
+  }
+
+  .adminLogsSearchInput {
+    height: 38px;
+    border-radius: 10px;
+    font-size: 16px;
+  }
+
   .adminLogsEmployeeList {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
-    overflow-x: auto;
-    overflow-y: hidden;
+    overflow: visible;
     padding: 4px 2px 8px;
     max-height: none;
-    scroll-snap-type: x mandatory;
   }
 
   .adminLogsEmployee {
-    min-width: 220px;
-    max-width: 220px;
+    min-width: 0;
+    max-width: 100%;
     padding: 10px;
     border-radius: 12px;
-    scroll-snap-align: start;
   }
 
   .adminLogsEmployeeName {
@@ -1100,6 +1129,10 @@
 }
 
 @media (max-width: 380px) {
+  .adminLogsEmployeeList {
+    grid-template-columns: 1fr;
+  }
+
   .availabilityDays {
     grid-template-columns: 1fr;
   }

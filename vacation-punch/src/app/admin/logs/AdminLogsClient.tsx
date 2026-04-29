@@ -172,6 +172,7 @@ export default function AdminLogsClient() {
   const [tab, setTab] = useState<"punch" | "changes" | "tasks" | "availability">("punch");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
   const [expandedShiftId, setExpandedShiftId] = useState<string | null>(null);
+  const [employeeQuery, setEmployeeQuery] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -181,6 +182,20 @@ export default function AdminLogsClient() {
     if (!data?.employees?.length) return null;
     return data.employees.find((e) => e.id === selectedEmployeeId) ?? data.employees[0] ?? null;
   }, [data, selectedEmployeeId]);
+
+  const filteredEmployees = useMemo(() => {
+    const list = data?.employees ?? [];
+    const q = employeeQuery.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter((e) => {
+      const name = `${e.firstName} ${e.lastName}`.toLowerCase();
+      return (
+        name.includes(q) ||
+        e.department.toLowerCase().includes(q) ||
+        (e.employeeCode ?? "").toLowerCase().includes(q)
+      );
+    });
+  }, [data, employeeQuery]);
 
   useEffect(() => {
     let cancelled = false;
@@ -476,8 +491,18 @@ export default function AdminLogsClient() {
             <div className="adminLogsSideTitle">Employés</div>
           </div>
 
+          <div className="adminLogsSearchWrap">
+            <input
+              className="adminLogsSearchInput"
+              type="text"
+              placeholder="Rechercher employé..."
+              value={employeeQuery}
+              onChange={(e) => setEmployeeQuery(e.target.value)}
+            />
+          </div>
+
           <div className="adminLogsEmployeeList" role="list">
-            {(data?.employees ?? []).map((e) => {
+            {filteredEmployees.map((e) => {
               const sCount = data?.shifts?.filter((s) => s.employeeId === e.id).length ?? 0;
               const lateCount = data?.shifts?.filter((s) => s.employeeId === e.id && s.lateStatus === "PENDING").length ?? 0;
               const otCount = data?.shifts?.filter((s) => s.employeeId === e.id && s.overtimeStatus === "PENDING").length ?? 0;

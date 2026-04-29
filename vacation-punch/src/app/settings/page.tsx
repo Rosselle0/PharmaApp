@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, Suspense } from "react";
+import { useEffect, useMemo, useRef, useState, Suspense, type ChangeEvent } from "react";
 import "./settings.css";
 import KioskSidebar from "@/components/KioskSidebar";
 import { useTheme } from "@/components/ThemeProvider";
@@ -10,6 +10,7 @@ import { validateKioskPasswordPolicy } from "@/lib/kioskPasswordPolicy";
 import { KioskPasswordRequirementsHint } from "@/components/KioskPasswordRequirementsHint";
 import { PasswordRevealField } from "@/components/PasswordRevealField";
 import "@/app/admin/admin-kiosk-fields.css";
+import Image from "next/image";
 
 const KIOSK_MODE_OPTIONS = KIOSK_MODE_OPTIONS_FR;
 
@@ -82,6 +83,7 @@ export default function SettingsPage() {
   const [availabilityNote, setAvailabilityNote] = useState("");
   const [employeeFullName, setEmployeeFullName] = useState<string>("Profil");
   const [employeeEmail, setEmployeeEmail] = useState<string>("");
+  const [avatarDataUrl, setAvatarDataUrl] = useState<string | null>(null);
   const [emailEditorOpen, setEmailEditorOpen] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [emailOtp, setEmailOtp] = useState("");
@@ -102,6 +104,7 @@ export default function SettingsPage() {
   const [kioskRole, setKioskRole] = useState<string | null>(null);
   const [employeeLogged, setEmployeeLogged] = useState(false);
   const [employeeCode, setEmployeeCode] = useState<string | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
 
   // Derived state for sidebar privileges
   const isPrivilegedLogged = kioskRole === "ADMIN" || kioskRole === "MANAGER";
@@ -154,6 +157,44 @@ export default function SettingsPage() {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    const code = employeeCode ?? readEmployeeCodeFromUrlOrStorage();
+    if (!code || typeof window === "undefined") return;
+    const raw = window.localStorage.getItem(`kiosk_employee_avatar_${code}`) ?? "";
+    const cleaned = raw.trim();
+    setAvatarDataUrl(cleaned || null);
+  }, [employeeCode]);
+
+  function openAvatarPicker() {
+    avatarInputRef.current?.click();
+  }
+
+  function handleAvatarSelected(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return;
+
+    const code = employeeCode ?? readEmployeeCodeFromUrlOrStorage();
+    if (!code) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === "string" ? reader.result : "";
+      if (!result) return;
+      setAvatarDataUrl(result);
+      window.localStorage.setItem(`kiosk_employee_avatar_${code}`, result);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  }
+
+  function removeAvatar() {
+    const code = employeeCode ?? readEmployeeCodeFromUrlOrStorage();
+    if (!code) return;
+    setAvatarDataUrl(null);
+    window.localStorage.removeItem(`kiosk_employee_avatar_${code}`);
+  }
 
   async function sendEmailVerification() {
     setEmailMsg(null);
@@ -382,8 +423,36 @@ export default function SettingsPage() {
           <section className="settings-content">
             <div className="settings-card profile-card">
               <div className="profile-row">
-                <div className="avatar-fallback" aria-hidden="true">
-                  {avatarLetter}
+                <div className="avatar-wrap">
+                  <button
+                    type="button"
+                    className="avatar-fallback avatar-button"
+                    onClick={openAvatarPicker}
+                    title="Changer la photo"
+                  >
+                    {avatarDataUrl ? (
+                      <Image
+                        src={avatarDataUrl}
+                        alt="Photo de profil"
+                        className="avatar-image"
+                        width={56}
+                        height={56}
+                        unoptimized
+                      />
+                    ) : (
+                      <span aria-hidden="true">{avatarLetter}</span>
+                    )}
+                    <span className="avatar-overlay" aria-hidden="true">
+                      📷
+                    </span>
+                  </button>
+                  <input
+                    ref={avatarInputRef}
+                    className="avatar-input"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarSelected}
+                  />
                 </div>
                 <div className="profile-meta">
                   <div className="profile-name">{employeeFullName}</div>
@@ -406,6 +475,11 @@ export default function SettingsPage() {
                 >
                   {emailEditorOpen ? "Fermer email" : "Changer email"}
                 </button>
+                {avatarDataUrl ? (
+                  <button className="settings-modal-btn ghost profile-remove-avatar" type="button" onClick={removeAvatar}>
+                    Retirer photo
+                  </button>
+                ) : null}
               </div>
 
               {emailEditorOpen && (
@@ -496,7 +570,7 @@ export default function SettingsPage() {
               </button>
             </div>
 
-            <div className="settings-card">
+            <div className="settings-card kiosk-card">
               <h2 className="settings-card-title">Connexion kiosque (après le PIN)</h2>
               <p className="settings-subtitle" style={{ marginBottom: 12 }}>
                 Après le code à 4 chiffres, une étape supplémentaire est toujours requise : code email,
@@ -580,7 +654,7 @@ export default function SettingsPage() {
               </button>
             </div>
 
-            <div className="settings-card">
+            <div className="settings-card appearance-card">
               <h2 className="settings-card-title">Apparence</h2>
               <button
                 className="theme-toggle-btn"
