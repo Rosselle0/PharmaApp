@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import "./kioskSidebar.css";
 
@@ -15,6 +15,7 @@ export default function KioskSidebar({
   employeeLogged,
 }: KioskSidebarProps) {
   const path = usePathname();
+  const searchParams = useSearchParams();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Close drawer on route change (defer setState to satisfy react-hooks/set-state-in-effect)
@@ -57,6 +58,14 @@ export default function KioskSidebar({
   const isActive = (href: string) => path.startsWith(href);
   const isKioskHome = path === "/kiosk";
   const isSidebarUnlocked = isPrivilegedLogged || employeeLogged;
+  const week = searchParams.get("week") ?? "";
+  const section = searchParams.get("section") ?? "";
+  const order = searchParams.get("order") ?? "";
+  const scheduleQs = new URLSearchParams();
+  if (week) scheduleQs.set("week", week);
+  if (section) scheduleQs.set("section", section);
+  if (order) scheduleQs.set("order", order);
+  const scheduleHref = scheduleQs.toString() ? `/schedule?${scheduleQs.toString()}` : `/schedule${qs}`;
 
   const preventWhenLocked = (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (!isSidebarUnlocked) e.preventDefault();
@@ -116,7 +125,7 @@ export default function KioskSidebar({
         )}
 
         <Link
-          href={`/schedule${qs}`}
+          href={scheduleHref}
           className={`kiosk-btn ${isActive("/schedule") ? "active" : ""} ${!isSidebarUnlocked ? "disabled" : ""}`}
           aria-disabled={!isSidebarUnlocked}
           title={!isSidebarUnlocked ? "Connecte-toi d’abord" : undefined}

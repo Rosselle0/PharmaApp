@@ -468,8 +468,12 @@ export default function ScheduleEditorClient(props: {
 
     useEffect(() => {
         if (typeof window === "undefined" || employeeOrder.length === 0) return;
-        localStorage.setItem(orderKey, employeeOrder.join(","));
-    }, [employeeOrder, orderKey]);
+        const orderValue = employeeOrder.join(",");
+        const encoded = encodeURIComponent(orderValue);
+        localStorage.setItem(orderKey, orderValue);
+        document.cookie = `schedule_order_${props.section}=${encoded}; path=/; max-age=31536000; SameSite=Lax`;
+        document.cookie = `schedule_order=${encoded}; path=/; max-age=31536000; SameSite=Lax`;
+    }, [employeeOrder, orderKey, props.section]);
 
     const availabilityByEmpDay = useMemo(() => {
         const map = new Map<string, AvailabilityRule>();

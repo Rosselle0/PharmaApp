@@ -3,12 +3,15 @@ import "./schedule.css";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { unstable_noStore as noStore } from "next/cache";
+import { cookies } from "next/headers";
 import { supabaseServer } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { requireKioskManagerOrAdmin } from "@/lib/kioskAuth";
 import KioskSidebar from "@/components/KioskSidebar";
 import { getKioskEmployeeFromSession } from "@/lib/kioskEmployeeAuth";
 import { unpaidBreak30DeductionMinutes } from "@/lib/unpaidBreak30";
+import OrderSyncClient from "./OrderSyncClient";
+import ScheduleDomOrderSync from "./ScheduleDomOrderSync";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -92,8 +95,8 @@ export default async function SchedulePage({
   searchParams,
 }: {
   searchParams?:
-  | Promise<{ week?: string; code?: string; section?: string }>
-  | { week?: string; code?: string; section?: string };
+  | Promise<{ week?: string; code?: string; section?: string; order?: string }>
+  | { week?: string; code?: string; section?: string; order?: string };
 }) {
   noStore();
   const sp =
@@ -101,6 +104,24 @@ export default async function SchedulePage({
   const sectionParam = String(sp.section ?? "CAISSE_LAB").toUpperCase();
   const section: "CAISSE_LAB" | "FLOOR" =
     sectionParam.includes("FLOOR") ? "FLOOR" : "CAISSE_LAB";
+  const orderFromQuery = String(sp.order ?? "").trim();
+  const cookieStore = await cookies();
+  const decodeOrderCookie = (raw: string | undefined) => {
+    if (!raw) return "";
+    try {
+      return decodeURIComponent(raw).trim();
+    } catch {
+      return raw.trim();
+    }
+  };
+  const orderFromCookieSection = decodeOrderCookie(
+    cookieStore.get(`schedule_order_${section}`)?.value
+  );
+  const orderFromCookieGlobal = decodeOrderCookie(
+    cookieStore.get("schedule_order")?.value
+  );
+  const orderFromCookie = orderFromCookieSection || orderFromCookieGlobal;
+  const orderParam = orderFromQuery || orderFromCookie;
   const kioskEmployee = await getKioskEmployeeFromSession();
 
   async function getDefaultCompany() {
@@ -152,10 +173,21 @@ export default async function SchedulePage({
     select: { id: true, firstName: true, lastName: true, department: true, paidBreak30: true },
   });
 
-  const viewEmployees =
+  const viewEmployeesRaw =
     section === "FLOOR"
       ? employees.filter((e) => e.department === "FLOOR")
       : employees.filter((e) => e.department === "CASH" || e.department === "LAB");
+
+  const orderIds = orderParam
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const employeeById = new Map(viewEmployeesRaw.map((e) => [e.id, e] as const));
+  const orderedFromParam = orderIds
+    .map((id) => employeeById.get(id))
+    .filter((e): e is NonNullable<typeof e> => Boolean(e));
+  const unordered = viewEmployeesRaw.filter((e) => !orderIds.includes(e.id));
+  const viewEmployees = [...orderedFromParam, ...unordered];
 
   const viewEmployeeIds = viewEmployees.map((e) => e.id);
 
@@ -250,9 +282,10 @@ export default async function SchedulePage({
   // SECURITY: do not use `?code=` in URLs.
   const codeQS = "";
   const sectionQS = `&section=${encodeURIComponent(section)}`;
+  const orderQS = orderParam ? `&order=${encodeURIComponent(orderParam)}` : "";
   const exportHref = `/api/schedule/export?week=${encodeURIComponent(
     ymdLocal(weekStart)
-  )}${sectionQS}`;
+  )}${sectionQS}${orderQS}`;
 
   const mobileDays = days.map((d, i) => {
     const ymd = ymdLocal(d);
@@ -285,6 +318,8 @@ export default async function SchedulePage({
 
   return (
     <div className="scheduleScope">
+      <OrderSyncClient section={section} />
+      <ScheduleDomOrderSync section={section} />
       <KioskSidebar
         isPrivilegedLogged={isPrivilegedLogged}
         employeeLogged={employeeLogged}
@@ -300,7 +335,7 @@ export default async function SchedulePage({
               <div className="sectionToggles">
                 <Link
                   className="btn"
-                  href={`/schedule?week=${encodeURIComponent(ymdLocal(weekStart))}${codeQS}&section=CAISSE_LAB`}
+                  href={`/schedule?week=${encodeURIComponent(ymdLocal(weekStart))}${codeQS}&section=CAISSE_LAB${orderQS}`}
                   style={
                     section === "CAISSE_LAB"
                       ? {
@@ -315,7 +350,7 @@ export default async function SchedulePage({
                 </Link>
                 <Link
                   className="btn"
-                  href={`/schedule?week=${encodeURIComponent(ymdLocal(weekStart))}${codeQS}&section=FLOOR`}
+                  href={`/schedule?week=${encodeURIComponent(ymdLocal(weekStart))}${codeQS}&section=FLOOR${orderQS}`}
                   style={
                     section === "FLOOR"
                       ? {
@@ -334,14 +369,14 @@ export default async function SchedulePage({
             <div className="headNav row">
               <Link
                 className="btn"
-                href={`/schedule?week=${encodeURIComponent(prevWeek)}${codeQS}${sectionQS}`}
+                href={`/schedule?week=${encodeURIComponent(prevWeek)}${codeQS}${sectionQS}${orderQS}`}
               >
                 ← Semaine précédente
               </Link>
 
               <Link
                 className="btn"
-                href={`/schedule?week=${encodeURIComponent(nextWeek)}${codeQS}${sectionQS}`}
+                href={`/schedule?week=${encodeURIComponent(nextWeek)}${codeQS}${sectionQS}${orderQS}`}
               >
                 Semaine suivante →
               </Link>
@@ -388,7 +423,7 @@ export default async function SchedulePage({
                           <div className="mobileDayEmpty">Aucun employé planifié.</div>
                         ) : (
                           d.employeesWorking.map((u) => (
-                            <div key={u.id} className="mobileShiftRow">
+                            <div key={u.id} className="mobileShiftRow" data-emp-id={u.id}>
                               <div>
                                 <div className="mobileName">{u.name}</div>
                                 <div className="mobileDept">{u.department}</div>
@@ -465,7 +500,7 @@ export default async function SchedulePage({
                         });
 
                         return (
-                          <tr key={u.id}>
+                          <tr key={u.id} data-emp-id={u.id}>
                             <td className="td nameCell">
                               {u.firstName} {u.lastName}
                               <div className="muted">
