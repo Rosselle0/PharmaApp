@@ -114,15 +114,19 @@
   }
 
   .scheduleScope .sectionToggles {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: 1fr;
     gap: 10px;
   }
 
   .scheduleScope .sectionToggles .btn {
     width: 100%;
     justify-content: center;
-    padding: 12px 16px;
+    min-height: 46px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 700;
   }
 
   /* Week nav: two buttons side by side, equal width */
@@ -130,13 +134,18 @@
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
+    margin-top: 2px;
   }
 
   .scheduleScope .headNav .btn {
     flex: 1 1 140px;
     min-width: 0;
     text-align: center;
-    padding: 12px 14px;
+    min-height: 46px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 700;
   }
 
   /* PDF: full width, clear tap target */
@@ -212,14 +221,12 @@
 
   /* Slightly tighter top on mobile, still readable */
   .scheduleScope .head {
-    gap: 14px;
-    margin-bottom: 12px;
-  }
-
-  .scheduleScope .sectionToggles .btn,
-  .scheduleScope .headNav .btn {
-    padding: 11px 14px;
-    font-size: 14px;
+    gap: 12px;
+    margin-bottom: 10px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    backdrop-filter: none;
   }
 
   .scheduleScope .pdfBtn {
@@ -449,6 +456,10 @@
   font-weight: 700;
 }
 
+.scheduleScope .mobileSchedule {
+  display: none;
+}
+
 /* Empty state */
 .scheduleScope .muted {
   color: #94a3b8;
@@ -466,6 +477,91 @@
   }
   .scheduleScope .table {
     min-width: 980px;
+  }
+}
+
+@media (max-width: 900px) {
+  .scheduleScope .mobileSchedule {
+    display: grid;
+    gap: 10px;
+    margin: 12px 12px 4px;
+  }
+
+  .scheduleScope .mobileDayCard {
+    border: 1px solid #dde5ef;
+    border-radius: 14px;
+    background: #fff;
+    overflow: hidden;
+  }
+
+  .scheduleScope .mobileDaySummary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    font-weight: 700;
+  }
+
+  .scheduleScope .mobileDaySummary::-webkit-details-marker {
+    display: none;
+  }
+
+  .scheduleScope .mobileDayTitle {
+    font-size: 14px;
+    color: #1f2937;
+  }
+
+  .scheduleScope .mobileDayCount {
+    font-size: 12px;
+    color: #64748b;
+    font-weight: 600;
+  }
+
+  .scheduleScope .mobileDayBody {
+    border-top: 1px solid #edf2f7;
+    padding: 8px 10px 10px;
+    display: grid;
+    gap: 8px;
+  }
+
+  .scheduleScope .mobileShiftRow {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 4px;
+    border: 1px solid #e6edf6;
+    border-radius: 12px;
+    padding: 10px 12px;
+    background: #f8fbff;
+  }
+
+  .scheduleScope .mobileName {
+    font-size: 14px;
+    font-weight: 700;
+    color: #0f172a;
+  }
+
+  .scheduleScope .mobileDept {
+    font-size: 12px;
+    color: #64748b;
+  }
+
+  .scheduleScope .mobileTimes {
+    font-size: 13px;
+    color: #1e293b;
+    font-weight: 600;
+  }
+
+  .scheduleScope .mobileDayEmpty {
+    font-size: 13px;
+    color: #64748b;
+    padding: 6px 2px;
+  }
+
+  .scheduleScope .tableWrap {
+    display: none;
   }
 }
 
@@ -566,6 +662,17 @@
   .scheduleScope .td:last-child {
     color: #f1f5f9;
     font-weight: 700;
+  }
+}
+
+@media (max-width: 900px) {
+  [data-theme="dark"] .scheduleScope .head {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
   }
 }
 

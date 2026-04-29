@@ -50,6 +50,31 @@ function isAutoPunchShift(note: string | null) {
 
 const DAY_LABELS = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
 
+function normalizeDayShifts<T extends { effectiveStartTime: Date; endTime: Date; note: string | null }>(rawList: T[]) {
+  const byStart = new Map<string, T>();
+  for (const sh of rawList) {
+    const startKey = hmLocal(new Date(sh.effectiveStartTime));
+    const prev = byStart.get(startKey);
+    if (!prev) {
+      byStart.set(startKey, sh);
+      continue;
+    }
+    const prevAuto = isAutoPunchShift(prev.note);
+    const curAuto = isAutoPunchShift(sh.note);
+    if (prevAuto !== curAuto) {
+      byStart.set(startKey, prevAuto ? sh : prev);
+      continue;
+    }
+    if (new Date(sh.endTime).getTime() > new Date(prev.endTime).getTime()) {
+      byStart.set(startKey, sh);
+    }
+  }
+  return Array.from(byStart.values()).sort(
+    (a, b) =>
+      new Date(a.effectiveStartTime).getTime() - new Date(b.effectiveStartTime).getTime()
+  );
+}
+
 export default async function SchedulePage({
   searchParams,
 }: {
@@ -221,6 +246,35 @@ export default async function SchedulePage({
     ymdLocal(weekStart)
   )}${sectionQS}`;
 
+  const mobileDays = days.map((d, i) => {
+    const ymd = ymdLocal(d);
+    const employeesWorking = viewEmployees
+      .map((u) => {
+        const rawList = byUserDay.get(`${u.id}:${ymd}`) ?? [];
+        const list = normalizeDayShifts(rawList);
+        if (list.length === 0) return null;
+        return {
+          id: u.id,
+          name: `${u.firstName} ${u.lastName}`,
+          department:
+            u.department === "CASH" ? "Caisse" : u.department === "LAB" ? "Lab" : "Plancher",
+          shifts: list.map((sh) =>
+            sh.note === "VAC"
+              ? "VAC"
+              : `${hmLocal(new Date(sh.effectiveStartTime))}–${hmLocal(new Date(sh.endTime))}`
+          ),
+        };
+      })
+      .filter((x): x is { id: string; name: string; department: string; shifts: string[] } => Boolean(x));
+
+    return {
+      key: ymd,
+      title: `${DAY_LABELS[i]} ${d.toLocaleDateString("fr-CA")}`,
+      count: employeesWorking.length,
+      employeesWorking,
+    };
+  });
+
   return (
     <div className="scheduleScope">
       <KioskSidebar
@@ -313,115 +367,119 @@ export default async function SchedulePage({
             {viewEmployees.length === 0 ? (
               <div className="empty">Aucun employé.</div>
             ) : (
-              <div className="tableWrap">
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th className="th nameCell stickyLeft">Employé</th>
-                      {days.map((d, i) => (
-                        <th key={ymdLocal(d)} className="th">
-                          {DAY_LABELS[i]}
-                          <br />
-                          <span className="muted">
-                            {d.toLocaleDateString("fr-CA")}
-                          </span>
-                        </th>
-                      ))}
-                      <th className="th">Total</th>
-                    </tr>
-                  </thead>
+              <>
+                <div className="mobileSchedule">
+                  {mobileDays.map((d) => (
+                    <details key={d.key} className="mobileDayCard">
+                      <summary className="mobileDaySummary">
+                        <span className="mobileDayTitle">{d.title}</span>
+                        <span className="mobileDayCount">{d.count} employé(s)</span>
+                      </summary>
+                      <div className="mobileDayBody">
+                        {d.count === 0 ? (
+                          <div className="mobileDayEmpty">Aucun employé planifié.</div>
+                        ) : (
+                          d.employeesWorking.map((u) => (
+                            <div key={u.id} className="mobileShiftRow">
+                              <div>
+                                <div className="mobileName">{u.name}</div>
+                                <div className="mobileDept">{u.department}</div>
+                              </div>
+                              <div className="mobileTimes">{u.shifts.join(" / ")}</div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </details>
+                  ))}
+                </div>
 
-                  <tbody>
-                    {viewEmployees.map((u) => {
-                      let totalMinutes = 0;
+                <div className="tableWrap">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th className="th nameCell stickyLeft">Employé</th>
+                        {days.map((d, i) => (
+                          <th key={ymdLocal(d)} className="th">
+                            {DAY_LABELS[i]}
+                            <br />
+                            <span className="muted">
+                              {d.toLocaleDateString("fr-CA")}
+                            </span>
+                          </th>
+                        ))}
+                        <th className="th">Total</th>
+                      </tr>
+                    </thead>
 
-                      const cells = days.map((d) => {
-                        const key = `${u.id}:${ymdLocal(d)}`;
-                        const rawList = byUserDay.get(key) ?? [];
-                        // Overwrite rule for same-day duplicates:
-                        // for the same start HH:MM, keep one shift only
-                        // (prefer non-auto shift, then latest end time).
-                        const byStart = new Map<string, typeof rawList[number]>();
-                        for (const sh of rawList) {
-                          const startKey = hmLocal(new Date(sh.effectiveStartTime));
-                          const prev = byStart.get(startKey);
-                          if (!prev) {
-                            byStart.set(startKey, sh);
-                            continue;
-                          }
-                          const prevAuto = isAutoPunchShift(prev.note);
-                          const curAuto = isAutoPunchShift(sh.note);
-                          if (prevAuto !== curAuto) {
-                            byStart.set(startKey, prevAuto ? sh : prev);
-                            continue;
-                          }
-                          if (new Date(sh.endTime).getTime() > new Date(prev.endTime).getTime()) {
-                            byStart.set(startKey, sh);
-                          }
-                        }
-                        const list = Array.from(byStart.values()).sort(
-                          (a, b) =>
-                            new Date(a.effectiveStartTime).getTime() - new Date(b.effectiveStartTime).getTime()
-                        );
+                    <tbody>
+                      {viewEmployees.map((u) => {
+                        let totalMinutes = 0;
 
-                        for (const sh of list) {
-                          if (sh.note === "VAC") continue;
-                          const durationMinutes = Math.floor((+new Date(sh.endTime) - +new Date(sh.effectiveStartTime)) / 60000);
-                          const deductionMinutes = unpaidBreak30DeductionMinutes(u.paidBreak30, durationMinutes);
-                          totalMinutes += Math.max(0, durationMinutes - deductionMinutes);
-                        }
+                        const cells = days.map((d) => {
+                          const key = `${u.id}:${ymdLocal(d)}`;
+                          const rawList = byUserDay.get(key) ?? [];
+                          const list = normalizeDayShifts(rawList);
+
+                          for (const sh of list) {
+                            if (sh.note === "VAC") continue;
+                            const durationMinutes = Math.floor((+new Date(sh.endTime) - +new Date(sh.effectiveStartTime)) / 60000);
+                            const deductionMinutes = unpaidBreak30DeductionMinutes(u.paidBreak30, durationMinutes);
+                            totalMinutes += Math.max(0, durationMinutes - deductionMinutes);
+                          }
+
+                          return (
+                            <td key={key} className="td">
+                              {list.length === 0 ? (
+                                <span className="muted">—</span>
+                              ) : (
+                                list.map((sh, idx) => (
+                                  <div key={idx} className="shiftPill">
+                                    {sh.note === "VAC" ? (
+                                      <span>VAC</span>
+                                    ) : (
+                                      <>
+                                        <span className="pillTime">
+                                          {hmLocal(new Date(sh.effectiveStartTime))}
+                                        </span>
+                                        <span className="pillDash">–</span>
+                                        <span className="pillTime">
+                                          {hmLocal(new Date(sh.endTime))}
+                                        </span>
+                                      </>
+                                    )}
+                                  </div>
+                                ))
+                              )}
+                            </td>
+                          );
+                        });
+
+                        const totalHours = totalMinutes / 60;
 
                         return (
-                          <td key={key} className="td">
-                            {list.length === 0 ? (
-                              <span className="muted">—</span>
-                            ) : (
-                              list.map((sh, idx) => (
-                                <div key={idx} className="shiftPill">
-                                  {sh.note === "VAC" ? (
-                                    <span>VAC</span>
-                                  ) : (
-                                    <>
-                                      <span className="pillTime">
-                                        {hmLocal(new Date(sh.effectiveStartTime))}
-                                      </span>
-                                      <span className="pillDash">–</span>
-                                      <span className="pillTime">
-                                        {hmLocal(new Date(sh.endTime))}
-                                      </span>
-                                    </>
-                                  )}
-                                </div>
-                              ))
-                            )}
-                          </td>
+                          <tr key={u.id}>
+                            <td className="td nameCell">
+                              {u.firstName} {u.lastName}
+                              <div className="muted">
+                                {u.department === "CASH"
+                                  ? "Caisse"
+                                  : u.department === "LAB"
+                                    ? "Lab"
+                                    : "Plancher"}
+                              </div>
+                            </td>
+                            {cells}
+                            <td className="td">
+                              <b>{hoursFmt.format(totalHours)} h</b>
+                            </td>
+                          </tr>
                         );
-                      });
-
-                      const totalHours = totalMinutes / 60;
-
-                      return (
-                        <tr key={u.id}>
-                          <td className="td nameCell">
-                            {u.firstName} {u.lastName}
-                            <div className="muted">
-                              {u.department === "CASH"
-                                ? "Caisse"
-                                : u.department === "LAB"
-                                  ? "Lab"
-                                  : "Plancher"}
-                            </div>
-                          </td>
-                          {cells}
-                          <td className="td">
-                            <b>{hoursFmt.format(totalHours)} h</b>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </section>
         </div>
