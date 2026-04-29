@@ -84,6 +84,8 @@ export default function SettingsPage() {
   const [employeeFullName, setEmployeeFullName] = useState<string>("Profil");
   const [employeeEmail, setEmployeeEmail] = useState<string>("");
   const [avatarDataUrl, setAvatarDataUrl] = useState<string | null>(null);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarMsg, setAvatarMsg] = useState<string | null>(null);
   const [emailEditorOpen, setEmailEditorOpen] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [emailOtp, setEmailOtp] = useState("");
@@ -130,11 +132,13 @@ export default function SettingsPage() {
         const name = String(data?.employeeName ?? "").trim();
         const email = String(data?.email ?? "").trim();
         const role = String(data?.role ?? "").trim();
+        const avatar = typeof data?.profilePhotoDataUrl === "string" ? data.profilePhotoDataUrl.trim() : "";
 
         if (!name) return;
 
         setEmployeeFullName(name);
         setEmployeeEmail(email);
+        setAvatarDataUrl(avatar || null);
         window.sessionStorage.setItem("kiosk_employee_name", name);
         window.sessionStorage.setItem("kiosk_employee_code", code);
         setKioskRole(role);
@@ -158,16 +162,22 @@ export default function SettingsPage() {
     })();
   }, []);
 
-  useEffect(() => {
-    const code = employeeCode ?? readEmployeeCodeFromUrlOrStorage();
-    if (!code || typeof window === "undefined") return;
-    const raw = window.localStorage.getItem(`kiosk_employee_avatar_${code}`) ?? "";
-    const cleaned = raw.trim();
-    setAvatarDataUrl(cleaned || null);
-  }, [employeeCode]);
-
   function openAvatarPicker() {
     avatarInputRef.current?.click();
+  }
+
+  async function saveAvatarToServer(nextAvatarDataUrl: string | null) {
+    const code = employeeCode ?? readEmployeeCodeFromUrlOrStorage();
+    if (!code) return;
+    const res = await fetch("/api/settings/me", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code, profilePhotoDataUrl: nextAvatarDataUrl }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data?.ok) {
+      throw new Error(String(data?.error ?? "Erreur sauvegarde photo."));
+    }
   }
 
   function handleAvatarSelected(e: ChangeEvent<HTMLInputElement>) {
@@ -175,25 +185,38 @@ export default function SettingsPage() {
     if (!file) return;
     if (!file.type.startsWith("image/")) return;
 
-    const code = employeeCode ?? readEmployeeCodeFromUrlOrStorage();
-    if (!code) return;
-
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       const result = typeof reader.result === "string" ? reader.result : "";
       if (!result) return;
-      setAvatarDataUrl(result);
-      window.localStorage.setItem(`kiosk_employee_avatar_${code}`, result);
+      setAvatarBusy(true);
+      setAvatarMsg(null);
+      try {
+        await saveAvatarToServer(result);
+        setAvatarDataUrl(result);
+        setAvatarMsg("Photo mise à jour.");
+      } catch {
+        setAvatarMsg("Erreur enregistrement photo.");
+      } finally {
+        setAvatarBusy(false);
+      }
     };
     reader.readAsDataURL(file);
     e.target.value = "";
   }
 
-  function removeAvatar() {
-    const code = employeeCode ?? readEmployeeCodeFromUrlOrStorage();
-    if (!code) return;
-    setAvatarDataUrl(null);
-    window.localStorage.removeItem(`kiosk_employee_avatar_${code}`);
+  async function removeAvatar() {
+    setAvatarBusy(true);
+    setAvatarMsg(null);
+    try {
+      await saveAvatarToServer(null);
+      setAvatarDataUrl(null);
+      setAvatarMsg("Photo retirée.");
+    } catch {
+      setAvatarMsg("Erreur suppression photo.");
+    } finally {
+      setAvatarBusy(false);
+    }
   }
 
   async function sendEmailVerification() {
@@ -429,6 +452,7 @@ export default function SettingsPage() {
                     className="avatar-fallback avatar-button"
                     onClick={openAvatarPicker}
                     title="Changer la photo"
+                    disabled={avatarBusy}
                   >
                     {avatarDataUrl ? (
                       <Image
@@ -476,11 +500,12 @@ export default function SettingsPage() {
                   {emailEditorOpen ? "Fermer email" : "Changer email"}
                 </button>
                 {avatarDataUrl ? (
-                  <button className="settings-modal-btn ghost profile-remove-avatar" type="button" onClick={removeAvatar}>
+                  <button className="settings-modal-btn ghost profile-remove-avatar" type="button" onClick={removeAvatar} disabled={avatarBusy}>
                     Retirer photo
                   </button>
                 ) : null}
               </div>
+              {avatarMsg ? <div className="email-change-msg">{avatarMsg}</div> : null}
 
               {emailEditorOpen && (
                 <div className="email-change-box">

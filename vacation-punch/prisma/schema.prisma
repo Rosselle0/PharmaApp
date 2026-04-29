@@ -51,6 +51,7 @@ model Employee {
   firstName    String
   lastName     String
   email        String? @unique
+  profilePhotoDataUrl String?
   phone        String?
   employeeCode String @unique
 
