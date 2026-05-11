@@ -219,6 +219,7 @@ export type Employee = {
     firstName: string;
     lastName: string;
     department: Department;
+    role: "EMPLOYEE" | "MANAGER" | "ADMIN";
     paidBreak30: boolean;
 };
 export type AvailabilityRule = {
@@ -862,7 +863,9 @@ export default function ScheduleEditorClient(props: {
                                                         {emp.firstName} {emp.lastName}
                                                     </div>
                                                     <div className="mobileEditEmployeeDept">
-                                                        {emp.department === "CASH"
+                                                        {emp.role === "MANAGER"
+                                                            ? "Gérant"
+                                                            : emp.department === "CASH"
                                                             ? "Caisse"
                                                             : emp.department === "LAB"
                                                             ? "Lab"
@@ -941,11 +944,13 @@ export default function ScheduleEditorClient(props: {
                                                 {emp.firstName} {emp.lastName}
                                             </div>
                                             <div className="muted">
-                                                {emp.department === "CASH"
-                                                    ? "Caisse"
-                                                    : emp.department === "LAB"
-                                                        ? "Lab"
-                                                        : "Plancher"}
+                                                {emp.role === "MANAGER"
+                                                    ? "Gérant"
+                                                    : emp.department === "CASH"
+                                                        ? "Caisse"
+                                                        : emp.department === "LAB"
+                                                            ? "Lab"
+                                                            : "Plancher"}
                                             </div>
 
                                         </td>

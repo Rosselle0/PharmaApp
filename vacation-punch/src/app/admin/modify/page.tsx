@@ -243,11 +243,13 @@ export default function ModifyAccountsPage() {
                       </div>
                       <div className="m-sub">
                         Code <b>{a.employeeCode}</b> ·{" "}
-                        {a.department === "CASH"
-                          ? "Caisse"
-                          : a.department === "LAB"
-                            ? "Lab"
-                            : "Plancher"}
+                        {a.role === "MANAGER"
+                          ? "Gérant"
+                          : a.department === "CASH"
+                            ? "Caisse"
+                            : a.department === "LAB"
+                              ? "Lab"
+                              : "Plancher"}
                       </div>
 
                     </div>

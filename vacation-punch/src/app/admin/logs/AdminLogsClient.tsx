@@ -178,6 +178,13 @@ export default function AdminLogsClient() {
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<AdminLogsResponse | null>(null);
 
+  type DayKey = "SUN" | "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT";
+  type DayEdit = { day: DayKey; available: boolean; start: string; end: string; note: string };
+  const [availEditMode, setAvailEditMode] = useState(false);
+  const [availWeek, setAvailWeek] = useState<DayEdit[] | null>(null);
+  const [availSaving, setAvailSaving] = useState(false);
+  const [availMsg, setAvailMsg] = useState<string | null>(null);
+
   const selectedEmployee = useMemo(() => {
     if (!data?.employees?.length) return null;
     return data.employees.find((e) => e.id === selectedEmployeeId) ?? data.employees[0] ?? null;
@@ -291,6 +298,68 @@ export default function AdminLogsClient() {
     });
     const json = (await res.json().catch(() => null)) as AdminLogsResponse | { error: string };
     if ("ok" in json) setData(json as AdminLogsResponse);
+  }
+
+  const DAY_KEYS: DayKey[] = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+
+  async function startAvailEdit(employeeId: string) {
+    setAvailMsg(null);
+    setAvailSaving(false);
+    try {
+      const res = await fetch(`/api/admin/availability?employeeId=${encodeURIComponent(employeeId)}`, {
+        credentials: "include",
+      });
+      const json = await res.json().catch(() => null);
+      if (json?.ok && Array.isArray(json.week)) {
+        setAvailWeek(json.week as DayEdit[]);
+        setAvailEditMode(true);
+      } else {
+        setAvailWeek(DAY_KEYS.map((day) => ({ day, available: false, start: "08:00", end: "21:00", note: "" })));
+        setAvailEditMode(true);
+      }
+    } catch {
+      setAvailMsg("Erreur de chargement.");
+    }
+  }
+
+  function cancelAvailEdit() {
+    setAvailEditMode(false);
+    setAvailWeek(null);
+    setAvailMsg(null);
+  }
+
+  async function saveAvailEdit(employeeId: string) {
+    if (!availWeek) return;
+    setAvailSaving(true);
+    setAvailMsg(null);
+    try {
+      const res = await fetch("/api/admin/availability", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ employeeId, week: availWeek }),
+      });
+      const json = await res.json().catch(() => null);
+      if (json?.ok) {
+        setAvailEditMode(false);
+        setAvailWeek(null);
+        setAvailMsg(null);
+        await reloadLogs();
+      } else {
+        setAvailMsg(json?.error ?? "Erreur lors de la sauvegarde.");
+      }
+    } catch (err) {
+      setAvailMsg(messageFromUnknown(err) || "Erreur réseau.");
+    } finally {
+      setAvailSaving(false);
+    }
+  }
+
+  function updateAvailDay(dayIdx: number, patch: Partial<DayEdit>) {
+    setAvailWeek((prev) => {
+      if (!prev) return prev;
+      return prev.map((d, i) => (i === dayIdx ? { ...d, ...patch } : d));
+    });
   }
 
   async function reviewShift(
@@ -512,7 +581,7 @@ export default function AdminLogsClient() {
                 <div
                   key={e.id}
                   className={`adminLogsEmployee ${isSelected ? "selected" : ""}`}
-                  onClick={() => setSelectedEmployeeId(e.id)}
+                  onClick={() => { setSelectedEmployeeId(e.id); setAvailEditMode(false); setAvailWeek(null); setAvailMsg(null); }}
                   role="listitem"
                   tabIndex={0}
                 >
@@ -1088,7 +1157,7 @@ export default function AdminLogsClient() {
                 <div className="adminLogsPanel">
                   <div className="adminLogsDetailsHead">
                     <div className="adminLogsDetailsTitle">Disponibilités</div>
-                    <div className="adminLogsDetailsSub">Sélectionnez un employé pour voir ses règles.</div>
+                    <div className="adminLogsDetailsSub">Sélectionnez un employé pour voir ou modifier ses règles.</div>
                   </div>
 
                   <div className="adminLogsAvailabilityGrid">
@@ -1096,6 +1165,74 @@ export default function AdminLogsClient() {
                       const rules = availabilityByEmployee.get(e.id) ?? [];
                       const globalNote =
                         rules.find((r) => (r.note ?? "").trim().length > 0)?.note ?? "";
+
+                      if (availEditMode && availWeek) {
+                        return (
+                          <div key={e.id} className="availabilityCard">
+                            <div className="availabilityCardTop">
+                              <div className="availabilityName">{e.firstName} {e.lastName}</div>
+                              <span className={`deptPill dept-${e.department}`}>{e.department}</span>
+                            </div>
+
+                            <div className="availabilityDays">
+                              {DAY_LABELS.map((label, day) => {
+                                const d = availWeek[day];
+                                if (!d) return null;
+                                return (
+                                  <div key={day} className={`dayCell ${d.available ? "yes" : "no"}`}>
+                                    <div className="dayLabel">{label}</div>
+                                    <label className="availEditToggle">
+                                      <input
+                                        type="checkbox"
+                                        checked={d.available}
+                                        onChange={(ev) => updateAvailDay(day, { available: ev.target.checked })}
+                                      />
+                                      <span>{d.available ? "Disponible" : "Indisponible"}</span>
+                                    </label>
+                                    {d.available && (
+                                      <div className="availEditTimes">
+                                        <input
+                                          type="time"
+                                          className="availTimeInput"
+                                          value={d.start}
+                                          onChange={(ev) => updateAvailDay(day, { start: ev.target.value })}
+                                        />
+                                        <span className="availTimeSep">–</span>
+                                        <input
+                                          type="time"
+                                          className="availTimeInput"
+                                          value={d.end}
+                                          onChange={(ev) => updateAvailDay(day, { end: ev.target.value })}
+                                        />
+                                      </div>
+                                    )}
+                                    <input
+                                      type="text"
+                                      className="availNoteInput"
+                                      placeholder="Note (optionnel)"
+                                      maxLength={200}
+                                      value={d.note}
+                                      onChange={(ev) => updateAvailDay(day, { note: ev.target.value })}
+                                    />
+                                  </div>
+                                );
+                              })}
+                            </div>
+
+                            {availMsg && <div className="availabilityGlobalNote" style={{ color: "var(--log-danger)" }}>{availMsg}</div>}
+
+                            <div className="availEditActions">
+                              <button className="availEditBtn save" disabled={availSaving} onClick={() => saveAvailEdit(e.id)}>
+                                {availSaving ? "Sauvegarde…" : "Sauvegarder"}
+                              </button>
+                              <button className="availEditBtn cancel" disabled={availSaving} onClick={cancelAvailEdit}>
+                                Annuler
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      }
+
                       return (
                         <div key={e.id} className="availabilityCard">
                           <div className="availabilityCardTop">
@@ -1112,12 +1249,19 @@ export default function AdminLogsClient() {
                                   <div className="dayValue">
                                     {available ? `${r?.startHHMM}–${r?.endHHMM}` : "Indisponible"}
                                   </div>
+                                  {r?.note ? <div className="dayNote">{r.note}</div> : null}
                                 </div>
                               );
                             })}
                           </div>
 
                           {globalNote ? <div className="availabilityGlobalNote">Note: {globalNote}</div> : null}
+
+                          <div className="availEditActions">
+                            <button className="availEditBtn save" onClick={() => startAvailEdit(e.id)}>
+                              Modifier
+                            </button>
+                          </div>
                         </div>
                       );
                     })}

@@ -170,7 +170,7 @@ export default async function SchedulePage({
   const employees = await prisma.employee.findMany({
     where: { companyId, isActive: true },
     orderBy: [{ department: "asc" }, { lastName: "asc" }, { firstName: "asc" }],
-    select: { id: true, firstName: true, lastName: true, department: true, paidBreak30: true },
+    select: { id: true, firstName: true, lastName: true, department: true, role: true, paidBreak30: true },
   });
 
   const viewEmployeesRaw =
@@ -298,7 +298,7 @@ export default async function SchedulePage({
           id: u.id,
           name: `${u.firstName} ${u.lastName}`,
           department:
-            u.department === "CASH" ? "Caisse" : u.department === "LAB" ? "Lab" : "Plancher",
+            u.role === "MANAGER" ? "Gérant" : u.department === "CASH" ? "Caisse" : u.department === "LAB" ? "Lab" : "Plancher",
           shifts: list.map((sh) =>
             sh.note === "VAC"
               ? "VAC"
@@ -504,11 +504,13 @@ export default async function SchedulePage({
                             <td className="td nameCell">
                               {u.firstName} {u.lastName}
                               <div className="muted">
-                                {u.department === "CASH"
-                                  ? "Caisse"
-                                  : u.department === "LAB"
-                                    ? "Lab"
-                                    : "Plancher"}
+                                {u.role === "MANAGER"
+                                  ? "Gérant"
+                                  : u.department === "CASH"
+                                    ? "Caisse"
+                                    : u.department === "LAB"
+                                      ? "Lab"
+                                      : "Plancher"}
                               </div>
                             </td>
                             {cells}
