@@ -329,9 +329,8 @@ export default async function SchedulePage({
       <main className="scheduleMain page">
         <div className="shell">
           <div className="head">
-            <div className="headTitle">
+            <div className="headLeft">
               <h1 className="h1">Horaire</h1>
-              <p className="p">Choisis la section à afficher :</p>
               <div className="sectionToggles">
                 <Link
                   className="btn"
@@ -366,37 +365,29 @@ export default async function SchedulePage({
               </div>
             </div>
 
-            <div className="headNav row">
-              <Link
-                className="btn"
-                href={`/schedule?week=${encodeURIComponent(prevWeek)}${codeQS}${sectionQS}${orderQS}`}
-              >
-                ← Semaine précédente
-              </Link>
+            <div className="headRight">
+              <div className="headNav row">
+                <Link
+                  className="btn"
+                  href={`/schedule?week=${encodeURIComponent(prevWeek)}${codeQS}${sectionQS}${orderQS}`}
+                >
+                  ← Semaine précédente
+                </Link>
 
-              <Link
-                className="btn"
-                href={`/schedule?week=${encodeURIComponent(nextWeek)}${codeQS}${sectionQS}${orderQS}`}
+                <Link
+                  className="btn"
+                  href={`/schedule?week=${encodeURIComponent(nextWeek)}${codeQS}${sectionQS}${orderQS}`}
+                >
+                  Semaine suivante →
+                </Link>
+              </div>
+              <a
+                href={exportHref}
+                className="btn pdfBtn"
               >
-                Semaine suivante →
-              </Link>
+                ⬇ Télécharger PDF (2 semaines)
+              </a>
             </div>
-          </div>
-
-          <div className="pdfRow">
-            <a
-              href={exportHref}
-              className="btn pdfBtn"
-              style={{
-                textDecoration: "none",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                fontWeight: 700,
-              }}
-            >
-              ⬇ Télécharger PDF (2 semaines)
-            </a>
           </div>
 
           <section className="section">

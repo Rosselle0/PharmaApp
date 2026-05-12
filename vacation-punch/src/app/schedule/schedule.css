@@ -122,17 +122,24 @@
   .scheduleScope .head {
     flex-direction: column;
     align-items: stretch;
-    gap: 20px;
+    gap: 14px;
     margin-bottom: 16px;
   }
 
-  .scheduleScope .headTitle {
-    min-width: 0;
+  .scheduleScope .headLeft {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .scheduleScope .headRight {
+    flex-direction: column;
+    gap: 10px;
   }
 
   .scheduleScope .sectionToggles {
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
     gap: 10px;
   }
 
@@ -146,12 +153,10 @@
     font-weight: 700;
   }
 
-  /* Week nav: two buttons side by side, equal width */
   .scheduleScope .headNav {
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
-    margin-top: 2px;
   }
 
   .scheduleScope .headNav .btn {
@@ -165,17 +170,11 @@
     font-weight: 700;
   }
 
-  /* PDF: full width, clear tap target */
-  .scheduleScope .pdfRow {
-    justify-content: stretch;
-    margin-top: 8px;
-    margin-bottom: 16px;
-  }
-
   .scheduleScope .pdfBtn {
     width: 100%;
     justify-content: center;
     padding: 12px 16px;
+    text-align: center;
   }
 
   /* Section card: full width, comfortable padding */
@@ -313,23 +312,38 @@
 .scheduleScope .head {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 16px;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
+}
+
+.scheduleScope .headLeft {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.scheduleScope .headRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
 .scheduleScope .sectionToggles {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
-  margin-top: 12px;
 }
 
-.scheduleScope .pdfRow {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 12px;
-  margin-bottom: 14px;
+.scheduleScope .pdfBtn {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .scheduleScope .h1 {
@@ -599,11 +613,22 @@
 
   .scheduleScope .head {
     display: grid;
-    gap: 12px;
+    gap: 10px;
     margin-bottom: 4px;
   }
 
-  .scheduleScope .headTitle,
+  .scheduleScope .headLeft {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .scheduleScope .headRight {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .scheduleScope .headLeft,
   .scheduleScope .headNav {
     width: 100%;
   }
@@ -639,16 +664,13 @@
     text-align: center;
   }
 
-  .scheduleScope .pdfRow {
-    margin-top: 4px;
-    margin-bottom: 6px;
-  }
-
   .scheduleScope .pdfBtn {
     width: 100%;
     min-height: 46px;
     justify-content: center;
+    text-align: center;
   }
+
 }
 
 /* =========================================================
