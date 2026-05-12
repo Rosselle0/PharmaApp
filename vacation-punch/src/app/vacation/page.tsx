@@ -22,9 +22,33 @@ function statusLabel(status: unknown) {
   }
 }
 
+function statusIcon(status: unknown) {
+  const s = String(status ?? "");
+  switch (s) {
+    case "PENDING":
+      return "⏳";
+    case "APPROVED":
+      return "✓";
+    case "REJECTED":
+      return "✕";
+    case "CANCELLED":
+      return "—";
+    default:
+      return "•";
+  }
+}
 
-function fmt(d: Date) {
+function fmtShort(d: Date) {
+  return d.toLocaleDateString("fr-CA", { day: "numeric", month: "short" });
+}
+
+function fmtFull(d: Date) {
   return d.toLocaleDateString("fr-CA");
+}
+
+function dayCount(start: Date, end: Date) {
+  const diff = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  return diff;
 }
 
 export default async function VacationPage({
@@ -38,8 +62,6 @@ export default async function VacationPage({
     (searchParams instanceof Promise ? await searchParams : searchParams) ?? {};
 
   const code = String(sp.code ?? "").trim();
-  // Only override theme when explicitly provided.
-  // Otherwise rely on the global ThemeProvider (html[data-theme]).
   const theme =
     sp.theme === "dark" || sp.theme === "light" ? (sp.theme as "dark" | "light") : undefined;
 
@@ -82,6 +104,9 @@ export default async function VacationPage({
   const auth = await requireKioskManagerOrAdmin();
   const isPrivilegedLogged = auth.ok;
 
+  const pendingCount = requests.filter((r) => r.status === "PENDING").length;
+  const approvedCount = requests.filter((r) => r.status === "APPROVED").length;
+
   return (
     <div className="vacationScope" data-theme={theme}>
       <div className="kiosk-layout">
@@ -93,114 +118,126 @@ export default async function VacationPage({
 
         <div className="kiosk-content">
           <div className="shell">
-            <div className="head">
-              <div>
-                <h1 className="h1">Vacances</h1>
-                <p className="p">
-                  Entrez votre code employé pour demander des vacances.
-                </p>
-              </div>
-            </div>
 
             {!employee || !employee.isActive ? (
-              <section className="card">
-                <h2 className="h2">Identification</h2>
+              <>
+                <div className="vacHero">
+                  <div className="vacHeroIcon">🏖</div>
+                  <h1 className="vacHeroTitle">Vacances</h1>
+                  <p className="vacHeroSub">Identifiez-vous pour soumettre une demande</p>
+                </div>
 
-                <form className="form one" action={enterEmployeeCode}>
-                  <label className="label">
-                    Code employé
-                    <input
-                      className="input"
-                      name="employeeCode"
-                      placeholder="Ex. 8 chiffres"
-                      required
-                    />
-                  </label>
-
-                  <button className="btn primary" type="submit">
-                    Continuer
-                  </button>
-                </form>
-
-                {code ? (
-                  <div className="muted">
-                    Code invalide ou employé inactif.
-                  </div>
-                ) : null}
-              </section>
+                <section className="vacCard vacCardLogin">
+                  <form className="vacLoginForm" action={enterEmployeeCode}>
+                    <label className="vacFieldLabel">Code employé</label>
+                    <div className="vacLoginRow">
+                      <input
+                        className="vacInput vacLoginInput"
+                        name="employeeCode"
+                        placeholder="Entrez votre code"
+                        required
+                        autoFocus
+                      />
+                      <button className="vacBtn vacBtnPrimary" type="submit">
+                        Continuer
+                      </button>
+                    </div>
+                    {code ? (
+                      <div className="vacLoginError">Code invalide ou employé inactif.</div>
+                    ) : null}
+                  </form>
+                </section>
+              </>
             ) : (
               <>
+                <div className="vacHero">
+                  <h1 className="vacHeroTitle">Vacances</h1>
+                  <p className="vacHeroSub">{employee.firstName} {employee.lastName}</p>
+                </div>
+
+                {requests.length > 0 && (
+                  <div className="vacStats">
+                    <div className="vacStat">
+                      <div className="vacStatValue">{requests.length}</div>
+                      <div className="vacStatLabel">Demandes</div>
+                    </div>
+                    <div className="vacStat vacStatPending">
+                      <div className="vacStatValue">{pendingCount}</div>
+                      <div className="vacStatLabel">En attente</div>
+                    </div>
+                    <div className="vacStat vacStatApproved">
+                      <div className="vacStatValue">{approvedCount}</div>
+                      <div className="vacStatLabel">Approuvées</div>
+                    </div>
+                  </div>
+                )}
+
                 <VacationFormClient
                   employeeCode={employee.employeeCode}
                   employeeName={`${employee.firstName} ${employee.lastName}`}
                 />
 
-                <section className="card">
-                  <h2 className="h2">Mes demandes</h2>
+                <section className="vacCard">
+                  <div className="vacCardHead">
+                    <h2 className="vacCardTitle">Mes demandes</h2>
+                    <span className="vacCardCount">{requests.length}</span>
+                  </div>
 
                   {requests.length === 0 ? (
-                    <div className="empty">
-                      Aucune demande pour le moment.
+                    <div className="vacEmpty">
+                      <div className="vacEmptyIcon">📋</div>
+                      <div>Aucune demande pour le moment</div>
                     </div>
                   ) : (
-                    <div className="tableWrap">
-                      <table className="table">
-                        <thead>
-                          <tr>
-                            <th>Période</th>
-                            <th>Raison</th>
-                            <th>Statut</th>
-                            <th></th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {requests.map((r) => (
-                            <tr key={r.id}>
-                              <td>
-                                {fmt(r.startDate)} → {fmt(r.endDate)}
+                    <div className="vacRequestList">
+                      {requests.map((r) => {
+                        const days = dayCount(r.startDate, r.endDate);
+                        const statusClass = String(r.status).toLowerCase();
+                        const sameDay = fmtFull(r.startDate) === fmtFull(r.endDate);
+                        return (
+                          <div key={r.id} className={`vacRequest vacRequest--${statusClass}`}>
+                            <div className="vacRequestLeft">
+                              <div className={`vacRequestDot vacRequestDot--${statusClass}`}>
+                                {statusIcon(r.status)}
+                              </div>
+                              <div className="vacRequestInfo">
+                                <div className="vacRequestDates">
+                                  {sameDay
+                                    ? fmtShort(r.startDate)
+                                    : `${fmtShort(r.startDate)} → ${fmtShort(r.endDate)}`}
+                                  <span className="vacRequestDays">
+                                    {days} j
+                                  </span>
+                                </div>
                                 {r.startTime && r.endTime ? (
-                                  <div className="muted">
-                                    Heure: {r.startTime} – {r.endTime}
-                                  </div>
+                                  <div className="vacRequestTime">{r.startTime} – {r.endTime}</div>
                                 ) : null}
-                              </td>
-
-                              <td className="muted">{r.reason ?? "—"}</td>
-
-                              <td>
-                                <span
-                                  className={`badge ${String(
-                                    r.status
-                                  ).toLowerCase()}`}
+                                {r.reason ? (
+                                  <div className="vacRequestReason">{r.reason}</div>
+                                ) : null}
+                              </div>
+                            </div>
+                            <div className="vacRequestRight">
+                              <span className={`vacBadge vacBadge--${statusClass}`}>
+                                {statusLabel(r.status)}
+                              </span>
+                              {r.status === "PENDING" ? (
+                                <form
+                                  action={cancelPendingRequest.bind(
+                                    null,
+                                    r.id,
+                                    employee.employeeCode
+                                  )}
                                 >
-                                  {statusLabel(r.status)}
-                                </span>
-                              </td>
-
-                              <td style={{ textAlign: "right" }}>
-                                {r.status === "PENDING" ? (
-                                  <form
-                                    action={cancelPendingRequest.bind(
-                                      null,
-                                      r.id,
-                                      employee.employeeCode
-                                    )}
-                                  >
-                                    <button
-                                      className="btn danger"
-                                      type="submit"
-                                    >
-                                      Annuler
-                                    </button>
-                                  </form>
-                                ) : (
-                                  <span className="muted">—</span>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                                  <button className="vacBtnCancel" type="submit">
+                                    Annuler
+                                  </button>
+                                </form>
+                              ) : null}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </section>

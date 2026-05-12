@@ -1,97 +1,85 @@
-/* =========================================================
-   BASE VARIABLES (Scoped)
-   ========================================================= */
+/* ==========================================================
+   VACATION PAGE — Modern Card-Based Design
+   ========================================================== */
+
+/* --- Scoped Variables --- */
 .vacationScope {
-  --ap-ink: #0a1020;
-  --ap-muted: rgba(10, 16, 32, 0.62);
-
-  --ap-bg-0: #f6fbff;
-  --ap-bg-1: #eef6ff;
-
-  --ap-card: rgba(255, 255, 255, 0.86);
-  --ap-border: rgba(10, 16, 32, 0.10);
-
-  --ap-shadow-sm: 0 6px 18px rgba(10, 16, 32, 0.06);
-
-  --ap-radius: 16px;
-  --ap-radius-sm: 12px;
-
-  --ap-primary: #1a56db;
-  --ap-primary-bg: rgba(26, 86, 219, 0.10);
-
-  --ap-danger: #b42318;
-  --ap-danger-bg: rgba(180, 35, 24, 0.10);
-
-  --ap-focus: rgba(26, 86, 219, 0.22);
+  --vac-ink: #0b1220;
+  --vac-muted: rgba(15, 23, 42, 0.55);
+  --vac-bg: linear-gradient(135deg, #dbe6ee, #cfdbe5);
+  --vac-card: rgba(255, 255, 255, 0.82);
+  --vac-card-hover: rgba(255, 255, 255, 0.92);
+  --vac-border: rgba(15, 23, 42, 0.08);
+  --vac-border-strong: rgba(15, 23, 42, 0.14);
+  --vac-radius: 18px;
+  --vac-radius-sm: 12px;
+  --vac-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
+  --vac-shadow-lg: 0 12px 40px rgba(15, 23, 42, 0.08);
+  --vac-primary: #2563eb;
+  --vac-primary-soft: rgba(37, 99, 235, 0.10);
+  --vac-primary-text: #1d4ed8;
+  --vac-danger: #dc2626;
+  --vac-danger-soft: rgba(220, 38, 38, 0.08);
+  --vac-ok: #059669;
+  --vac-ok-soft: rgba(5, 150, 105, 0.08);
+  --vac-warn: #d97706;
+  --vac-warn-soft: rgba(217, 119, 6, 0.08);
+  --vac-neutral-soft: rgba(15, 23, 42, 0.05);
+  --vac-input-bg: rgba(255, 255, 255, 0.7);
+  --vac-focus: rgba(37, 99, 235, 0.22);
 
   --sidebar-bg: #ffffff;
   --sidebar-border: #e5e7eb;
-
   --sidebar-btn-bg: #f1f5f9;
   --sidebar-btn-text: #1f2937;
   --sidebar-btn-hover: #e2e8f0;
-
   --sidebar-active-bg: linear-gradient(135deg, #3b82f6, #2563eb);
   --sidebar-active-text: #ffffff;
 }
 
-/* =========================================================
-   DARK MODE (GLOBAL TO MATCH SETTINGS PAGE)
-   ========================================================= */
 [data-theme="dark"] .vacationScope {
-  --ap-ink: #e6ebf3;
-  --ap-muted: rgba(230, 235, 243, 0.62);
+  --vac-ink: #e6ebf3;
+  --vac-muted: rgba(230, 235, 243, 0.5);
+  --vac-bg:
+    radial-gradient(1200px 700px at 18% 12%, rgba(54, 209, 227, 0.10), transparent 55%),
+    radial-gradient(900px 600px at 85% 18%, rgba(76, 141, 255, 0.12), transparent 60%),
+    linear-gradient(180deg, #0b1220, #0f172a);
+  --vac-card: rgba(255, 255, 255, 0.04);
+  --vac-card-hover: rgba(255, 255, 255, 0.07);
+  --vac-border: rgba(255, 255, 255, 0.08);
+  --vac-border-strong: rgba(255, 255, 255, 0.14);
+  --vac-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+  --vac-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.25);
+  --vac-primary: #60a5fa;
+  --vac-primary-soft: rgba(96, 165, 250, 0.12);
+  --vac-primary-text: #93c5fd;
+  --vac-danger: #f87171;
+  --vac-danger-soft: rgba(248, 113, 113, 0.10);
+  --vac-ok: #34d399;
+  --vac-ok-soft: rgba(52, 211, 153, 0.10);
+  --vac-warn: #fbbf24;
+  --vac-warn-soft: rgba(251, 191, 36, 0.10);
+  --vac-neutral-soft: rgba(255, 255, 255, 0.04);
+  --vac-input-bg: rgba(255, 255, 255, 0.05);
+  --vac-focus: rgba(96, 165, 250, 0.25);
 
-  /* Backgrounds (dark blue) */
-  --ap-bg-0: #0a1020;
-  --ap-bg-1: #141c2e;
-
-  /* Cards and borders (near black for contrast) */
-  --ap-card: rgba(16, 18, 22, 0.92);
-  --ap-border: rgba(255, 255, 255, 0.15);
-
-  /* Primary / Danger */
-  --ap-primary: #93c5fd;
-  --ap-primary-bg: rgba(37, 99, 235, 0.15);
-
-  --ap-danger: #fca5a5;
-  --ap-danger-bg: rgba(248, 113, 113, 0.15);
-
-  --ap-focus: rgba(37, 99, 235, 0.25);
-
-  /* Sidebar (match dark blue background) */
-  --sidebar-bg: #0a1020;                     /* same as --ap-bg-0 */
+  --sidebar-bg: #0a1020;
   --sidebar-border: rgba(255, 255, 255, 0.06);
-
   --sidebar-btn-bg: rgba(255, 255, 255, 0.05);
   --sidebar-btn-text: #e6ebf3;
   --sidebar-btn-hover: rgba(255, 255, 255, 0.1);
-
-  --sidebar-active-bg: linear-gradient(135deg, #2563eb, #1d4ed8); /* keep blue gradient for active */
+  --sidebar-active-bg: linear-gradient(135deg, #2563eb, #1d4ed8);
   --sidebar-active-text: #ffffff;
 }
 
 [data-theme="dark"] .vacationScope input[type="date"]::-webkit-calendar-picker-indicator {
-  filter: invert(1) brightness(1.2); /* makes icon white */
-}
-
-[data-theme="dark"] .vacationScope input[type="date"]::-moz-calendar-picker-indicator {
   filter: invert(1) brightness(1.2);
 }
 
-/* =========================================================
-   BASE LAYOUT
-   ========================================================= */
+/* --- Reset --- */
 .vacationScope * { box-sizing: border-box; margin: 0; padding: 0; }
 
-.vacationScope body,
-.vacationScope html,
-.vacationScope #__next {
-  height: 100%;
-  width: 100%;
-  font-family: "Inter", sans-serif;
-}
-
+/* --- Layout --- */
 .vacationScope .kiosk-layout {
   display: flex;
   min-height: 100vh;
@@ -100,52 +88,21 @@
 
 .vacationScope .kiosk-content {
   flex: 1;
-  margin-left: 260px; /* offset content for fixed sidebar */
-  padding: 28px;
-  background: radial-gradient(
-    1200px 600px at 20% 0%,
-    var(--ap-bg-1),
-    var(--ap-bg-0)
-  );
+  margin-left: 260px;
+  padding: 32px;
+  background: var(--vac-bg);
   min-height: 100vh;
-  color: var(--ap-ink);
+  color: var(--vac-ink);
 }
 
 .vacationScope .shell {
-  max-width: 1120px;
+  max-width: 720px;
   margin: 0 auto;
   display: grid;
-  gap: 16px;
+  gap: 20px;
 }
 
-.vacationScope .h1 {
-  font-size: 2.5rem;
-  font-weight: 700;
-  color: var(--ap-ink);
-  margin-bottom: 12px;
-}
-
-/* ================= PAGE BACKGROUND ================= */
-.vacationScope.page,
-.vacationScope .kiosk-content {
-  /* Light mode background: match scheduleScope.page */
-  background: linear-gradient(135deg, #dbe6ee, #cfdbe5);
-  color: #1f2937;
-}
-
-/* Dark mode background: match schedule dark mode */
-[data-theme="dark"] .vacationScope.page,
-[data-theme="dark"] .vacationScope .kiosk-content {
-  background:
-    radial-gradient(1200px 700px at 18% 12%, rgba(54, 209, 227, 0.12), transparent 55%),
-    radial-gradient(900px 600px at 85% 18%, rgba(76, 141, 255, 0.16), transparent 60%),
-    linear-gradient(180deg, #0b1220, #0f172a);
-  color: #e6ebf3;
-}
-
-/* =========================================================
-   SIDEBAR
-   ========================================================= */
+/* --- Sidebar passthrough --- */
 .vacationScope .kiosk-sidebar {
   position: fixed;
   top: 0;
@@ -193,116 +150,420 @@
   box-shadow: 0 8px 20px rgba(37, 99, 235, 0.35);
 }
 
-/* =========================================================
-   BUTTONS & CARDS
-   ========================================================= */
-.vacationScope .btn {
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: var(--ap-card);
-  border: 1px solid var(--ap-border);
-  color: var(--ap-ink);
-  cursor: pointer;
-  min-width: 118px;
+/* ==========================================================
+   HERO HEADER
+   ========================================================== */
+.vacHero {
   text-align: center;
+  padding: 12px 0 4px;
+}
+
+.vacHeroIcon {
+  font-size: 40px;
+  margin-bottom: 8px;
+  line-height: 1;
+}
+
+.vacHeroTitle {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--vac-ink);
+}
+
+.vacHeroSub {
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--vac-muted);
+  font-weight: 500;
+}
+
+/* ==========================================================
+   STAT STRIP
+   ========================================================== */
+.vacStats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.vacStat {
+  background: var(--vac-card);
+  border: 1px solid var(--vac-border);
+  border-radius: var(--vac-radius-sm);
+  padding: 14px 12px;
+  text-align: center;
+  backdrop-filter: blur(8px);
+}
+
+.vacStatValue {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--vac-ink);
+}
+
+.vacStatLabel {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--vac-muted);
+  margin-top: 2px;
+}
+
+.vacStatPending .vacStatValue { color: var(--vac-warn); }
+.vacStatApproved .vacStatValue { color: var(--vac-ok); }
+
+/* ==========================================================
+   CARDS
+   ========================================================== */
+.vacCard {
+  background: var(--vac-card);
+  border: 1px solid var(--vac-border);
+  border-radius: var(--vac-radius);
+  padding: 20px;
+  box-shadow: var(--vac-shadow);
+  backdrop-filter: blur(12px);
+}
+
+.vacCardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.vacCardTitle {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.vacCardCount {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--vac-neutral-soft);
+  color: var(--vac-muted);
+}
+
+/* ==========================================================
+   LOGIN CARD
+   ========================================================== */
+.vacCardLogin {
+  max-width: 440px;
+  margin: 0 auto;
+}
+
+.vacLoginForm {
+  display: grid;
+  gap: 10px;
+}
+
+.vacLoginRow {
+  display: flex;
+  gap: 8px;
+}
+
+.vacLoginInput {
+  flex: 1;
+}
+
+.vacLoginError {
+  font-size: 13px;
   font-weight: 600;
-  transition: all 0.2s ease;
+  color: var(--vac-danger);
+  padding: 8px 12px;
+  border-radius: var(--vac-radius-sm);
+  background: var(--vac-danger-soft);
 }
 
-.vacationScope .btn.primary {
-  background: var(--ap-primary-bg);
-  color: var(--ap-primary);
-}
-
-.vacationScope .btn.danger {
-  background: var(--ap-danger-bg);
-  color: var(--ap-danger);
-}
-
-.vacationScope .card {
-  background: var(--ap-card);
-  border: 1px solid var(--ap-border);
-  border-radius: var(--ap-radius);
-  padding: 16px;
-  box-shadow: var(--ap-shadow-sm);
-}
-
-/* =========================================================
+/* ==========================================================
    FORM
-   ========================================================= */
-.vacationScope .form { display: grid; gap: 12px; }
+   ========================================================== */
+.vacForm {
+  display: grid;
+  gap: 14px;
+}
 
-.vacationScope .formRowx {
+.vacFormGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 10px;
 }
 
-@media (max-width: 600px) {
-  .vacationScope .formRowx { grid-template-columns: 1fr; }
+.vacField {
+  display: grid;
+  gap: 5px;
 }
 
-.vacationScope .label { display: grid; gap: 6px; font-size: 13px; }
-
-.vacationScope .input {
-  padding: 11px 12px;
-  border: 1px solid var(--ap-border);
-  border-radius: 12px;
-  background: var(--ap-card);
-  color: var(--ap-ink);
-  outline: none;
-  transition: all 0.2s ease;
-}
-
-.vacationScope .input:focus {
-  border-color: var(--ap-focus);
-  box-shadow: 0 0 0 4px var(--ap-focus);
-}
-
-/* =========================================================
-   TABLE
-   ========================================================= */
-.vacationScope .tableWrap {
-  border: 1px solid var(--ap-border);
-  border-radius: var(--ap-radius-sm);
-  overflow: hidden;
-  background: var(--ap-card);
-}
-
-.vacationScope .table {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
-}
-
-.vacationScope .table th,
-.vacationScope .table td {
-  padding: 14px;
-  text-align: left;
-  border-bottom: 1px solid var(--ap-border);
-  color: var(--ap-ink);
-}
-
-/* =========================================================
-   BADGES
-   ========================================================= */
-.vacationScope .badge {
-  padding: 8px 14px;
-  border-radius: 999px;
+.vacFieldLabel {
   font-size: 12px;
-  border: 1px solid var(--ap-border);
-  background: var(--ap-card);
-  color: var(--ap-ink);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--vac-muted);
 }
 
-/* =========================================================
+.vacInput {
+  padding: 10px 12px;
+  border: 1px solid var(--vac-border-strong);
+  border-radius: var(--vac-radius-sm);
+  background: var(--vac-input-bg);
+  color: var(--vac-ink);
+  font-size: 14px;
+  font-weight: 500;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.vacInput:focus {
+  border-color: var(--vac-primary);
+  box-shadow: 0 0 0 3px var(--vac-focus);
+}
+
+.vacInput::placeholder {
+  color: var(--vac-muted);
+  font-weight: 400;
+}
+
+/* Day count preview */
+.vacDayPreview {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--vac-primary-text);
+  padding: 6px 12px;
+  background: var(--vac-primary-soft);
+  border-radius: 999px;
+  width: fit-content;
+}
+
+.vacDayPreviewNum {
+  font-weight: 900;
+  font-size: 15px;
+}
+
+/* Partial day time section */
+.vacTimeSection {
+  border-top: 1px solid var(--vac-border);
+  padding-top: 12px;
+}
+
+.vacTimeSectionLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--vac-muted);
+  margin-bottom: 8px;
+}
+
+/* ==========================================================
+   BUTTONS
+   ========================================================== */
+.vacBtn {
+  padding: 10px 16px;
+  border: none;
+  border-radius: var(--vac-radius-sm);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.vacBtnPrimary {
+  background: var(--vac-primary);
+  color: #fff;
+}
+
+.vacBtnPrimary:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.vacBtnSubmit {
+  margin-top: 4px;
+}
+
+.vacBtnCancel {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 10px;
+  border: 1px solid var(--vac-border-strong);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--vac-danger);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.vacBtnCancel:hover {
+  background: var(--vac-danger-soft);
+}
+
+/* ==========================================================
+   REQUEST LIST (replaces table)
+   ========================================================== */
+.vacRequestList {
+  display: grid;
+  gap: 8px;
+}
+
+.vacRequest {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--vac-border);
+  background: var(--vac-neutral-soft);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.vacRequest:hover {
+  background: var(--vac-card-hover);
+}
+
+.vacRequest--pending { border-left: 3px solid var(--vac-warn); }
+.vacRequest--approved { border-left: 3px solid var(--vac-ok); }
+.vacRequest--rejected { border-left: 3px solid var(--vac-danger); }
+.vacRequest--cancelled { border-left: 3px solid var(--vac-muted); }
+
+.vacRequestLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+}
+
+.vacRequestDot {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.vacRequestDot--pending {
+  background: var(--vac-warn-soft);
+  color: var(--vac-warn);
+}
+.vacRequestDot--approved {
+  background: var(--vac-ok-soft);
+  color: var(--vac-ok);
+}
+.vacRequestDot--rejected {
+  background: var(--vac-danger-soft);
+  color: var(--vac-danger);
+}
+.vacRequestDot--cancelled {
+  background: var(--vac-neutral-soft);
+  color: var(--vac-muted);
+}
+
+.vacRequestInfo {
+  min-width: 0;
+}
+
+.vacRequestDates {
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.vacRequestDays {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--vac-primary-soft);
+  color: var(--vac-primary-text);
+}
+
+.vacRequestTime {
+  font-size: 12px;
+  color: var(--vac-muted);
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.vacRequestReason {
+  font-size: 12px;
+  color: var(--vac-muted);
+  font-weight: 500;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vacRequestRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* ==========================================================
+   BADGES
+   ========================================================== */
+.vacBadge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.vacBadge--pending {
+  background: var(--vac-warn-soft);
+  color: var(--vac-warn);
+}
+.vacBadge--approved {
+  background: var(--vac-ok-soft);
+  color: var(--vac-ok);
+}
+.vacBadge--rejected {
+  background: var(--vac-danger-soft);
+  color: var(--vac-danger);
+}
+.vacBadge--cancelled {
+  background: var(--vac-neutral-soft);
+  color: var(--vac-muted);
+}
+
+/* ==========================================================
+   EMPTY STATE
+   ========================================================== */
+.vacEmpty {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--vac-muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.vacEmptyIcon {
+  font-size: 28px;
+  margin-bottom: 8px;
+  opacity: 0.5;
+}
+
+/* ==========================================================
    RESPONSIVE
-   ========================================================= */
-@media (max-width: 860px) {
-  .vacationScope .kiosk-content { padding: 18px; }
-  .vacationScope .tableWrap { overflow-x: auto; }
-}
-
+   ========================================================== */
 @media (max-width: 900px) {
   .vacationScope .kiosk-layout {
     flex-direction: column;
@@ -319,5 +580,56 @@
   .vacationScope .kiosk-content {
     margin-left: 0;
     min-height: auto;
+  }
+}
+
+@media (max-width: 600px) {
+  .vacationScope .kiosk-content {
+    padding: 16px;
+  }
+
+  .vacationScope .shell {
+    gap: 14px;
+  }
+
+  .vacHeroTitle {
+    font-size: 24px;
+  }
+
+  .vacCard {
+    padding: 14px;
+    border-radius: 16px;
+  }
+
+  .vacFormGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .vacStats {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+
+  .vacStat {
+    padding: 10px 8px;
+  }
+
+  .vacStatValue {
+    font-size: 20px;
+  }
+
+  .vacRequest {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .vacRequestRight {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .vacLoginRow {
+    flex-direction: column;
   }
 }

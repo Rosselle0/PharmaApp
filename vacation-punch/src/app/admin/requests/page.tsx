@@ -7,7 +7,11 @@ import ConfirmSubmitButton from "./ConfirmSubmitButton";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function fmt(d: Date) {
+function fmtShort(d: Date) {
+  return d.toLocaleDateString("fr-CA", { day: "numeric", month: "short" });
+}
+
+function fmtFull(d: Date) {
   return d.toLocaleDateString("fr-CA");
 }
 
@@ -23,6 +27,31 @@ function statusLabel(status: VacationStatus) {
       return "Annulé";
     default:
       return String(status);
+  }
+}
+
+function statusIcon(status: VacationStatus) {
+  switch (status) {
+    case VacationStatus.APPROVED:
+      return "✓";
+    case VacationStatus.REJECTED:
+      return "✕";
+    case VacationStatus.CANCELLED:
+      return "—";
+    default:
+      return "•";
+  }
+}
+
+function dayCount(start: Date, end: Date) {
+  return Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+}
+
+function deptLabel(d: string) {
+  switch (d) {
+    case "CASH": return "Caisse";
+    case "LAB": return "Lab";
+    default: return "Plancher";
   }
 }
 
@@ -81,39 +110,46 @@ export default async function AdminRequestsPage(props: { searchParams?: SearchPa
 
   return (
     <main className="page requestsScope">
-      <div className="shell">
-        <div className="head">
-          <div>
-            <h1 className="h1">Demandes</h1>
-            <p className="p">Centre d’approbation (vacances pour l’instant).</p>
-          </div>
-
-          <div className="actions" />
+      <div className="rqShell">
+        <div className="rqHero">
+          <h1 className="rqTitle">Demandes</h1>
+          <p className="rqSub">Centre d'approbation</p>
         </div>
 
-        <form className="requestsSearchRow" method="get">
+        <div className="rqStats">
+          <div className="rqStat rqStatPending">
+            <div className="rqStatVal">{pendingVac.length}</div>
+            <div className="rqStatLabel">En attente</div>
+          </div>
+          <div className="rqStat rqStatRecent">
+            <div className="rqStatVal">{recentVac.length}</div>
+            <div className="rqStatLabel">Récentes</div>
+          </div>
+        </div>
+
+        <form className="rqSearchRow" method="get">
           <input
-            className="requestsSearchInput"
+            className="rqSearchInput"
             type="search"
             name="q"
             defaultValue={q}
             placeholder="Rechercher employé, département, raison..."
             aria-label="Recherche demandes"
           />
-          <button className="btn" type="submit">
-            Rechercher
-          </button>
-          {q ? (
-            <a className="btn" href="/admin/requests">
-              Effacer
-            </a>
-          ) : null}
+          <button className="rqBtn rqBtnSecondary" type="submit">Rechercher</button>
+          {q ? <a className="rqBtnLink" href="/admin/requests">Effacer</a> : null}
         </form>
 
-        <section className="card">
-          <div className="cardHeadRow">
-            <h2 className="h2">Vacances — En attente</h2>
-            {pendingVac.length > 0 ? (
+        {/* ---- PENDING ---- */}
+        <section className="rqSection">
+          <div className="rqSectionHead">
+            <div className="rqSectionTitle">
+              En attente
+              {pendingVac.length > 0 && (
+                <span className="rqSectionCount rqSectionCountWarn">{pendingVac.length}</span>
+              )}
+            </div>
+            {pendingVac.length > 0 && (
               <form
                 action={async () => {
                   "use server";
@@ -122,93 +158,97 @@ export default async function AdminRequestsPage(props: { searchParams?: SearchPa
                 }}
               >
                 <ConfirmSubmitButton
-                  className="btn danger iconOnly"
+                  className="rqBtnIcon rqBtnDanger"
                   title="Supprimer toutes les demandes en attente"
                   confirmMessage="Supprimer toutes les demandes en attente ?"
                 >
                   🗑
                 </ConfirmSubmitButton>
               </form>
-            ) : null}
+            )}
           </div>
-          {pendingVac.length === 0 ? (
-            <div className="muted">Aucune demande en attente.</div>
-          ) : (
-            <div className="tableWrap">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Employé</th>
-                    <th>Période</th>
-                    <th>Raison</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pendingVac.map((r) => (
-                    <tr key={r.id}>
-                      <td>
-                        <div className="cellTitle">{r.employee.firstName} {r.employee.lastName}</div>
-                        <div className="cellSub">{r.employee.department}</div>
-                      </td>
 
-                      <td>
-                        {fmt(r.startDate)} → {fmt(r.endDate)}
-                      </td>
-                      <td className="muted">{r.reason ?? "—"}</td>
-                      <td style={{ textAlign: "right" }}>
-                        <div className="actions">
-                          <form
-                            action={async () => {
-                              "use server";
-                              const { approveVacation } = await import("./action");
-                              await approveVacation(r.id);
-                            }}
-                          >
-                            <button className="btn" type="submit">
-                              Approuver
-                            </button>
-                          </form>
-                          <form
-                            action={async () => {
-                              "use server";
-                              const { rejectVacation } = await import("./action");
-                              await rejectVacation(r.id);
-                            }}
-                          >
-                            <button className="btn danger" type="submit">
-                              Refuser
-                            </button>
-                          </form>
-                          <form
-                            action={async () => {
-                              "use server";
-                              const { deleteVacationRequest } = await import("./action");
-                              await deleteVacationRequest(r.id);
-                            }}
-                          >
-                            <ConfirmSubmitButton
-                              className="btn danger iconOnly"
-                              title="Supprimer cette demande"
-                              confirmMessage="Supprimer cette demande ?"
-                            >
-                              🗑
-                            </ConfirmSubmitButton>
-                          </form>
+          {pendingVac.length === 0 ? (
+            <div className="rqEmpty">Aucune demande en attente</div>
+          ) : (
+            <div className="rqList">
+              {pendingVac.map((r) => {
+                const days = dayCount(r.startDate, r.endDate);
+                const sameDay = fmtFull(r.startDate) === fmtFull(r.endDate);
+                return (
+                  <div key={r.id} className="rqCard rqCard--pending">
+                    <div className="rqCardMain">
+                      <div className="rqCardAvatar">
+                        {r.employee.firstName[0]}{r.employee.lastName[0]}
+                      </div>
+                      <div className="rqCardInfo">
+                        <div className="rqCardName">
+                          {r.employee.firstName} {r.employee.lastName}
+                          <span className="rqCardDept">{deptLabel(r.employee.department)}</span>
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                        <div className="rqCardMeta">
+                          <span className="rqCardDate">
+                            {sameDay
+                              ? fmtShort(r.startDate)
+                              : `${fmtShort(r.startDate)} → ${fmtShort(r.endDate)}`}
+                          </span>
+                          <span className="rqCardDays">{days}j</span>
+                          {r.reason && <span className="rqCardReason">{r.reason}</span>}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="rqCardActions">
+                      <form
+                        action={async () => {
+                          "use server";
+                          const { approveVacation } = await import("./action");
+                          await approveVacation(r.id);
+                        }}
+                      >
+                        <button className="rqBtn rqBtnApprove" type="submit">Approuver</button>
+                      </form>
+                      <form
+                        action={async () => {
+                          "use server";
+                          const { rejectVacation } = await import("./action");
+                          await rejectVacation(r.id);
+                        }}
+                      >
+                        <button className="rqBtn rqBtnReject" type="submit">Refuser</button>
+                      </form>
+                      <form
+                        action={async () => {
+                          "use server";
+                          const { deleteVacationRequest } = await import("./action");
+                          await deleteVacationRequest(r.id);
+                        }}
+                      >
+                        <ConfirmSubmitButton
+                          className="rqBtnIcon rqBtnDanger"
+                          title="Supprimer"
+                          confirmMessage="Supprimer cette demande ?"
+                        >
+                          🗑
+                        </ConfirmSubmitButton>
+                      </form>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </section>
 
-        <section className="card">
-          <div className="cardHeadRow">
-            <h2 className="h2">Vacances — Récentes</h2>
-            {recentVac.length > 0 ? (
+        {/* ---- RECENT ---- */}
+        <section className="rqSection">
+          <div className="rqSectionHead">
+            <div className="rqSectionTitle">
+              Récentes
+              {recentVac.length > 0 && (
+                <span className="rqSectionCount">{recentVac.length}</span>
+              )}
+            </div>
+            {recentVac.length > 0 && (
               <form
                 action={async () => {
                   "use server";
@@ -217,78 +257,76 @@ export default async function AdminRequestsPage(props: { searchParams?: SearchPa
                 }}
               >
                 <ConfirmSubmitButton
-                  className="btn danger iconOnly"
+                  className="rqBtnIcon rqBtnDanger"
                   title="Supprimer toutes les demandes récentes"
                   confirmMessage="Supprimer toutes les demandes récentes ?"
                 >
                   🗑
                 </ConfirmSubmitButton>
               </form>
-            ) : null}
+            )}
           </div>
-          {recentVac.length === 0 ? (
-            <div className="muted">Aucune décision récente.</div>
-          ) : (
-            <div className="tableWrap">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Employé</th>
-                    <th>Période</th>
-                    <th>Statut</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentVac.map((r) => (
-                    <tr key={r.id}>
-                      <td>
-                        {r.employee.firstName} {r.employee.lastName}
-                        <div className="muted">{r.employee.department}</div>
-                      </td>
-                      <td>
-                        {fmt(r.startDate)} → {fmt(r.endDate)}
-                      </td>
-                      <td>
-                        <span className={`tag ${r.status.toLowerCase()}`}>{statusLabel(r.status)}</span>
 
-                      </td>
-                      <td style={{ textAlign: "right" }}>
-                        <div className="actions">
-                          {r.status === "APPROVED" ? (
-                            <form
-                              action={async () => {
-                                "use server";
-                                const { cancelApprovedVacation } = await import("./action");
-                                await cancelApprovedVacation(r.id);
-                              }}
-                            >
-                              <button className="btn danger compactAction" type="submit">
-                                Annuler l’approbation
-                              </button>
-                            </form>
-                          ) : null}
-                          <form
-                            action={async () => {
-                              "use server";
-                              const { deleteVacationRequest } = await import("./action");
-                              await deleteVacationRequest(r.id);
-                            }}
-                          >
-                            <ConfirmSubmitButton
-                              className="btn danger iconOnly"
-                              title="Supprimer cette demande"
-                              confirmMessage="Supprimer cette demande ?"
-                            >
-                              🗑
-                            </ConfirmSubmitButton>
-                          </form>
+          {recentVac.length === 0 ? (
+            <div className="rqEmpty">Aucune décision récente</div>
+          ) : (
+            <div className="rqList">
+              {recentVac.map((r) => {
+                const days = dayCount(r.startDate, r.endDate);
+                const sameDay = fmtFull(r.startDate) === fmtFull(r.endDate);
+                const st = r.status.toLowerCase();
+                return (
+                  <div key={r.id} className={`rqCard rqCard--${st}`}>
+                    <div className="rqCardMain">
+                      <div className={`rqCardDot rqCardDot--${st}`}>
+                        {statusIcon(r.status)}
+                      </div>
+                      <div className="rqCardInfo">
+                        <div className="rqCardName">
+                          {r.employee.firstName} {r.employee.lastName}
+                          <span className={`rqBadge rqBadge--${st}`}>{statusLabel(r.status)}</span>
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                        <div className="rqCardMeta">
+                          <span className="rqCardDate">
+                            {sameDay
+                              ? fmtShort(r.startDate)
+                              : `${fmtShort(r.startDate)} → ${fmtShort(r.endDate)}`}
+                          </span>
+                          <span className="rqCardDays">{days}j</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="rqCardActions">
+                      {r.status === "APPROVED" && (
+                        <form
+                          action={async () => {
+                            "use server";
+                            const { cancelApprovedVacation } = await import("./action");
+                            await cancelApprovedVacation(r.id);
+                          }}
+                        >
+                          <button className="rqBtn rqBtnReject rqBtnCompact" type="submit">Annuler</button>
+                        </form>
+                      )}
+                      <form
+                        action={async () => {
+                          "use server";
+                          const { deleteVacationRequest } = await import("./action");
+                          await deleteVacationRequest(r.id);
+                        }}
+                      >
+                        <ConfirmSubmitButton
+                          className="rqBtnIcon rqBtnDanger"
+                          title="Supprimer"
+                          confirmMessage="Supprimer cette demande ?"
+                        >
+                          🗑
+                        </ConfirmSubmitButton>
+                      </form>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </section>
