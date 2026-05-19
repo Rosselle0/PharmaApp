@@ -1,5 +1,4 @@
 import { unstable_noStore as noStore } from "next/cache";
-import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import KioskClient from "./KioskClient";
@@ -16,10 +15,6 @@ export default async function KioskPage() {
 
   const isAdminLogged = auth.ok && auth.role === "ADMIN";
   const isManagerLogged = auth.ok && auth.role === "MANAGER";
-
-  if (isManagerLogged && !isAdminLogged) {
-    redirect("/admin/logs");
-  }
 
   let privilegedName: string | undefined;
   let privilegedCode: string | undefined;
