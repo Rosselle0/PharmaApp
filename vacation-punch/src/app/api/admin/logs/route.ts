@@ -7,6 +7,8 @@ import { expireStalePunchKioskLocksForEmployeeIds } from "@/lib/punch/kioskLockD
 import { requirePrivilegedOrRedirect } from "@/lib/privilgedAuth";
 import { ShiftStatus } from "@prisma/client";
 import { messageFromUnknown } from "@/lib/unknownError";
+import { computeEffectiveStartTime, computeLatePenaltyMinutes } from "@/lib/punch/late";
+import { employeeHasOpenPunchSession } from "@/lib/punch/shiftStatus";
 
 function startOfDayUTC(ymd: string) {
   // Treat `ymd` as local-ish date string; convert to UTC day boundary safely.
@@ -19,12 +21,6 @@ function nextDayUTC(ymd: string) {
   const dt = startOfDayUTC(ymd);
   dt.setUTCDate(dt.getUTCDate() + 1);
   return dt;
-}
-
-function roundUpToNext15Minutes(mins: number) {
-  if (!Number.isFinite(mins)) return 0;
-  if (mins <= 0) return 0;
-  return Math.ceil(mins / 15) * 15;
 }
 
 function ymdUTC(d: Date) {
@@ -67,10 +63,17 @@ export async function GET(req: Request) {
     const clearedLocks = await expireStalePunchKioskLocksForEmployeeIds(
       employeesRaw.filter((e) => e.punchKioskLocked).map((e) => e.id)
     );
-    const employees = employeesRaw.map((e) => ({
-      ...e,
-      punchKioskLocked: clearedLocks.has(e.id) ? false : e.punchKioskLocked,
-    }));
+    const employees = await Promise.all(
+      employeesRaw.map(async (e) => {
+        const session = await employeeHasOpenPunchSession(e.id);
+        return {
+          ...e,
+          punchKioskLocked: clearedLocks.has(e.id) ? false : e.punchKioskLocked,
+          punchSessionOpen: session.sessionOpen,
+          punchSessionState: session.state,
+        };
+      })
+    );
 
     const employeeIds = employees.map((e) => e.id);
 
@@ -266,7 +269,7 @@ export async function GET(req: Request) {
       // - > 5 minutes late => round UP to the next 15-min increment and apply as effective start delay
       const rawLateMinutes = firstIn ? (firstIn.getTime() - s.startTime.getTime()) / 60000 : null;
       const latePenaltyMinutes =
-        rawLateMinutes === null ? null : rawLateMinutes <= 5 ? 0 : roundUpToNext15Minutes(rawLateMinutes);
+        rawLateMinutes === null ? null : computeLatePenaltyMinutes(rawLateMinutes);
       // Overtime: no rounding. We compute exact minutes difference to the scheduled end.
       const overtimeMinutes =
         lastOut && lastOut.getTime() > s.endTime.getTime()
@@ -294,9 +297,11 @@ export async function GET(req: Request) {
       const effectiveStartTime =
         missingClockIn || latePenaltyMinutes === null
           ? null
-          : lateStatus === "REJECTED" || !latePenaltyMinutes || latePenaltyMinutes <= 0
-            ? s.startTime.toISOString()
-            : new Date(s.startTime.getTime() + latePenaltyMinutes * 60_000).toISOString();
+          : computeEffectiveStartTime(
+              s.startTime,
+              latePenaltyMinutes,
+              lateStatus === "REJECTED" ? "REJECTED" : lateStatus === "ACCEPTED" ? "ACCEPTED" : "PENDING"
+            ).toISOString();
 
       return {
         id: s.id,

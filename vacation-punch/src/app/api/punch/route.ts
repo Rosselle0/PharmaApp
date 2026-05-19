@@ -5,6 +5,12 @@ import { NextResponse } from "next/server";
 import { prisma, punchPrismaErrorUserMessage } from "@/lib/prisma";
 import { resolvePunchKioskLocked } from "@/lib/punch/kioskLockDay";
 import { requireEmployeeFromKioskOrCode, requireEmployeeFromKioskOrCodeValue } from "@/lib/shiftChange/auth";
+import { isAutoPunchShift } from "@/lib/punch/shiftNotes";
+import {
+  computeShiftStatus,
+  fetchEmployeePunchHistory,
+  type PunchType,
+} from "@/lib/punch/shiftStatus";
 import { requireTerminalOrDev } from "@/lib/punch/terminalGuard";
 import { ShiftStatus, VacationStatus } from "@prisma/client";
 
@@ -64,10 +70,6 @@ function roundToNearest15Minutes(d: Date) {
   return x;
 }
 
-function isAutoShiftNote(note: string | null | undefined) {
-  return note === "PUNCH_AUTO" || note === "PUNCH_AUTO_UNAVAILABLE";
-}
-
 const PunchTypes = [
   "CLOCK_IN",
   "CLOCK_OUT",
@@ -77,94 +79,10 @@ const PunchTypes = [
   "LUNCH_END",
 ] as const;
 
-type PunchType = (typeof PunchTypes)[number];
 type PunchState = "OUT" | "IN" | "ON_BREAK" | "ON_LUNCH";
 
 function isPunchType(x: unknown): x is PunchType {
   return typeof x === "string" && (PunchTypes as readonly string[]).includes(x);
-}
-
-function diffMs(a: Date, b: Date) {
-  return Math.max(0, a.getTime() - b.getTime());
-}
-
-function getShiftStatus(events: Array<{ type: PunchType; at: Date }>, now = new Date()) {
-  let state: PunchState = "OUT";
-  let shiftStart: Date | null = null;
-  let activeStartedAt: Date | null = null;
-  let breakDone = false;
-  let lunchDone = false;
-  let breakMs = 0;
-  let lunchMs = 0;
-
-  for (const event of events) {
-    switch (event.type) {
-      case "CLOCK_IN":
-        state = "IN";
-        shiftStart = event.at;
-        activeStartedAt = null;
-        breakDone = false;
-        lunchDone = false;
-        breakMs = 0;
-        lunchMs = 0;
-        break;
-      case "BREAK_START":
-        if (shiftStart && state === "IN" && !breakDone) {
-          state = "ON_BREAK";
-          activeStartedAt = event.at;
-        }
-        break;
-      case "BREAK_END":
-        if (shiftStart && state === "ON_BREAK" && activeStartedAt) {
-          breakMs += diffMs(event.at, activeStartedAt);
-          breakDone = true;
-          state = "IN";
-          activeStartedAt = null;
-        }
-        break;
-      case "LUNCH_START":
-        if (shiftStart && state === "IN" && !lunchDone) {
-          state = "ON_LUNCH";
-          activeStartedAt = event.at;
-        }
-        break;
-      case "LUNCH_END":
-        if (shiftStart && state === "ON_LUNCH" && activeStartedAt) {
-          lunchMs += diffMs(event.at, activeStartedAt);
-          lunchDone = true;
-          state = "IN";
-          activeStartedAt = null;
-        }
-        break;
-      case "CLOCK_OUT":
-        state = "OUT";
-        shiftStart = null;
-        activeStartedAt = null;
-        breakDone = false;
-        lunchDone = false;
-        breakMs = 0;
-        lunchMs = 0;
-        break;
-    }
-  }
-
-  let workMs = 0;
-  if (shiftStart) {
-    const runningEnd = state === "IN" ? now : activeStartedAt ?? now;
-    workMs = Math.max(0, diffMs(runningEnd, shiftStart) - breakMs - lunchMs);
-  }
-
-  const liveBreakMs = state === "ON_BREAK" && activeStartedAt ? breakMs + diffMs(now, activeStartedAt) : breakMs;
-  const liveLunchMs = state === "ON_LUNCH" && activeStartedAt ? lunchMs + diffMs(now, activeStartedAt) : lunchMs;
-
-  return {
-    state,
-    breakDone,
-    lunchDone,
-    workMs,
-    breakMs: liveBreakMs,
-    lunchMs: liveLunchMs,
-  };
 }
 
 export async function POST(req: Request) {
@@ -214,13 +132,12 @@ export async function POST(req: Request) {
   const nowYmd = ymdInTZ(punchAt);
   const nowTime = punchAt.getTime();
 
-  const history = await prisma.punchEvent.findMany({
-    where: { employeeId },
-    orderBy: { at: "asc" },
-    select: { type: true, at: true, shiftId: true },
-  });
+  const history = await fetchEmployeePunchHistory(employeeId);
 
-  const status = getShiftStatus(history as Array<{ type: PunchType; at: Date }>, punchAt);
+  const status = computeShiftStatus(
+    history.map((h) => ({ type: h.type as PunchType, at: h.at, shiftId: h.shiftId })),
+    punchAt
+  );
 
   // Determine active shift (for BREAK/LUNCH punches). We only reliably attach shiftId to CLOCK_IN/CLOCK_OUT.
   const lastClockInWithShiftId =
@@ -239,7 +156,12 @@ export async function POST(req: Request) {
 
   if (!allowed[status.state].includes(type)) {
     return NextResponse.json(
-      { ok: false, error: `Action non permise dans l'état: ${status.state}` },
+      {
+        ok: false,
+        error: `Action non permise dans l'état: ${status.state}`,
+        serverState: status.state,
+        staleSession: status.staleSession,
+      },
       { status: 409 }
     );
   }
@@ -292,8 +214,8 @@ export async function POST(req: Request) {
       if (linked && ymdInTZ(linked.startTime) === nowYmd) {
         return {
           shiftId: linked.id,
-          isAuto: isAutoShiftNote(linked.note),
-          autoNote: isAutoShiftNote(linked.note) ? linked.note ?? null : null,
+          isAuto: isAutoPunchShift(linked.note),
+          autoNote: isAutoPunchShift(linked.note) ? linked.note ?? null : null,
         };
       }
     }
@@ -313,11 +235,14 @@ export async function POST(req: Request) {
 
     const sameDay = candidates.filter((s) => ymdInTZ(s.startTime) === nowYmd);
     if (sameDay.length) {
+      const manualSameDay = sameDay.filter((s) => !isAutoPunchShift(s.note));
+      const matchPool = manualSameDay.length ? manualSameDay : sameDay;
+
       const toleranceBeforeMs = 2 * 60 * 60 * 1000;
       const toleranceAfterMs = type === "CLOCK_IN" ? 12 * 60 * 60 * 1000 : 12 * 60 * 60 * 1000;
 
       let best: { id: string; score: number } | null = null;
-      for (const s of sameDay) {
+      for (const s of matchPool) {
         const startMs = s.startTime.getTime();
         const endMs = s.endTime.getTime();
         const minAllowed = type === "CLOCK_IN" ? startMs - toleranceBeforeMs : endMs - toleranceBeforeMs;
@@ -333,16 +258,22 @@ export async function POST(req: Request) {
       // Important fallback:
       // if a planned shift exists on the same day but is outside tolerance,
       // still attach to the nearest same-day shift instead of auto-creating.
-      const nearestSameDay = [...sameDay]
+      const nearestSameDay = [...matchPool]
         .sort((a, b) => {
           const targetA = type === "CLOCK_IN" ? a.startTime.getTime() : a.endTime.getTime();
           const targetB = type === "CLOCK_IN" ? b.startTime.getTime() : b.endTime.getTime();
           return Math.abs(nowTime - targetA) - Math.abs(nowTime - targetB);
         })[0];
-      if (nearestSameDay) return { shiftId: nearestSameDay.id, isAuto: false, autoNote: null };
+      if (nearestSameDay) {
+        return {
+          shiftId: nearestSameDay.id,
+          isAuto: isAutoPunchShift(nearestSameDay.note),
+          autoNote: isAutoPunchShift(nearestSameDay.note) ? nearestSameDay.note ?? null : null,
+        };
+      }
     }
 
-    // No planned shift: auto-create one on CLOCK_IN/CLOCK_OUT so schedule can display it.
+    // No planned shift: auto-create only when nothing exists on this day.
     const availableRule = await prisma.availabilityRule.findFirst({
       where: { employeeId, dayOfWeek: dayOfWeekInTZ(punchAt) },
       select: { available: true },
@@ -413,17 +344,11 @@ export async function POST(req: Request) {
     });
   }
 
-  // If this was an auto-created shift, update its endTime on CLOCK_OUT so schedule shows the real range.
-  if (type === "CLOCK_OUT" && isAuto && chosenShiftId) {
-    const end = roundToNearest15Minutes(punchAt);
-    await prisma.shift.update({
-      where: { id: chosenShiftId },
-      data: { endTime: end },
-    });
-  }
-
-  const nextStatus = getShiftStatus(
-    [...history as Array<{ type: PunchType; at: Date }>, { type, at: punchAt }],
+  const nextStatus = computeShiftStatus(
+    [
+      ...history.map((h) => ({ type: h.type as PunchType, at: h.at, shiftId: h.shiftId })),
+      { type, at: punchAt, shiftId: null },
+    ],
     punchAt
   );
 

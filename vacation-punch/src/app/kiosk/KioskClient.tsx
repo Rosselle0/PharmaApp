@@ -41,6 +41,12 @@ type PunchAction =
   | "LUNCH_START"
   | "LUNCH_END";
 
+type PlannedShiftInfo = {
+  shiftId: string;
+  startISO: string;
+  endISO: string;
+};
+
 type PunchStatus = {
   state: PunchState;
   breakDone: boolean;
@@ -50,6 +56,9 @@ type PunchStatus = {
   lunchMs: number;
   fetchedAt: string;
   punchKioskLocked?: boolean;
+  plannedShift?: PlannedShiftInfo | null;
+  lateMs?: number;
+  isLate?: boolean;
 };
 
 type OvertimePrompt = {
@@ -209,6 +218,9 @@ function firstWord(v: string | null | undefined) {
         lunchMs: Number(data.lunchMs ?? 0),
         fetchedAt: String(data.fetchedAt ?? new Date().toISOString()),
         punchKioskLocked: Boolean(data.punchKioskLocked),
+        plannedShift: data.plannedShift ?? null,
+        lateMs: Number(data.lateMs ?? 0),
+        isLate: Boolean(data.isLate),
       });
     } catch {
       setPunchStateErr("Erreur réseau punch.");
@@ -265,6 +277,18 @@ function firstWord(v: string | null | undefined) {
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.ok) {
+        if (data?.serverState) {
+          setPunchStatus((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  state: data.serverState,
+                  fetchedAt: new Date().toISOString(),
+                }
+              : null
+          );
+          await loadPunchState();
+        }
         showToast(data?.error ?? `Erreur (${res.status})`);
         return;
       }
@@ -834,14 +858,29 @@ function firstWord(v: string | null | undefined) {
   const state: PunchState = punchStatus?.state ?? "OUT";
   const punchKioskLocked = Boolean(punchStatus?.punchKioskLocked);
   const displayedMs = getDisplayedMs(punchStatus, tickNow);
+  const plannedShift = punchStatus?.plannedShift ?? null;
+  const liveLateMs =
+    state === "OUT" && plannedShift
+      ? Math.max(0, tickNow - new Date(plannedShift.startISO).getTime() - 5 * 60 * 1000)
+      : 0;
+  const showLateBanner = state === "OUT" && plannedShift && liveLateMs > 0;
+  const plannedStartLabel = plannedShift
+    ? new Date(plannedShift.startISO).toLocaleTimeString("fr-CA", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      })
+    : null;
   const timerLabel =
-    state === "ON_BREAK"
-      ? "En pause"
-      : state === "ON_LUNCH"
-      ? "En repas"
-      : state === "IN"
-      ? "Temps travaillé"
-      : "Temps";
+    showLateBanner
+      ? "Retard"
+      : state === "ON_BREAK"
+        ? "En pause"
+        : state === "ON_LUNCH"
+          ? "En repas"
+          : state === "IN"
+            ? "Temps travaillé"
+            : "Temps";
   const timerDanger =
     (state === "ON_BREAK" && displayedMs > 15 * 60 * 1000) ||
     (state === "ON_LUNCH" && displayedMs > 30 * 60 * 1000);
@@ -1232,9 +1271,26 @@ function firstWord(v: string | null | undefined) {
                 </div>
               ) : null}
 
-              <div className={`punchTimer ${timerDanger ? "danger" : ""}`}>
+              {plannedShift && state === "OUT" && !showLateBanner ? (
+                <div className="punchPlannedBanner" role="status">
+                  Quart prévu à <strong>{plannedStartLabel}</strong>
+                </div>
+              ) : null}
+
+              {showLateBanner ? (
+                <div className="punchLateBanner" role="status">
+                  <div className="punchLateBannerTitle">
+                    Quart prévu à <strong>{plannedStartLabel}</strong>
+                  </div>
+                  <div className="punchLateBannerSub">Vous êtes en retard — pointez votre entrée dès que possible.</div>
+                </div>
+              ) : null}
+
+              <div className={`punchTimer ${timerDanger || showLateBanner ? "danger" : ""}`}>
                 <div className="punchTimerLabel">{timerLabel}</div>
-                <div className="punchTimerValue">{formatDuration(displayedMs)}</div>
+                <div className="punchTimerValue">
+                  {formatDuration(showLateBanner ? liveLateMs : displayedMs)}
+                </div>
               </div>
 
               {punchStateErr && <div className="punchError">{punchStateErr}</div>}

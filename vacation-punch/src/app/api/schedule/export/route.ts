@@ -1,8 +1,19 @@
 // src/app/api/schedule/export/route.ts
 import { NextRequest } from "next/server";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { Department, ShiftStatus } from "@prisma/client";
 import { unpaidBreak30DeductionMinutes } from "@/lib/unpaidBreak30";
+import {
+  applyEmployeeOrder,
+  parseOrderIds,
+  resolveScheduleOrderParam,
+} from "@/lib/schedule/employeeOrder";
+import {
+  buildPunchInByShiftId,
+  collapseShiftsForDisplay,
+  shiftDisplayTimes,
+} from "@/lib/schedule/shiftDisplay";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -98,10 +109,12 @@ async function getDefaultCompany() {
 }
 
 type ShiftLite = {
+  id: string;
   employeeId: string;
   startTime: Date;
   endTime: Date;
   note: string | null;
+  punchInAt?: Date | null;
 };
 
 type EmployeeLite = {
@@ -121,7 +134,11 @@ function buildShiftMap(shifts: ShiftLite[]) {
     map.set(key, arr);
   }
 
-  return map;
+  const out = new Map<string, ShiftLite[]>();
+  for (const [key, list] of map) {
+    out.set(key, collapseShiftsForDisplay(list));
+  }
+  return out;
 }
 
 function fitText(
@@ -279,13 +296,12 @@ function drawWeekTable(
       const text = list
         .map((sh) => {
           if (sh.note === "VAC") return "VAC";
-          const start = new Date(sh.startTime);
-          const end = new Date(sh.endTime);
+          const { start, end } = shiftDisplayTimes(sh);
           const grossMinutes = Math.floor((end.getTime() - start.getTime()) / 60000);
           const rawHours = hoursBetween(start, end);
           const deductionMinutes = unpaidBreak30DeductionMinutes(emp.paidBreak30, grossMinutes);
           weeklyTotal += Math.max(0, rawHours - deductionMinutes / 60);
-          return formatShiftRange(new Date(sh.startTime), new Date(sh.endTime));
+          return formatShiftRange(start, end);
         })
         .join(" / ");
 
@@ -338,14 +354,17 @@ function drawWeekTable(
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const week = String(url.searchParams.get("week") ?? "").trim();
-  const orderParam = String(url.searchParams.get("order") ?? "").trim();
-  const requestedOrder = orderParam
-    .split(",")
-    .map((id) => id.trim())
-    .filter(Boolean);
   const sectionParam = String(url.searchParams.get("section") ?? "CAISSE_LAB").toUpperCase();
   const section: "CAISSE_LAB" | "FLOOR" =
     sectionParam.includes("FLOOR") ? "FLOOR" : "CAISSE_LAB";
+
+  const cookieStore = await cookies();
+  const orderParam = resolveScheduleOrderParam({
+    fromQuery: url.searchParams.get("order"),
+    section,
+    cookieStore,
+  });
+  const requestedOrder = parseOrderIds(orderParam);
   const departments: Department[] = section === "FLOOR" ? [Department.FLOOR] : [Department.CASH, Department.LAB];
 
   const base = week ? new Date(`${week}T12:00:00`) : new Date();
@@ -361,10 +380,7 @@ export async function GET(req: NextRequest) {
     orderBy: [{ department: "asc" }, { lastName: "asc" }, { firstName: "asc" }],
     select: { id: true, firstName: true, lastName: true, paidBreak30: true },
   });
-  const byId = new Map(employeesRaw.map((e) => [e.id, e]));
-  const requested = requestedOrder.map((id) => byId.get(id)).filter((e): e is EmployeeLite => Boolean(e));
-  const remaining = employeesRaw.filter((e) => !requestedOrder.includes(e.id));
-  const employees = requested.length > 0 ? [...requested, ...remaining] : employeesRaw;
+  const employees = applyEmployeeOrder(employeesRaw, requestedOrder);
 
   const shifts = await prisma.shift.findMany({
     where: {
@@ -373,13 +389,34 @@ export async function GET(req: NextRequest) {
       AND: [{ startTime: { lt: end } }, { endTime: { gt: week1 } }],
     },
     orderBy: [{ startTime: "asc" }],
-    select: { employeeId: true, startTime: true, endTime: true, note: true },
+    select: { id: true, employeeId: true, startTime: true, endTime: true, note: true },
   });
 
-  const week1Shifts = shifts.filter(
+  const punchWindowStart = new Date(week1.getTime() - 48 * 60 * 60 * 1000);
+  const punchWindowEnd = new Date(end.getTime() + 48 * 60 * 60 * 1000);
+  const punchIns = await prisma.punchEvent.findMany({
+    where: {
+      employeeId: { in: employees.map((e) => e.id) },
+      type: "CLOCK_IN",
+      at: { gte: punchWindowStart, lt: punchWindowEnd },
+    },
+    orderBy: { at: "asc" },
+    select: { employeeId: true, shiftId: true, at: true },
+  });
+  const punchInByShiftId = buildPunchInByShiftId(shifts, punchIns);
+  const shiftsWithPunch: ShiftLite[] = shifts.map((s) => ({
+    id: s.id,
+    employeeId: s.employeeId,
+    startTime: s.startTime,
+    endTime: s.endTime,
+    note: s.note,
+    punchInAt: punchInByShiftId.get(s.id) ?? null,
+  }));
+
+  const week1Shifts = shiftsWithPunch.filter(
     (s) => new Date(s.startTime) < week2 && new Date(s.endTime) > week1
   );
-  const week2Shifts = shifts.filter(
+  const week2Shifts = shiftsWithPunch.filter(
     (s) => new Date(s.startTime) < end && new Date(s.endTime) > week2
   );
 

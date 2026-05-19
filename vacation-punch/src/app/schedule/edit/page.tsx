@@ -11,6 +11,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import ScheduleEditorClient from "./ui";
 import { requireKioskManagerOrAdmin } from "@/lib/kioskAuth"; // <-- use your kiosk+supabase guard
+import { buildPunchInByShiftId } from "@/lib/schedule/shiftDisplay";
 
 export type AvailabilityForEditor = {
   employeeId: string;
@@ -264,6 +265,20 @@ export default async function ScheduleEditPage({
     },
   });
 
+  const punchWindowStart = new Date(weekStart.getTime() - 48 * 60 * 60 * 1000);
+  const punchWindowEnd = new Date(weekEnd.getTime() + 48 * 60 * 60 * 1000);
+  const punchIns = await prisma.punchEvent.findMany({
+    where: {
+      employeeId: { in: employeeIds },
+      type: "CLOCK_IN",
+      at: { gte: punchWindowStart, lt: punchWindowEnd },
+    },
+    orderBy: { at: "asc" },
+    select: { employeeId: true, shiftId: true, at: true },
+  });
+
+  const punchInByShiftId = buildPunchInByShiftId(shifts, punchIns);
+
   const shiftsForClient = shifts.map((s) => ({
     id: s.id,
     employeeId: s.employeeId,
@@ -272,6 +287,7 @@ export default async function ScheduleEditPage({
     note: s.note ?? null,
     source: s.source,
     ruleLocked: s.rule?.locked ?? false,
+    punchInAt: punchInByShiftId.get(s.id)?.toISOString() ?? null,
   }));
 
   const employeeIdSet = new Set(employeeIds);

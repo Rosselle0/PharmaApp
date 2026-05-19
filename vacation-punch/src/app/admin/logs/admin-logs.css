@@ -447,6 +447,16 @@
   background: rgba(245, 158, 11, 0.08);
 }
 
+.adminLogsSessionOpenBar {
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.adminLogsResetSessionBtn {
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #b91c1c;
+}
+
 .adminLogsPunchLockText {
   flex: 1;
   min-width: 200px;

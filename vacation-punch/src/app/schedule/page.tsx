@@ -12,7 +12,14 @@ import { getKioskEmployeeFromSession } from "@/lib/kioskEmployeeAuth";
 import { unpaidBreak30DeductionMinutes } from "@/lib/unpaidBreak30";
 import OrderSyncClient from "./OrderSyncClient";
 import ScheduleDomOrderSync from "./ScheduleDomOrderSync";
+import ScheduleExportLink from "./ScheduleExportLink";
 import { ymdInTZ } from "@/lib/shiftChange/time";
+import {
+  computeEffectiveStartTime,
+  computeLatePenaltyMinutes,
+  type LateDecision,
+} from "@/lib/punch/late";
+import { isAutoPunchShift } from "@/lib/punch/shiftNotes";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -53,16 +60,79 @@ function formatQuarterHours(totalMinutes: number) {
   return `${whole}${suffix}`;
 }
 
-function isAutoPunchShift(note: string | null) {
-  return note === "PUNCH_AUTO" || note === "PUNCH_AUTO_UNAVAILABLE";
-}
-
 const DAY_LABELS = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
 
-function normalizeDayShifts<T extends { effectiveStartTime: Date; endTime: Date; note: string | null }>(rawList: T[]) {
+/** Hide auto punch rows when a real planned shift exists that day. */
+function scheduleShiftsForDisplay(list: ScheduleShiftRow[]) {
+  if (list.some((s) => !isAutoPunchShift(s.note))) {
+    return list.filter((s) => !isAutoPunchShift(s.note));
+  }
+  return list;
+}
+
+/** One visual row per day: merge punch onto the planned shift, drop duplicate/auto rows. */
+function collapseScheduleDayShifts(list: ScheduleShiftRow[]): ScheduleShiftRow[] {
+  const rows = scheduleShiftsForDisplay(list);
+  if (rows.length <= 1) return rows;
+
+  const manual = rows.filter((s) => !isAutoPunchShift(s.note));
+  const pool = manual.length ? manual : rows;
+  const primary = [...pool].sort((a, b) => a.startTime.getTime() - b.startTime.getTime())[0];
+  const punchInAt =
+    pool.map((s) => s.punchInAt).find((t): t is Date => t instanceof Date) ?? null;
+
+  if (!punchInAt) return normalizeDayShifts(pool);
+
+  const rawLateMinutes = (punchInAt.getTime() - primary.startTime.getTime()) / 60000;
+  const latePenaltyMinutes = computeLatePenaltyMinutes(rawLateMinutes) ?? 0;
+  const lateDecision: LateDecision | null =
+    latePenaltyMinutes > 0
+      ? pool.find((s) => s.lateDecision)?.lateDecision ?? primary.lateDecision ?? "PENDING"
+      : null;
+
+  return [
+    {
+      ...primary,
+      punchInAt,
+      latePenaltyMinutes,
+      lateDecision,
+      payableStartTime: computeEffectiveStartTime(primary.startTime, latePenaltyMinutes, lateDecision),
+    },
+  ];
+}
+
+function prepareScheduleDayShifts(list: ScheduleShiftRow[]) {
+  return normalizeDayShifts(collapseScheduleDayShifts(list));
+}
+
+function scheduleShiftTimeLabels(sh: ScheduleShiftRow) {
+  if (sh.punchInAt) {
+    return {
+      start: hmLocal(new Date(sh.punchInAt)),
+      end: hmLocal(new Date(sh.endTime)),
+    };
+  }
+  return {
+    start: hmLocal(new Date(sh.startTime)),
+    end: hmLocal(new Date(sh.endTime)),
+  };
+}
+
+type ScheduleShiftRow = {
+  id: string;
+  startTime: Date;
+  endTime: Date;
+  note: string | null;
+  punchInAt: Date | null;
+  latePenaltyMinutes: number;
+  lateDecision: LateDecision | null;
+  payableStartTime: Date;
+};
+
+function normalizeDayShifts<T extends { startTime: Date; endTime: Date; note: string | null }>(rawList: T[]) {
   const byStart = new Map<string, T>();
   for (const sh of rawList) {
-    const startKey = hmLocal(new Date(sh.effectiveStartTime));
+    const startKey = hmLocal(new Date(sh.startTime));
     const prev = byStart.get(startKey);
     if (!prev) {
       byStart.set(startKey, sh);
@@ -79,8 +149,7 @@ function normalizeDayShifts<T extends { effectiveStartTime: Date; endTime: Date;
     }
   }
   return Array.from(byStart.values()).sort(
-    (a, b) =>
-      new Date(a.effectiveStartTime).getTime() - new Date(b.effectiveStartTime).getTime()
+    (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
   );
 }
 
@@ -195,12 +264,7 @@ export default async function SchedulePage({
     select: { id: true, employeeId: true, startTime: true, endTime: true, note: true },
   });
 
-  function roundUpToNext15Minutes(mins: number) {
-    if (!Number.isFinite(mins) || mins <= 0) return 0;
-    return Math.ceil(mins / 15) * 15;
-  }
-
-  // Fetch CLOCK_IN punches in the visible window (for late->effective start display).
+  // Fetch CLOCK_IN punches in the visible window (actual punch times; planned times stay on Shift).
   const punchWindowStart = new Date(weekStart.getTime() - 48 * 60 * 60 * 1000);
   const punchWindowEnd = new Date(weekEnd.getTime() + 48 * 60 * 60 * 1000);
   const punchIns = await prisma.punchEvent.findMany({
@@ -222,15 +286,35 @@ export default async function SchedulePage({
     punchInByEmployee.set(p.employeeId, arr);
   }
 
-  const latePenaltyByShiftId = new Map<string, number>();
-  const effectiveStartByShiftId = new Map<string, Date>();
+  const shiftIds = shifts.map((s) => s.id);
+  const lateAuditLogs = shiftIds.length
+    ? await prisma.auditLog.findMany({
+        where: {
+          companyId,
+          target: { in: shiftIds },
+          action: { in: ["LATE_ACCEPTED", "LATE_REJECTED", "LATE_REVIEWED"] },
+        },
+        orderBy: { createdAt: "desc" },
+        select: { target: true, action: true },
+      })
+    : [];
+
+  const lateDecisionByShiftId = new Map<string, LateDecision>();
+  for (const l of lateAuditLogs) {
+    if (lateDecisionByShiftId.has(l.target)) continue;
+    if (l.action === "LATE_REJECTED") lateDecisionByShiftId.set(l.target, "REJECTED");
+    else if (l.action === "LATE_ACCEPTED" || l.action === "LATE_REVIEWED") {
+      lateDecisionByShiftId.set(l.target, "ACCEPTED");
+    }
+  }
+
+  const punchInAtByShiftId = new Map<string, Date>();
 
   for (const s of shifts) {
     const startMs = s.startTime.getTime();
     let firstIn = s.id && punchInByShiftId.get(s.id);
     if (!firstIn) {
       const arr = punchInByEmployee.get(s.employeeId) ?? [];
-      // Late window: allow up to 12h after scheduled start, and 2h before.
       const toleranceBeforeMs = 2 * 60 * 60 * 1000;
       const toleranceAfterMs = 12 * 60 * 60 * 1000;
       const candidates = arr.filter((at) => {
@@ -239,33 +323,30 @@ export default async function SchedulePage({
       });
       firstIn = candidates.length ? candidates[0] : undefined;
     }
-
-    if (!firstIn) continue;
-
-    const rawLateMinutes = (firstIn.getTime() - startMs) / 60000;
-    const latePenaltyMinutes = rawLateMinutes <= 5 ? 0 : roundUpToNext15Minutes(rawLateMinutes);
-    if (latePenaltyMinutes > 0) {
-      latePenaltyByShiftId.set(s.id, latePenaltyMinutes);
-      effectiveStartByShiftId.set(s.id, new Date(startMs + latePenaltyMinutes * 60 * 1000));
-    } else {
-      effectiveStartByShiftId.set(s.id, s.startTime);
-    }
+    if (firstIn) punchInAtByShiftId.set(s.id, firstIn);
   }
 
-  const byUserDay = new Map<
-    string,
-    { id: string; startTime: Date; effectiveStartTime: Date; endTime: Date; note: string | null }[]
-  >();
+  const byUserDay = new Map<string, ScheduleShiftRow[]>();
 
   for (const s of shifts) {
     const key = `${s.employeeId}:${ymdInTZ(new Date(s.startTime))}`;
+    const punchInAt = punchInAtByShiftId.get(s.id) ?? null;
+    const rawLateMinutes = punchInAt ? (punchInAt.getTime() - s.startTime.getTime()) / 60000 : null;
+    const latePenaltyMinutes = punchInAt ? computeLatePenaltyMinutes(rawLateMinutes) ?? 0 : 0;
+    const lateDecision: LateDecision | null =
+      latePenaltyMinutes > 0 ? lateDecisionByShiftId.get(s.id) ?? "PENDING" : null;
+    const payableStartTime = computeEffectiveStartTime(s.startTime, latePenaltyMinutes, lateDecision);
+
     const arr = byUserDay.get(key) ?? [];
     arr.push({
       id: s.id,
       startTime: s.startTime,
-      effectiveStartTime: effectiveStartByShiftId.get(s.id) ?? s.startTime,
       endTime: s.endTime,
       note: s.note ?? null,
+      punchInAt,
+      latePenaltyMinutes,
+      lateDecision,
+      payableStartTime,
     });
     byUserDay.set(key, arr);
   }
@@ -276,27 +357,22 @@ export default async function SchedulePage({
   const codeQS = "";
   const sectionQS = `&section=${encodeURIComponent(section)}`;
   const orderQS = orderParam ? `&order=${encodeURIComponent(orderParam)}` : "";
-  const exportHref = `/api/schedule/export?week=${encodeURIComponent(
-    ymdInTZ(weekStart)
-  )}${sectionQS}${orderQS}`;
-
   const mobileDays = days.map((d, i) => {
     const ymd = ymdInTZ(d);
     const employeesWorking = viewEmployees
       .map((u) => {
-        const rawList = byUserDay.get(`${u.id}:${ymd}`) ?? [];
-        const list = normalizeDayShifts(rawList);
+        const list = prepareScheduleDayShifts(byUserDay.get(`${u.id}:${ymd}`) ?? []);
         if (list.length === 0) return null;
         return {
           id: u.id,
           name: `${u.firstName} ${u.lastName}`,
           department:
             u.role === "MANAGER" ? "Gérant" : u.department === "CASH" ? "Caisse" : u.department === "LAB" ? "Lab" : "Plancher",
-          shifts: list.map((sh) =>
-            sh.note === "VAC"
-              ? "VAC"
-              : `${hmLocal(new Date(sh.effectiveStartTime))}–${hmLocal(new Date(sh.endTime))}`
-          ),
+          shifts: list.map((sh) => {
+            if (sh.note === "VAC") return "VAC";
+            const t = scheduleShiftTimeLabels(sh);
+            return `${t.start}–${t.end}`;
+          }),
         };
       })
       .filter((x): x is { id: string; name: string; department: string; shifts: string[] } => Boolean(x));
@@ -374,12 +450,11 @@ export default async function SchedulePage({
                   Semaine suivante →
                 </Link>
               </div>
-              <a
-                href={exportHref}
+              <ScheduleExportLink
+                weekYmd={ymdInTZ(weekStart)}
+                section={section}
                 className="btn pdfBtn"
-              >
-                ⬇ Télécharger PDF (2 semaines)
-              </a>
+              />
             </div>
           </div>
 
@@ -445,12 +520,13 @@ export default async function SchedulePage({
 
                         const cells = days.map((d) => {
                           const key = `${u.id}:${ymdInTZ(d)}`;
-                          const rawList = byUserDay.get(key) ?? [];
-                          const list = normalizeDayShifts(rawList);
+                          const list = prepareScheduleDayShifts(byUserDay.get(key) ?? []);
 
                           for (const sh of list) {
                             if (sh.note === "VAC") continue;
-                            const durationMinutes = Math.floor((+new Date(sh.endTime) - +new Date(sh.effectiveStartTime)) / 60000);
+                            const durationMinutes = Math.floor(
+                              (+new Date(sh.endTime) - +new Date(sh.payableStartTime)) / 60000
+                            );
                             const deductionMinutes = unpaidBreak30DeductionMinutes(u.paidBreak30, durationMinutes);
                           const payableMinutes = Math.max(0, durationMinutes - deductionMinutes);
                           totalMinutes += roundMinutesToNearestQuarter(payableMinutes);
@@ -461,23 +537,22 @@ export default async function SchedulePage({
                               {list.length === 0 ? (
                                 <span className="muted">—</span>
                               ) : (
-                                list.map((sh, idx) => (
-                                  <div key={idx} className="shiftPill">
-                                    {sh.note === "VAC" ? (
-                                      <span>VAC</span>
-                                    ) : (
-                                      <>
-                                        <span className="pillTime">
-                                          {hmLocal(new Date(sh.effectiveStartTime))}
-                                        </span>
-                                        <span className="pillDash">–</span>
-                                        <span className="pillTime">
-                                          {hmLocal(new Date(sh.endTime))}
-                                        </span>
-                                      </>
-                                    )}
-                                  </div>
-                                ))
+                                list.map((sh, idx) => {
+                                  const times = scheduleShiftTimeLabels(sh);
+                                  return (
+                                    <div key={sh.id ?? idx} className="shiftPill">
+                                      {sh.note === "VAC" ? (
+                                        <span>VAC</span>
+                                      ) : (
+                                        <>
+                                          <span className="pillTime">{times.start}</span>
+                                          <span className="pillDash">–</span>
+                                          <span className="pillTime">{times.end}</span>
+                                        </>
+                                      )}
+                                    </div>
+                                  );
+                                })
                               )}
                             </td>
                           );

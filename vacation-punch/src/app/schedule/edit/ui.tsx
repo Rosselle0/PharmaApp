@@ -1,6 +1,12 @@
 "use client";
 import { ymdInTZ } from "@/lib/shiftChange/time";
 import { messageFromUnknown } from "@/lib/unknownError";
+import ScheduleExportLink from "../ScheduleExportLink";
+import {
+  collapseShiftsForDisplay,
+  shiftDisplayTimes,
+  shouldShowShiftNote,
+} from "@/lib/schedule/shiftDisplay";
 import { unpaidBreak30DeductionMinutes } from "@/lib/unpaidBreak30";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -239,6 +245,7 @@ type Shift = {
     startTime: string; // ISO
     endTime: string;   // ISO
     note: string | null;
+    punchInAt?: string | null;
     source: "MANUAL" | "RECURRING";
     ruleLocked: boolean;
 };
@@ -487,6 +494,10 @@ export default function ScheduleEditorClient(props: {
         return map;
     }, [shifts]);
 
+    function cellShifts(list: Shift[]) {
+        return collapseShiftsForDisplay(list);
+    }
+
     const hoursFmt = useMemo(
         () => new Intl.NumberFormat("fr-CA", { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
         []
@@ -514,7 +525,7 @@ export default function ScheduleEditorClient(props: {
             const availableEmployees = orderedEmployees
                 .filter((emp) => availabilityByEmpDay.get(`${emp.id}:${dayOfWeek}`)?.available)
                 .map((emp) => {
-                    const shifts = byEmpDay.get(`${emp.id}:${dayYmd}`) ?? [];
+                    const shifts = cellShifts(byEmpDay.get(`${emp.id}:${dayYmd}`) ?? []);
                     return { emp, shifts };
                 });
             return {
@@ -542,13 +553,19 @@ export default function ScheduleEditorClient(props: {
     function calcTotalHours(employeeId: string) {
         let mins = 0;
         const paidBreak30 = paidBreak30ByEmpId.get(employeeId) ?? true;
+        const seenDay = new Set<string>();
         for (const s of shifts) {
             if (s.employeeId !== employeeId) continue;
-            const a = new Date(s.startTime).getTime();
-            const b = new Date(s.endTime).getTime();
-            const rawMinutes = Math.floor((b - a) / 60000);
-            const deductionMinutes = unpaidBreak30DeductionMinutes(paidBreak30, rawMinutes);
-            mins += Math.max(0, rawMinutes - deductionMinutes);
+            const dayKey = `${employeeId}:${ymdInTZ(new Date(s.startTime))}`;
+            if (seenDay.has(dayKey)) continue;
+            seenDay.add(dayKey);
+            const dayList = cellShifts(byEmpDay.get(dayKey) ?? []);
+            for (const row of dayList) {
+                const { start, end } = shiftDisplayTimes(row);
+                const rawMinutes = Math.floor((end.getTime() - start.getTime()) / 60000);
+                const deductionMinutes = unpaidBreak30DeductionMinutes(paidBreak30, rawMinutes);
+                mins += Math.max(0, rawMinutes - deductionMinutes);
+            }
         }
         return mins / 60;
     }
@@ -734,9 +751,6 @@ export default function ScheduleEditorClient(props: {
     const prevWeek = ymdInTZ(new Date(weekStart.getTime() - 7 * 86400000));
     const nextWeek = ymdInTZ(new Date(weekStart.getTime() + 7 * 86400000));
     const orderParam = encodeURIComponent(employeeOrder.join(","));
-    const exportHref = `/api/schedule/export?week=${encodeURIComponent(props.weekStartYMD)}&section=${encodeURIComponent(
-        props.section
-    )}&order=${orderParam}`;
 
     return (
         <main className="page scheduleScope">
@@ -802,19 +816,12 @@ export default function ScheduleEditorClient(props: {
                 </div>
 
                 <div className="pdfRow">
-                    <a
-                        href={exportHref}
+                    <ScheduleExportLink
+                        weekYmd={props.weekStartYMD}
+                        section={props.section}
+                        orderOverride={employeeOrder.join(",")}
                         className="btn pdfBtn"
-                        style={{
-                            textDecoration: "none",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 8,
-                            fontWeight: 700,
-                        }}
-                    >
-                        ⬇ Télécharger PDF (2 semaines)
-                    </a>
+                    />
                 </div>
 
                 <div className="section">
@@ -858,11 +865,14 @@ export default function ScheduleEditorClient(props: {
                                                     <div className="mobileEditEmployeeShifts">
                                                         {shifts.length
                                                             ? shifts
-                                                                  .map((s) =>
-                                                                      s.note === "VAC"
-                                                                          ? "VAC"
-                                                                          : formatShiftRange(s.startTime, s.endTime)
-                                                                  )
+                                                                  .map((s) => {
+                                                                      if (s.note === "VAC") return "VAC";
+                                                                      const { start, end } = shiftDisplayTimes(s);
+                                                                      return formatShiftRange(
+                                                                          start.toISOString(),
+                                                                          end.toISOString()
+                                                                      );
+                                                                  })
                                                                   .join(" / ")
                                                             : "Aucun quart"}
                                                     </div>
@@ -941,7 +951,7 @@ export default function ScheduleEditorClient(props: {
 
                                         {days.map((d, i) => {
                                             const key = `${emp.id}:${ymdInTZ(d)}`;
-                                            const list = byEmpDay.get(key) ?? [];
+                                            const list = cellShifts(byEmpDay.get(key) ?? []);
 
                                             const availability = availabilityByEmpDay.get(`${emp.id}:${d.getDay()}`);
                                             const unavailable = !availability?.available;
@@ -967,21 +977,28 @@ export default function ScheduleEditorClient(props: {
                                                             <span className="muted">+</span>
                                                         )
                                                     ) : (
-                                                        list.map((s) => (
-                                                            <div key={s.id} className="pill" title={s.note ?? ""}>
-                                                                <span className="pillTime">{hm(new Date(s.startTime))}</span>
-                                                                <span className="pillDash">–</span>
-                                                                <span className="pillTime">{hm(new Date(s.endTime))}</span>
-
-                                                                {s.note ? (
-                                                                    <span className="pillNote">
-                                                                        <span className="pillNoteDot" aria-hidden="true">•</span>
-                                                                        {s.note}
-                                                                    </span>
-                                                                ) : null}
-                                                            </div>
-
-                                                        ))
+                                                        list.map((s) => {
+                                                            const { start, end } = shiftDisplayTimes(s);
+                                                            return (
+                                                                <div key={s.id} className="pill">
+                                                                    {s.note === "VAC" ? (
+                                                                        <span>VAC</span>
+                                                                    ) : (
+                                                                        <>
+                                                                            <span className="pillTime">{hm(start)}</span>
+                                                                            <span className="pillDash">–</span>
+                                                                            <span className="pillTime">{hm(end)}</span>
+                                                                        </>
+                                                                    )}
+                                                                    {shouldShowShiftNote(s.note) ? (
+                                                                        <span className="pillNote">
+                                                                            <span className="pillNoteDot" aria-hidden="true">•</span>
+                                                                            {s.note}
+                                                                        </span>
+                                                                    ) : null}
+                                                                </div>
+                                                            );
+                                                        })
                                                     )}
                                                 </td>
                                             );

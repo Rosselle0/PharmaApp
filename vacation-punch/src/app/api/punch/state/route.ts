@@ -3,98 +3,55 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma, punchPrismaErrorUserMessage } from "@/lib/prisma";
+import { lateMsFromPlannedStart } from "@/lib/punch/late";
 import { resolvePunchKioskLocked } from "@/lib/punch/kioskLockDay";
+import { findTodayShiftForEmployee } from "@/lib/punch/todayShift";
+import {
+  computeShiftStatus,
+  fetchEmployeePunchHistory,
+  type PunchType,
+} from "@/lib/punch/shiftStatus";
 import { requireEmployeeFromKioskOrCode, requireEmployeeFromKioskOrCodeValue } from "@/lib/shiftChange/auth";
 
-type PunchType =
-  | "CLOCK_IN"
-  | "CLOCK_OUT"
-  | "BREAK_START"
-  | "BREAK_END"
-  | "LUNCH_START"
-  | "LUNCH_END";
-type PunchState = "OUT" | "IN" | "ON_BREAK" | "ON_LUNCH";
+async function buildPunchStatePayload(employeeId: string) {
+  const employee = await prisma.employee.findUnique({
+    where: { id: employeeId },
+    select: { id: true, firstName: true, lastName: true, employeeCode: true, punchKioskLocked: true },
+  });
 
-function diffMs(a: Date, b: Date) {
-  return Math.max(0, a.getTime() - b.getTime());
-}
-
-function getShiftStatus(events: Array<{ type: PunchType; at: Date }>, now = new Date()) {
-  let state: PunchState = "OUT";
-  let shiftStart: Date | null = null;
-  let activeStartedAt: Date | null = null;
-  let breakDone = false;
-  let lunchDone = false;
-  let breakMs = 0;
-  let lunchMs = 0;
-
-  for (const event of events) {
-    switch (event.type) {
-      case "CLOCK_IN":
-        state = "IN";
-        shiftStart = event.at;
-        activeStartedAt = null;
-        breakDone = false;
-        lunchDone = false;
-        breakMs = 0;
-        lunchMs = 0;
-        break;
-      case "BREAK_START":
-        if (shiftStart && state === "IN" && !breakDone) {
-          state = "ON_BREAK";
-          activeStartedAt = event.at;
-        }
-        break;
-      case "BREAK_END":
-        if (shiftStart && state === "ON_BREAK" && activeStartedAt) {
-          breakMs += diffMs(event.at, activeStartedAt);
-          breakDone = true;
-          state = "IN";
-          activeStartedAt = null;
-        }
-        break;
-      case "LUNCH_START":
-        if (shiftStart && state === "IN" && !lunchDone) {
-          state = "ON_LUNCH";
-          activeStartedAt = event.at;
-        }
-        break;
-      case "LUNCH_END":
-        if (shiftStart && state === "ON_LUNCH" && activeStartedAt) {
-          lunchMs += diffMs(event.at, activeStartedAt);
-          lunchDone = true;
-          state = "IN";
-          activeStartedAt = null;
-        }
-        break;
-      case "CLOCK_OUT":
-        state = "OUT";
-        shiftStart = null;
-        activeStartedAt = null;
-        breakDone = false;
-        lunchDone = false;
-        breakMs = 0;
-        lunchMs = 0;
-        break;
-    }
+  if (!employee) {
+    return { error: "Employé introuvable", status: 404 as const };
   }
 
-  let workMs = 0;
-  if (shiftStart) {
-    const runningEnd = state === "IN" ? now : activeStartedAt ?? now;
-    workMs = Math.max(0, diffMs(runningEnd, shiftStart) - breakMs - lunchMs);
-  }
-
-  const liveBreakMs = state === "ON_BREAK" && activeStartedAt ? breakMs + diffMs(now, activeStartedAt) : breakMs;
-  const liveLunchMs = state === "ON_LUNCH" && activeStartedAt ? lunchMs + diffMs(now, activeStartedAt) : lunchMs;
+  const history = await fetchEmployeePunchHistory(employeeId);
+  const status = computeShiftStatus(
+    history.map((h) => ({ type: h.type as PunchType, at: h.at, shiftId: h.shiftId })),
+    new Date()
+  );
+  const now = new Date();
+  const punchKioskLocked = await resolvePunchKioskLocked(employee.id, Boolean(employee.punchKioskLocked), now);
+  const plannedShift =
+    status.state === "OUT" ? await findTodayShiftForEmployee(employeeId, now) : null;
+  const lateMs = plannedShift ? lateMsFromPlannedStart(plannedShift.startTime, now) : 0;
 
   return {
-    state,
-    breakDone,
-    lunchDone,
-    workMs,
-    breakMs: liveBreakMs,
-    lunchMs: liveLunchMs,
+    ok: true as const,
+    punchKioskLocked,
+    employee: {
+      id: employee.id,
+      name: `${employee.firstName} ${employee.lastName}`.trim(),
+    },
+    ...status,
+    plannedShift: plannedShift
+      ? {
+          shiftId: plannedShift.id,
+          startISO: plannedShift.startTime.toISOString(),
+          endISO: plannedShift.endTime.toISOString(),
+        }
+      : null,
+    lateMs,
+    isLate: lateMs > 0,
+    fetchedAt: now.toISOString(),
   };
 }
 
@@ -105,36 +62,11 @@ export async function GET(req: Request) {
   }
 
   try {
-    const employee = await prisma.employee.findUnique({
-      where: { id: auth.employeeId },
-      select: { id: true, firstName: true, lastName: true, employeeCode: true, punchKioskLocked: true },
-    });
-
-    if (!employee) {
-      return NextResponse.json({ ok: false, error: "Employé introuvable" }, { status: 404 });
+    const payload = await buildPunchStatePayload(auth.employeeId);
+    if ("error" in payload) {
+      return NextResponse.json({ ok: false, error: payload.error }, { status: payload.status });
     }
-
-    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // last 7 days
-    const history = await prisma.punchEvent.findMany({
-      where: { employeeId: auth.employeeId, at: { gte: since } },
-      orderBy: { at: "asc" },
-      select: { type: true, at: true },
-    });
-
-    const status = getShiftStatus(history as Array<{ type: PunchType; at: Date }>);
-    const now = new Date();
-    const punchKioskLocked = await resolvePunchKioskLocked(employee.id, Boolean(employee.punchKioskLocked), now);
-
-    return NextResponse.json({
-      ok: true,
-      punchKioskLocked,
-      employee: {
-        id: employee.id,
-        name: `${employee.firstName} ${employee.lastName}`.trim(),
-      },
-      ...status,
-      fetchedAt: now.toISOString(),
-    });
+    return NextResponse.json(payload);
   } catch (e) {
     return NextResponse.json({ ok: false, error: punchPrismaErrorUserMessage(e) }, { status: 500 });
   }
@@ -150,36 +82,11 @@ export async function POST(req: Request) {
   }
 
   try {
-    const employee = await prisma.employee.findUnique({
-      where: { id: auth.employeeId },
-      select: { id: true, firstName: true, lastName: true, employeeCode: true, punchKioskLocked: true },
-    });
-
-    if (!employee) {
-      return NextResponse.json({ ok: false, error: "Employé introuvable" }, { status: 404 });
+    const payload = await buildPunchStatePayload(auth.employeeId);
+    if ("error" in payload) {
+      return NextResponse.json({ ok: false, error: payload.error }, { status: payload.status });
     }
-
-    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // last 7 days
-    const history = await prisma.punchEvent.findMany({
-      where: { employeeId: auth.employeeId, at: { gte: since } },
-      orderBy: { at: "asc" },
-      select: { type: true, at: true },
-    });
-
-    const status = getShiftStatus(history as Array<{ type: PunchType; at: Date }>);
-    const now = new Date();
-    const punchKioskLocked = await resolvePunchKioskLocked(employee.id, Boolean(employee.punchKioskLocked), now);
-
-    return NextResponse.json({
-      ok: true,
-      punchKioskLocked,
-      employee: {
-        id: employee.id,
-        name: `${employee.firstName} ${employee.lastName}`.trim(),
-      },
-      ...status,
-      fetchedAt: now.toISOString(),
-    });
+    return NextResponse.json(payload);
   } catch (e) {
     return NextResponse.json({ ok: false, error: punchPrismaErrorUserMessage(e) }, { status: 500 });
   }

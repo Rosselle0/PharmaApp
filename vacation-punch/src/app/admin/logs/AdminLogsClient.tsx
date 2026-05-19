@@ -12,6 +12,8 @@ type Employee = {
   employeeCode: string | null;
   department: Department;
   punchKioskLocked?: boolean;
+  punchSessionOpen?: boolean;
+  punchSessionState?: string;
 };
 
 type PunchType = "CLOCK_IN" | "CLOCK_OUT" | "BREAK_START" | "BREAK_END" | "LUNCH_START" | "LUNCH_END";
@@ -279,6 +281,7 @@ export default function AdminLogsClient() {
   const [punchAtDraftById, setPunchAtDraftById] = useState<Record<string, string>>({});
   const [punchCorrectionBusy, setPunchCorrectionBusy] = useState<string | null>(null);
   const [punchUnlockBusyId, setPunchUnlockBusyId] = useState<string | null>(null);
+  const [punchResetBusyId, setPunchResetBusyId] = useState<string | null>(null);
 
   function toDatetimeLocalValue(iso: string) {
     const d = new Date(iso);
@@ -430,6 +433,34 @@ export default function AdminLogsClient() {
       await reloadLogs();
     } finally {
       setPunchUnlockBusyId(null);
+    }
+  }
+
+  async function resetPunchSession(employeeId: string) {
+    if (punchResetBusyId) return;
+    if (
+      !window.confirm(
+        "Fermer la session de pointage ouverte pour cet employé et déverrouiller le kiosque ?"
+      )
+    ) {
+      return;
+    }
+    setPunchResetBusyId(employeeId);
+    try {
+      const res = await fetch("/api/admin/punch-reset-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ employeeId }),
+      });
+      const j = (await res.json().catch(() => null)) as { ok?: boolean; error?: string };
+      if (!res.ok || !j?.ok) {
+        window.alert(j?.error ?? "Réinitialisation impossible.");
+        return;
+      }
+      await reloadLogs();
+    } finally {
+      setPunchResetBusyId(null);
     }
   }
 
@@ -596,6 +627,11 @@ export default function AdminLogsClient() {
                     <span className="stat">{sCount} quarts</span>
                     <span className={`badge ${lateCount ? "warn" : ""}`}>{lateCount} retards</span>
                     <span className={`badge ${otCount ? "ok" : ""}`}>{otCount} heures sup</span>
+                    {e.punchSessionOpen ? (
+                      <span className="badge warn" title="Entrée sans sortie — kiosque peut être bloqué">
+                        Session ouverte
+                      </span>
+                    ) : null}
                     {e.punchKioskLocked ? (
                       <span
                         className="badge punchLockBadge"
@@ -605,6 +641,19 @@ export default function AdminLogsClient() {
                       </span>
                     ) : null}
                   </div>
+                  {e.punchSessionOpen ? (
+                    <button
+                      type="button"
+                      className="adminLogsUnlockInlineBtn adminLogsResetSessionBtn"
+                      disabled={punchResetBusyId === e.id}
+                      onClick={(ev) => {
+                        ev.stopPropagation();
+                        void resetPunchSession(e.id);
+                      }}
+                    >
+                      {punchResetBusyId === e.id ? "…" : "Fermer session pointage"}
+                    </button>
+                  ) : null}
                   {e.punchKioskLocked ? (
                     <button
                       type="button"
@@ -657,6 +706,23 @@ export default function AdminLogsClient() {
                     <div className="adminLogsDetailsSub">Cliquez un quart pour ouvrir le détail des pointages.</div>
                   </div>
 
+                  {selectedEmployee?.punchSessionOpen ? (
+                    <div className="adminLogsPunchLockBar adminLogsSessionOpenBar">
+                      <span className="adminLogsPunchLockText">
+                        Session de pointage ouverte ({selectedEmployee.punchSessionState ?? "IN"}) — l’employé peut être
+                        bloqué au kiosque. Fermer la session pour enregistrer une sortie et déverrouiller.
+                      </span>
+                      <button
+                        type="button"
+                        className="btnSmall okBtn adminLogsUnlockPunchBtn"
+                        disabled={punchResetBusyId === selectedEmployee.id}
+                        onClick={() => void resetPunchSession(selectedEmployee.id)}
+                      >
+                        {punchResetBusyId === selectedEmployee.id ? "…" : "Fermer la session"}
+                      </button>
+                    </div>
+                  ) : null}
+
                   {selectedEmployee?.punchKioskLocked ? (
                     <div className="adminLogsPunchLockBar">
                       <span className="adminLogsPunchLockText">
@@ -704,11 +770,31 @@ export default function AdminLogsClient() {
                                 >
                                   <td>{date}</td>
                                   <td>
-                                    {new Date(s.effectiveStartTime ?? s.startTime).toLocaleTimeString("fr-CA", {
+                                    {new Date(s.startTime).toLocaleTimeString("fr-CA", {
                                       hour: "2-digit",
                                       minute: "2-digit",
                                       hour12: false,
-                                    })} → {new Date(s.endTime).toLocaleTimeString("fr-CA", { hour: "2-digit", minute: "2-digit", hour12: false })}
+                                    })}{" "}
+                                    →{" "}
+                                    {new Date(s.endTime).toLocaleTimeString("fr-CA", {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                      hour12: false,
+                                    })}
+                                    {(() => {
+                                      const clockIn = s.punches.find((p) => p.type === "CLOCK_IN");
+                                      if (!clockIn) return null;
+                                      return (
+                                        <div className="muted" style={{ marginTop: 4, fontSize: 12, fontWeight: 700 }}>
+                                          Entrée pointée:{" "}
+                                          {new Date(clockIn.at).toLocaleTimeString("fr-CA", {
+                                            hour: "2-digit",
+                                            minute: "2-digit",
+                                            hour12: false,
+                                          })}
+                                        </div>
+                                      );
+                                    })()}
                                   </td>
                                   <td>
                                     {s.missingClockIn ? (
@@ -853,6 +939,32 @@ export default function AdminLogsClient() {
                                         <div>
                                           <div className="expandTitle">Actions</div>
                                           <div className="expandActions">
+                                            {s.lateStatus === "PENDING" ? (
+                                              <>
+                                                <button
+                                                  type="button"
+                                                  className="btnSmall okBtn"
+                                                  disabled={reviewBusyId === `LATE:ACCEPT:${s.id}`}
+                                                  onClick={(ev) => {
+                                                    ev.stopPropagation();
+                                                    reviewShift(s.id, "LATE", "ACCEPT");
+                                                  }}
+                                                >
+                                                  Retard accepté
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  className="btnSmall dangerBtn"
+                                                  disabled={reviewBusyId === `LATE:REJECT:${s.id}`}
+                                                  onClick={(ev) => {
+                                                    ev.stopPropagation();
+                                                    reviewShift(s.id, "LATE", "REJECT");
+                                                  }}
+                                                >
+                                                  Retard rejeté
+                                                </button>
+                                              </>
+                                            ) : null}
                                             {s.overtimeStatus === "PENDING" ? (
                                               <>
                                                 <div className="manualOvertimeRow">
@@ -957,7 +1069,7 @@ export default function AdminLogsClient() {
                               <div>
                                 <div className="adminLogsShiftDate">{date}</div>
                                 <div className="adminLogsShiftTime">
-                                  {new Date(s.effectiveStartTime ?? s.startTime).toLocaleTimeString("fr-CA", {
+                                  {new Date(s.startTime).toLocaleTimeString("fr-CA", {
                                     hour: "2-digit",
                                     minute: "2-digit",
                                     hour12: false,
@@ -1086,6 +1198,26 @@ export default function AdminLogsClient() {
                                   <div>
                                     <div className="expandTitle">Actions</div>
                                     <div className="expandActions">
+                                      {s.lateStatus === "PENDING" ? (
+                                        <>
+                                          <button
+                                            type="button"
+                                            className="btnSmall okBtn"
+                                            disabled={reviewBusyId === `LATE:ACCEPT:${s.id}`}
+                                            onClick={() => reviewShift(s.id, "LATE", "ACCEPT")}
+                                          >
+                                            Retard accepté
+                                          </button>
+                                          <button
+                                            type="button"
+                                            className="btnSmall dangerBtn"
+                                            disabled={reviewBusyId === `LATE:REJECT:${s.id}`}
+                                            onClick={() => reviewShift(s.id, "LATE", "REJECT")}
+                                          >
+                                            Retard rejeté
+                                          </button>
+                                        </>
+                                      ) : null}
                                       {s.overtimeStatus === "PENDING" ? (
                                         <>
                                           <div className="manualOvertimeRow">
