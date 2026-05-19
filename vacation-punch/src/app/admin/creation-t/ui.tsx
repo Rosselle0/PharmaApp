@@ -22,6 +22,29 @@ type WorkingEmployee = {
   endISO: string;
 };
 
+type DeptFilter = "ALL" | "CASH" | "LAB" | "FLOOR";
+
+const DEPT_FILTERS: { id: DeptFilter; label: string }[] = [
+  { id: "ALL", label: "Tous" },
+  { id: "CASH", label: "Caisse" },
+  { id: "LAB", label: "Lab" },
+  { id: "FLOOR", label: "Plancher" },
+];
+
+function deptLabel(department: string) {
+  const d = department.toUpperCase();
+  if (d === "CASH") return "Caisse";
+  if (d === "LAB") return "Lab";
+  if (d === "FLOOR") return "Plancher";
+  if (d === "MANAGER") return "Gérant";
+  return department;
+}
+
+function matchesDeptFilter(department: string, filter: DeptFilter) {
+  if (filter === "ALL") return true;
+  return department.toUpperCase() === filter;
+}
+
 function ymd(d = new Date()) {
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, "0");
@@ -199,6 +222,7 @@ export default function CreationTClient() {
   const [templatesVisible, setTemplatesVisible] = useState(false);
   const [tab, setTab] = useState<"templates" | "custom">("templates");
   const [employeeId, setEmployeeId] = useState("");
+  const [deptFilter, setDeptFilter] = useState<DeptFilter>("ALL");
   const [dateYMD, setDateYMD] = useState(ymd());
   const [assignTemplateId, setAssignTemplateId] = useState("");
   const [assignNotes, setAssignNotes] = useState("");
@@ -217,6 +241,17 @@ export default function CreationTClient() {
     [templates, assignTemplateId]
   );
   const tmplSelected = useMemo(() => templates.find((t) => t.id === tmplEditId) ?? null, [templates, tmplEditId]);
+
+  const filteredWorkingEmployees = useMemo(
+    () => workingEmployees.filter((e) => matchesDeptFilter(e.department, deptFilter)),
+    [workingEmployees, deptFilter]
+  );
+
+  useEffect(() => {
+    if (employeeId && !filteredWorkingEmployees.some((e) => e.id === employeeId)) {
+      setEmployeeId("");
+    }
+  }, [deptFilter, filteredWorkingEmployees, employeeId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -397,18 +432,26 @@ export default function CreationTClient() {
   }, [msg]);
 
   const availability = useMemo(() => {
+    const sector =
+      deptFilter === "ALL" ? "" : ` (${DEPT_FILTERS.find((d) => d.id === deptFilter)?.label ?? deptFilter})`;
     if (loadingWorking) {
       return { tone: "loading" as const, text: "Vérification des disponibilités…" };
     }
-    const n = workingEmployees.length;
+    const n = filteredWorkingEmployees.length;
     if (n === 0) {
-      return { tone: "empty" as const, text: "Aucun employé planifié pour cette date" };
+      return {
+        tone: "empty" as const,
+        text:
+          deptFilter === "ALL"
+            ? "Aucun employé planifié pour cette date"
+            : `Aucun employé planifié${sector}`,
+      };
     }
     if (n === 1) {
-      return { tone: "ok" as const, text: "1 employé disponible" };
+      return { tone: "ok" as const, text: `1 employé disponible${sector}` };
     }
-    return { tone: "ok" as const, text: `${n} employés disponibles` };
-  }, [loadingWorking, workingEmployees.length]);
+    return { tone: "ok" as const, text: `${n} employés disponibles${sector}` };
+  }, [loadingWorking, filteredWorkingEmployees.length, deptFilter]);
 
   function duplicateAssignTemplateToCustom() {
     if (!assignSelectedTemplate) return;
@@ -598,33 +641,53 @@ export default function CreationTClient() {
 
         <div className={`ctLayout${templatesVisible ? " split" : ""}`}>
           <div className="ctCard ctCardMain">
-            <div className="ctFieldsRow">
-              <div className="ctField">
-                <label className="ctLabel">Date</label>
-                <input className="ctInput" type="date" value={dateYMD} onChange={(e) => setDateYMD(e.target.value)} />
-              </div>
-              <div className="ctField">
-                <label className="ctLabel">Employé</label>
-                <select
-                  className="ctSelect"
-                  value={employeeId}
-                  onChange={(e) => setEmployeeId(e.target.value)}
+            <div className="ctField">
+              <label className="ctLabel">Date</label>
+              <input className="ctInput" type="date" value={dateYMD} onChange={(e) => setDateYMD(e.target.value)} />
+            </div>
+
+            <div className="ctDeptFilter" role="group" aria-label="Secteur">
+              {DEPT_FILTERS.map((d) => (
+                <button
+                  key={d.id}
+                  type="button"
+                  className={`ctDeptBtn${deptFilter === d.id ? " on" : ""}`}
+                  aria-pressed={deptFilter === d.id}
+                  onClick={() => setDeptFilter(d.id)}
                   disabled={loadingWorking}
                 >
-                  <option value="">
-                    {loadingWorking ? "Chargement…" : workingEmployees.length ? "Choisir…" : "Personne planifiée"}
-                  </option>
-                  {workingEmployees.map((e) => {
-                    const start = new Date(e.startISO).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-                    const end = new Date(e.endISO).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-                    return (
-                      <option key={e.id} value={e.id}>
-                        {e.firstName} {e.lastName} · {start}–{end}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
+                  {d.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="ctField">
+              <label className="ctLabel">Employé</label>
+              <select
+                className="ctSelect"
+                value={employeeId}
+                onChange={(e) => setEmployeeId(e.target.value)}
+                disabled={loadingWorking}
+              >
+                <option value="">
+                  {loadingWorking
+                    ? "Chargement…"
+                    : filteredWorkingEmployees.length
+                      ? "Choisir…"
+                      : deptFilter === "ALL"
+                        ? "Personne planifiée"
+                        : `Aucun en ${deptLabel(deptFilter)}`}
+                </option>
+                {filteredWorkingEmployees.map((e) => {
+                  const start = new Date(e.startISO).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+                  const end = new Date(e.endISO).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+                  return (
+                    <option key={e.id} value={e.id}>
+                      {e.firstName} {e.lastName} · {deptLabel(e.department)} · {start}–{end}
+                    </option>
+                  );
+                })}
+              </select>
             </div>
 
             <div className={`ctAvail ctAvail-${availability.tone}`} role="status" aria-live="polite">
@@ -725,7 +788,7 @@ export default function CreationTClient() {
               className="ctSubmit"
               type="button"
               onClick={assignToEmployee}
-              disabled={busyAssign || loadingWorking || workingEmployees.length === 0}
+              disabled={busyAssign || loadingWorking || filteredWorkingEmployees.length === 0}
             >
               {busyAssign ? "Envoi…" : "Assigner"}
             </button>

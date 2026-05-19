@@ -227,6 +227,51 @@
   line-height: 1.5;
 }
 
+/* Department filter */
+.ctDeptFilter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 12px;
+  background: rgba(2, 6, 23, 0.05);
+  border: 1px solid var(--admin-border-soft);
+}
+
+[data-theme="dark"] .ctDeptFilter {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.ctDeptBtn {
+  flex: 1;
+  min-width: 4.5rem;
+  border: none;
+  background: transparent;
+  padding: 10px 12px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--admin-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.ctDeptBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.ctDeptBtn.on {
+  background: #fff;
+  color: var(--admin-ink);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="dark"] .ctDeptBtn.on {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
 /* Mode tabs */
 .ctMode {
   display: flex;
