@@ -12,6 +12,8 @@ import { prisma } from "@/lib/prisma";
 import ScheduleEditorClient from "./ui";
 import { requireKioskManagerOrAdmin } from "@/lib/kioskAuth"; // <-- use your kiosk+supabase guard
 import { buildPunchInByShiftId } from "@/lib/schedule/shiftDisplay";
+import { isHiddenFromSchedule } from "@/lib/punch/attendanceReview";
+import { syncAttendancePendingForShifts } from "@/lib/schedule/attendanceSync";
 
 export type AvailabilityForEditor = {
   employeeId: string;
@@ -262,8 +264,22 @@ export default async function ScheduleEditPage({
       note: true,
       source: true,
       rule: { select: { locked: true } },
+      attendanceReview: true,
     },
   });
+
+  await syncAttendancePendingForShifts(
+    shifts.map((s) => ({
+      id: s.id,
+      employeeId: s.employeeId,
+      startTime: s.startTime,
+      endTime: s.endTime,
+      note: s.note,
+      attendanceReview: s.attendanceReview,
+    }))
+  );
+
+  const visibleShifts = shifts.filter((s) => !isHiddenFromSchedule(s));
 
   const punchWindowStart = new Date(weekStart.getTime() - 48 * 60 * 60 * 1000);
   const punchWindowEnd = new Date(weekEnd.getTime() + 48 * 60 * 60 * 1000);
@@ -277,9 +293,9 @@ export default async function ScheduleEditPage({
     select: { employeeId: true, shiftId: true, at: true },
   });
 
-  const punchInByShiftId = buildPunchInByShiftId(shifts, punchIns);
+  const punchInByShiftId = buildPunchInByShiftId(visibleShifts, punchIns);
 
-  const shiftsForClient = shifts.map((s) => ({
+  const shiftsForClient = visibleShifts.map((s) => ({
     id: s.id,
     employeeId: s.employeeId,
     startTime: s.startTime.toISOString(),

@@ -9,6 +9,12 @@ import { ShiftStatus } from "@prisma/client";
 import { messageFromUnknown } from "@/lib/unknownError";
 import { computeEffectiveStartTime, computeLatePenaltyMinutes } from "@/lib/punch/late";
 import { employeeHasOpenPunchSession } from "@/lib/punch/shiftStatus";
+import { syncAttendancePendingForShifts } from "@/lib/schedule/attendanceSync";
+import {
+  autoShiftMatchBias,
+  mergeOrphanPunchesOntoPlannedShifts,
+  shouldShowShiftInAdminLogs,
+} from "@/lib/punch/punchShiftLinking";
 
 function startOfDayUTC(ymd: string) {
   // Treat `ymd` as local-ish date string; convert to UTC day boundary safely.
@@ -93,8 +99,20 @@ export async function GET(req: Request) {
         endTime: true,
         status: true,
         note: true,
+        attendanceReview: true,
       },
     });
+
+    await syncAttendancePendingForShifts(
+      shifts.map((s) => ({
+        id: s.id,
+        employeeId: s.employeeId,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        note: s.note,
+        attendanceReview: s.attendanceReview,
+      }))
+    );
 
     const shiftIds = shifts.map((s) => s.id);
 
@@ -225,14 +243,14 @@ export async function GET(req: Request) {
           if (t < minAllowed || t > maxAllowed) continue;
 
           const score =
-            p.type === "CLOCK_IN"
+            (p.type === "CLOCK_IN"
               ? Math.abs(t - startMs)
               : p.type === "CLOCK_OUT"
                 ? // If clocking out after end, score by overtime distance.
                   t >= endMs
                   ? t - endMs
                   : endMs - t
-                : Math.abs(t - startMs);
+                : Math.abs(t - startMs)) + autoShiftMatchBias(sh.note);
 
           if (!best || score < best.score || (score === best.score && startMs > best.startMs)) {
             best = { sid: sh.id, score, startMs };
@@ -249,9 +267,39 @@ export async function GET(req: Request) {
         arr.push(p);
         punchesByShift.set(sid, arr);
       }
+
+      mergeOrphanPunchesOntoPlannedShifts(
+        shifts.map((sh) => ({
+          id: sh.id,
+          employeeId: acceptedEmployeeByShiftId.get(sh.id) ?? sh.employeeId,
+          startTime: sh.startTime,
+          endTime: sh.endTime,
+          note: sh.note,
+        })),
+        punchesByShift
+      );
     }
 
-    const computedShifts = shifts.map((s) => {
+    const computedShifts = shifts
+      .filter((s) =>
+        shouldShowShiftInAdminLogs(
+          {
+            id: s.id,
+            employeeId: acceptedEmployeeByShiftId.get(s.id) ?? s.employeeId,
+            startTime: s.startTime,
+            endTime: s.endTime,
+            note: s.note,
+          },
+          shifts.map((sh) => ({
+            id: sh.id,
+            employeeId: acceptedEmployeeByShiftId.get(sh.id) ?? sh.employeeId,
+            startTime: sh.startTime,
+            endTime: sh.endTime,
+            note: sh.note,
+          }))
+        )
+      )
+      .map((s) => {
       const scheduledEmployeeId = acceptedEmployeeByShiftId.get(s.id) ?? s.employeeId;
       const punches = punchesByShift.get(s.id) ?? [];
 
@@ -268,6 +316,8 @@ export async function GET(req: Request) {
       // - <= 5 minutes late => automatically OK (no penalty)
       // - > 5 minutes late => round UP to the next 15-min increment and apply as effective start delay
       const rawLateMinutes = firstIn ? (firstIn.getTime() - s.startTime.getTime()) / 60000 : null;
+      const rawLateMinutesRounded =
+        rawLateMinutes === null ? null : Math.max(0, Math.round(rawLateMinutes));
       const latePenaltyMinutes =
         rawLateMinutes === null ? null : computeLatePenaltyMinutes(rawLateMinutes);
       // Overtime: no rounding. We compute exact minutes difference to the scheduled end.
@@ -311,12 +361,14 @@ export async function GET(req: Request) {
         note: s.note,
         status: s.status,
         effectiveStartTime,
+        rawLateMinutes: rawLateMinutesRounded,
         lateMinutes: latePenaltyMinutes === 0 ? 0 : latePenaltyMinutes,
         overtimeMinutes: overtimeMinutes === 0 ? 0 : overtimeMinutes,
         missingClockIn,
         missingClockOut,
         lateStatus,
         overtimeStatus,
+        attendanceReview: s.attendanceReview,
         pharmacistEmployeeId,
         punches: punches.map((p) => ({
           id: p.id,
@@ -333,12 +385,14 @@ export async function GET(req: Request) {
         note: string | null;
         status: string;
         effectiveStartTime: string | null;
+        rawLateMinutes: number | null;
         lateMinutes: number | null;
         overtimeMinutes: number | null;
         missingClockIn: boolean;
         missingClockOut: boolean;
         lateStatus: "MISSING" | "OK" | "ACCEPTED" | "REJECTED" | "PENDING";
         overtimeStatus: "MISSING" | "OK" | "ACCEPTED" | "REJECTED" | "ACCEPTED_BY_PHARMACIST" | "PENDING";
+        attendanceReview: string;
         pharmacistEmployeeId: string | null;
         punches: Array<{ id: string; employeeId: string; type: string; at: string; source: string }>;
       };

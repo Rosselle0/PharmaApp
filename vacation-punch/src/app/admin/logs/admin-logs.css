@@ -1297,3 +1297,44 @@
   }
 }
 
+.adminLogsLateHint {
+  margin-top: 8px;
+  font-weight: 900;
+  font-size: 12px;
+}
+
+.adminLogsShiftBadgesLate {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.adminAttendanceBox {
+  grid-column: 1 / -1;
+  margin-top: 12px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  background: rgba(251, 191, 36, 0.08);
+}
+
+.adminAttendanceFields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 12px;
+  margin: 12px 0;
+}
+
+.adminAttendanceActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (max-width: 720px) {
+  .adminAttendanceFields {
+    grid-template-columns: 1fr;
+  }
+}
+

@@ -385,6 +385,7 @@ export async function GET(req: NextRequest) {
   const shifts = await prisma.shift.findMany({
     where: {
       status: ShiftStatus.PLANNED,
+      attendanceReview: { notIn: ["PENDING", "DECLINED"] },
       employee: { is: { companyId, department: { in: departments } } },
       AND: [{ startTime: { lt: end } }, { endTime: { gt: week1 } }],
     },

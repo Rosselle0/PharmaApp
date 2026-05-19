@@ -258,6 +258,14 @@ enum ShiftStatus {
   CANCELED
 }
 
+// Manager review when an employee never punched for a scheduled shift.
+enum AttendanceReview {
+  NONE
+  PENDING
+  CONFIRMED
+  DECLINED
+}
+
 enum PunchType {
   CLOCK_IN
   CLOCK_OUT
@@ -305,6 +313,7 @@ model Shift {
   startTime DateTime
   endTime   DateTime
   status    ShiftStatus @default(PLANNED)
+  attendanceReview AttendanceReview @default(NONE)
   note      String?
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt

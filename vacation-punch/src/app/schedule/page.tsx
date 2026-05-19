@@ -20,6 +20,8 @@ import {
   type LateDecision,
 } from "@/lib/punch/late";
 import { isAutoPunchShift } from "@/lib/punch/shiftNotes";
+import { isHiddenFromSchedule } from "@/lib/punch/attendanceReview";
+import { syncAttendancePendingForShifts } from "@/lib/schedule/attendanceSync";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -261,8 +263,28 @@ export default async function SchedulePage({
       AND: [{ startTime: { lt: weekEnd } }, { endTime: { gt: weekStart } }],
     },
     orderBy: [{ startTime: "asc" }],
-    select: { id: true, employeeId: true, startTime: true, endTime: true, note: true },
+    select: {
+      id: true,
+      employeeId: true,
+      startTime: true,
+      endTime: true,
+      note: true,
+      attendanceReview: true,
+    },
   });
+
+  await syncAttendancePendingForShifts(
+    shifts.map((s) => ({
+      id: s.id,
+      employeeId: s.employeeId,
+      startTime: s.startTime,
+      endTime: s.endTime,
+      note: s.note,
+      attendanceReview: s.attendanceReview,
+    }))
+  );
+
+  const visibleShifts = shifts.filter((s) => !isHiddenFromSchedule(s));
 
   // Fetch CLOCK_IN punches in the visible window (actual punch times; planned times stay on Shift).
   const punchWindowStart = new Date(weekStart.getTime() - 48 * 60 * 60 * 1000);
@@ -286,7 +308,7 @@ export default async function SchedulePage({
     punchInByEmployee.set(p.employeeId, arr);
   }
 
-  const shiftIds = shifts.map((s) => s.id);
+  const shiftIds = visibleShifts.map((s) => s.id);
   const lateAuditLogs = shiftIds.length
     ? await prisma.auditLog.findMany({
         where: {
@@ -310,7 +332,7 @@ export default async function SchedulePage({
 
   const punchInAtByShiftId = new Map<string, Date>();
 
-  for (const s of shifts) {
+  for (const s of visibleShifts) {
     const startMs = s.startTime.getTime();
     let firstIn = s.id && punchInByShiftId.get(s.id);
     if (!firstIn) {
@@ -328,7 +350,7 @@ export default async function SchedulePage({
 
   const byUserDay = new Map<string, ScheduleShiftRow[]>();
 
-  for (const s of shifts) {
+  for (const s of visibleShifts) {
     const key = `${s.employeeId}:${ymdInTZ(new Date(s.startTime))}`;
     const punchInAt = punchInAtByShiftId.get(s.id) ?? null;
     const rawLateMinutes = punchInAt ? (punchInAt.getTime() - s.startTime.getTime()) / 60000 : null;

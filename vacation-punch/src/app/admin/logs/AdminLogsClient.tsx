@@ -1,6 +1,7 @@
 "use client";
 
 import { messageFromUnknown } from "@/lib/unknownError";
+import { formatLateDisplay } from "@/lib/punch/late";
 import { Fragment, useEffect, useMemo, useState } from "react";
 
 type Department = "CASH" | "LAB" | "FLOOR";
@@ -35,9 +36,11 @@ type Shift = {
   endTime: string; // ISO
   note: string | null;
   status: string;
+  rawLateMinutes: number | null;
   lateMinutes: number | null;
   overtimeMinutes: number | null;
   lateStatus: "MISSING" | "OK" | "ACCEPTED" | "REJECTED" | "PENDING";
+  attendanceReview: "NONE" | "PENDING" | "CONFIRMED" | "DECLINED";
   overtimeStatus: "MISSING" | "OK" | "ACCEPTED" | "REJECTED" | "ACCEPTED_BY_PHARMACIST" | "PENDING";
   pharmacistEmployeeId: string | null;
   missingClockIn: boolean;
@@ -109,6 +112,36 @@ function minutesToHuman(min: number) {
   const m = min % 60;
   if (h <= 0) return `${m}m`;
   return `${h}h ${m}m`;
+}
+
+function renderLateColumn(s: Shift) {
+  if (s.attendanceReview === "PENDING" && s.missingClockIn) {
+    return (
+      <>
+        <span className="tag warn">Pointage manquant</span>
+        <div className="muted adminLogsLateHint">
+          Retiré du horaire — confirmer ou marquer absent
+        </div>
+      </>
+    );
+  }
+  if (s.missingClockIn) {
+    return <span className="tag danger">Entrée manquante</span>;
+  }
+  const lateLabel = s.rawLateMinutes ? formatLateDisplay(s.rawLateMinutes) : null;
+  if (lateLabel) {
+    if (s.lateMinutes && s.lateMinutes > 0) {
+      if (s.lateStatus === "ACCEPTED") {
+        return <span className="tag ok">{lateLabel}</span>;
+      }
+      if (s.lateStatus === "REJECTED") {
+        return <span className="tag danger">Retard rejeté</span>;
+      }
+      return <span className="tag warn">{lateLabel}</span>;
+    }
+    return <span className="tag warn">{lateLabel}</span>;
+  }
+  return <span className="tag ok">À l&apos;heure</span>;
 }
 
 const DAY_LABELS = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
@@ -282,6 +315,10 @@ export default function AdminLogsClient() {
   const [punchCorrectionBusy, setPunchCorrectionBusy] = useState<string | null>(null);
   const [punchUnlockBusyId, setPunchUnlockBusyId] = useState<string | null>(null);
   const [punchResetBusyId, setPunchResetBusyId] = useState<string | null>(null);
+  const [attendanceBusyId, setAttendanceBusyId] = useState<string | null>(null);
+  const [attendanceDraftByShiftId, setAttendanceDraftByShiftId] = useState<
+    Record<string, { startAt: string; endAt: string; clockInAt: string; clockOutAt: string }>
+  >({});
 
   function toDatetimeLocalValue(iso: string) {
     const d = new Date(iso);
@@ -363,6 +400,134 @@ export default function AdminLogsClient() {
       if (!prev) return prev;
       return prev.map((d, i) => (i === dayIdx ? { ...d, ...patch } : d));
     });
+  }
+
+  function attendanceDraftFor(shift: Shift) {
+    return (
+      attendanceDraftByShiftId[shift.id] ?? {
+        startAt: toDatetimeLocalValue(shift.startTime),
+        endAt: toDatetimeLocalValue(shift.endTime),
+        clockInAt: toDatetimeLocalValue(shift.startTime),
+        clockOutAt: toDatetimeLocalValue(shift.endTime),
+      }
+    );
+  }
+
+  function patchAttendanceDraft(shiftId: string, patch: Partial<{ startAt: string; endAt: string; clockInAt: string; clockOutAt: string }>) {
+    setAttendanceDraftByShiftId((prev) => {
+      const base = prev[shiftId];
+      const shift = data?.shifts.find((s) => s.id === shiftId);
+      const fallback = shift
+        ? {
+            startAt: toDatetimeLocalValue(shift.startTime),
+            endAt: toDatetimeLocalValue(shift.endTime),
+            clockInAt: toDatetimeLocalValue(shift.startTime),
+            clockOutAt: toDatetimeLocalValue(shift.endTime),
+          }
+        : { startAt: "", endAt: "", clockInAt: "", clockOutAt: "" };
+      return { ...prev, [shiftId]: { ...fallback, ...base, ...patch } };
+    });
+  }
+
+  function renderAttendanceReview(s: Shift) {
+    if (s.attendanceReview !== "PENDING") return null;
+    const draft = attendanceDraftFor(s);
+    return (
+      <div className="adminAttendanceBox" onClick={(ev) => ev.stopPropagation()}>
+        <div className="adminForceOutTitle">Quart non pointé</div>
+        <p className="adminForceOutHint">
+          Ce quart est retiré du horaire jusqu&apos;à confirmation. Ajustez les heures si besoin, puis confirmez ou marquez l&apos;employé absent.
+        </p>
+        <div className="adminAttendanceFields">
+          <label className="manualOvertimeLabel">Début du quart</label>
+          <input
+            className="manualOvertimeInput adminPunchDatetime"
+            type="datetime-local"
+            value={draft.startAt}
+            onChange={(e) => patchAttendanceDraft(s.id, { startAt: e.target.value })}
+          />
+          <label className="manualOvertimeLabel">Fin du quart</label>
+          <input
+            className="manualOvertimeInput adminPunchDatetime"
+            type="datetime-local"
+            value={draft.endAt}
+            onChange={(e) => patchAttendanceDraft(s.id, { endAt: e.target.value })}
+          />
+          <label className="manualOvertimeLabel">Entrée (optionnel)</label>
+          <input
+            className="manualOvertimeInput adminPunchDatetime"
+            type="datetime-local"
+            value={draft.clockInAt}
+            onChange={(e) => patchAttendanceDraft(s.id, { clockInAt: e.target.value })}
+          />
+          <label className="manualOvertimeLabel">Sortie (optionnel)</label>
+          <input
+            className="manualOvertimeInput adminPunchDatetime"
+            type="datetime-local"
+            value={draft.clockOutAt}
+            onChange={(e) => patchAttendanceDraft(s.id, { clockOutAt: e.target.value })}
+          />
+        </div>
+        <div className="adminAttendanceActions">
+          <button
+            type="button"
+            className="btnSmall okBtn"
+            disabled={attendanceBusyId === `CONFIRM:${s.id}`}
+            onClick={(ev) => {
+              ev.stopPropagation();
+              void reviewAttendance(s.id, "CONFIRM", draft);
+            }}
+          >
+            {attendanceBusyId === `CONFIRM:${s.id}` ? "…" : "Confirmer le quart"}
+          </button>
+          <button
+            type="button"
+            className="btnSmall dangerBtn"
+            disabled={attendanceBusyId === `DECLINE:${s.id}`}
+            onClick={(ev) => {
+              ev.stopPropagation();
+              void reviewAttendance(s.id, "DECLINE");
+            }}
+          >
+            {attendanceBusyId === `DECLINE:${s.id}` ? "…" : "Absent — retirer"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  async function reviewAttendance(
+    shiftId: string,
+    action: "CONFIRM" | "DECLINE",
+    draft?: { startAt: string; endAt: string; clockInAt: string; clockOutAt: string }
+  ) {
+    if (attendanceBusyId) return;
+    setAttendanceBusyId(`${action}:${shiftId}`);
+    try {
+      const res = await fetch("/api/admin/logs/attendance-review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          shiftId,
+          action,
+          startAt: draft?.startAt,
+          endAt: draft?.endAt,
+          clockInAt: action === "CONFIRM" ? draft?.clockInAt : undefined,
+          clockOutAt: action === "CONFIRM" ? draft?.clockOutAt : undefined,
+        }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.ok) {
+        setError(json?.error ?? "Échec de la validation du quart");
+        return;
+      }
+      await reloadLogs();
+    } catch (e: unknown) {
+      setError(messageFromUnknown(e) || "Échec de la validation du quart");
+    } finally {
+      setAttendanceBusyId(null);
+    }
   }
 
   async function reviewShift(
@@ -796,30 +961,7 @@ export default function AdminLogsClient() {
                                       );
                                     })()}
                                   </td>
-                                  <td>
-                                    {s.missingClockIn ? (
-                                      <span className="tag danger">Entrée manquante</span>
-                                    ) : s.lateMinutes && s.lateMinutes > 0 ? (
-                                      s.lateStatus === "ACCEPTED" ? (
-                                        <span className="tag ok">{minutesToHuman(s.lateMinutes)}</span>
-                                      ) : s.lateStatus === "REJECTED" ? (
-                                        <span className="tag danger">Rejeté</span>
-                                      ) : (
-                                        <span className="tag warn">{minutesToHuman(s.lateMinutes)}</span>
-                                      )
-                                    ) : (
-                                      <span className="tag ok">OK</span>
-                                    )}
-                                    {s.note?.toUpperCase().includes("PUNCH_AUTO_UNAVAILABLE") ? (
-                                      <div className="muted" style={{ marginTop: 8, fontWeight: 900, fontSize: 12 }}>
-                                        Hors disponibilité
-                                      </div>
-                                    ) : s.note?.toUpperCase().includes("PUNCH_AUTO") ? (
-                                      <div className="muted" style={{ marginTop: 8, fontWeight: 900, fontSize: 12 }}>
-                                        Quart auto-créé (punch hors horaire)
-                                      </div>
-                                    ) : null}
-                                  </td>
+                                  <td>{renderLateColumn(s)}</td>
                                   <td>
                                     {s.missingClockOut ? (
                                       <span className="tag danger">Sortie manquante</span>
@@ -935,6 +1077,8 @@ export default function AdminLogsClient() {
                                             )}
                                           </div>
                                         </div>
+
+                                        {renderAttendanceReview(s)}
 
                                         <div>
                                           <div className="expandTitle">Actions</div>
@@ -1086,19 +1230,7 @@ export default function AdminLogsClient() {
                             </button>
 
                             <div className="adminLogsShiftBadges">
-                              {s.missingClockIn ? (
-                                <span className="tag danger">Entrée manquante</span>
-                              ) : s.lateMinutes && s.lateMinutes > 0 ? (
-                                s.lateStatus === "ACCEPTED" ? (
-                                  <span className="tag ok">{minutesToHuman(s.lateMinutes)}</span>
-                                ) : s.lateStatus === "REJECTED" ? (
-                                  <span className="tag danger">Retard rejeté</span>
-                                ) : (
-                                  <span className="tag warn">{minutesToHuman(s.lateMinutes)}</span>
-                                )
-                              ) : (
-                                <span className="tag ok">Retard: OK</span>
-                              )}
+                              <div className="adminLogsShiftBadgesLate">{renderLateColumn(s)}</div>
 
                               {s.missingClockOut ? (
                                 <span className="tag danger">Sortie manquante</span>
@@ -1194,6 +1326,8 @@ export default function AdminLogsClient() {
                                       )}
                                     </div>
                                   </div>
+
+                                  {renderAttendanceReview(s)}
 
                                   <div>
                                     <div className="expandTitle">Actions</div>

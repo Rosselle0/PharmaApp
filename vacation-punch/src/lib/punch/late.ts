@@ -31,3 +31,17 @@ export function lateMsFromPlannedStart(plannedStart: Date, now = new Date()) {
   if (raw <= LATE_GRACE_MINUTES * 60_000) return 0;
   return raw;
 }
+
+/** Human label for journaux / schedule when punch was after planned start. */
+export function formatLateDisplay(rawLateMinutes: number | null) {
+  if (rawLateMinutes === null || rawLateMinutes <= 0) return null;
+  const rounded = Math.round(rawLateMinutes);
+  if (rounded <= LATE_GRACE_MINUTES) {
+    return `Retard ${rounded} min (tolérance)`;
+  }
+  const penalty = computeLatePenaltyMinutes(rawLateMinutes);
+  if (penalty && penalty > 0) {
+    return `En retard de ${rounded} min`;
+  }
+  return `En retard de ${rounded} min`;
+}
