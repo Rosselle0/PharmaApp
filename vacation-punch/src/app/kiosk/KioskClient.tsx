@@ -59,6 +59,10 @@ type OvertimePrompt = {
 
 const PIN_LEN = 4;
 
+function postLoginPath(role: string) {
+  return role === "MANAGER" ? "/admin/logs" : "/kiosk";
+}
+
 type KioskLoginPhase = "otp" | "password" | "otp_password";
 
 type KioskClientProps = {
@@ -544,7 +548,7 @@ function firstWord(v: string | null | undefined) {
       setLoginOtpMsg(null);
       saveEmployeeSession(clean, displayName, roleFromApi);
       setKioskRole(roleFromApi);
-      router.replace("/kiosk");
+      router.replace(postLoginPath(roleFromApi));
     }, 650);
   }
 
@@ -590,7 +594,7 @@ function firstWord(v: string | null | undefined) {
         setLoginOtp("");
         setLoginPassword("");
         setLoginOtpMsg(null);
-        router.replace("/kiosk");
+        router.replace(postLoginPath(roleFromApi));
       }, 650);
     } catch {
       setLoginOtpMsg("Erreur réseau.");
@@ -641,7 +645,7 @@ function firstWord(v: string | null | undefined) {
         setLoginOtp("");
         setLoginPassword("");
         setLoginOtpMsg(null);
-        router.replace("/kiosk");
+        router.replace(postLoginPath(roleFromApi));
       }, 650);
     } catch {
       setLoginOtpMsg("Erreur réseau.");
@@ -696,7 +700,7 @@ function firstWord(v: string | null | undefined) {
         setLoginOtp("");
         setLoginPassword("");
         setLoginOtpMsg(null);
-        router.replace("/kiosk");
+        router.replace(postLoginPath(roleFromApi));
       }, 650);
     } catch {
       setLoginOtpMsg("Erreur réseau.");
@@ -776,7 +780,7 @@ function firstWord(v: string | null | undefined) {
       setEmployeeName(null);
       setEmployeeCode("");
 
-      router.replace("/kiosk");
+      router.replace(postLoginPath(role));
       setShowAdminModal(false);
     } catch (err: unknown) {
       setAdminError(messageFromUnknown(err) || "Erreur réseau.");

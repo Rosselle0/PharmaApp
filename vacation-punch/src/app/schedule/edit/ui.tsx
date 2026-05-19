@@ -1,4 +1,5 @@
 "use client";
+import { ymdInTZ } from "@/lib/shiftChange/time";
 import { messageFromUnknown } from "@/lib/unknownError";
 import { unpaidBreak30DeductionMinutes } from "@/lib/unpaidBreak30";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -10,23 +11,25 @@ const TIME_SCROLL_PAD = (TIME_SCROLL_VIEW_H - TIME_SCROLL_ITEM_H) / 2;
 
 const BUSINESS_TIME_SLOTS: string[] = (() => {
     const out: string[] = [];
-    for (let m = 8 * 60; m <= 21 * 60; m += 5) {
+    for (let m = 0; m <= 23 * 60 + 55; m += 5) {
         const hh = Math.floor(m / 60);
         const mm = m % 60;
         out.push(`${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`);
     }
+    if (out[out.length - 1] !== "23:59") out.push("23:59");
     return out;
 })();
 
 function nearestBusinessSlot(hhmm: string): string {
     const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());
-    if (!m) return "08:00";
+    if (!m) return "00:00";
     const h = Number(m[1]);
     const min = Number(m[2]);
-    if (!Number.isFinite(h) || !Number.isFinite(min)) return "08:00";
+    if (!Number.isFinite(h) || !Number.isFinite(min)) return "00:00";
     const total = h * 60 + min;
-    const first = 8 * 60;
-    const last = 21 * 60;
+    if (total >= 23 * 60 + 57) return "23:59";
+    const first = 0;
+    const last = 23 * 60 + 55;
     const clamped = Math.max(first, Math.min(last, total));
     const rounded = Math.round((clamped - first) / 5) * 5 + first;
     const hh = Math.floor(rounded / 60);
@@ -119,7 +122,7 @@ function TimeScrollColumn({
             setText(value);
             return;
         }
-        const clamped = clampToBusinessHours(loose);
+        const clamped = clampToValidTime(loose);
         if (!clamped) {
             setText(value);
             return;
@@ -243,29 +246,18 @@ type Shift = {
 const DAY_LABELS = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
 
 
-function ymdLocal(d: Date) {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${y}-${m}-${day}`;
-}
-
 // ✅ IMPORTANT FIX: use en-CA so we always get "08:00" (not "08 h 00")
 function hm(d: Date) {
     return d.toLocaleTimeString("en-CA", { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
-function clampToBusinessHours(hhmm: string) {
+function clampToValidTime(hhmm: string) {
     const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());
     if (!m) return null;
 
-    let h = Number(m[1]);
+    const h = Number(m[1]);
     const min = Number(m[2]);
-    if (!Number.isFinite(h) || !Number.isFinite(min) || min < 0 || min > 59) return null;
-
-    // business range 8..21 (end can be 21:00)
-    if (h < 8) h = 8;
-    if (h > 21) h = 21;
+    if (!Number.isFinite(h) || !Number.isFinite(min) || h < 0 || h > 23 || min < 0 || min > 59) return null;
 
     return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
 }
@@ -487,7 +479,7 @@ export default function ScheduleEditorClient(props: {
     const byEmpDay = useMemo(() => {
         const map = new Map<string, Shift[]>();
         for (const s of shifts) {
-            const key = `${s.employeeId}:${ymdLocal(new Date(s.startTime))}`;
+            const key = `${s.employeeId}:${ymdInTZ(new Date(s.startTime))}`;
             const arr = map.get(key) ?? [];
             arr.push(s);
             map.set(key, arr);
@@ -517,7 +509,7 @@ export default function ScheduleEditorClient(props: {
 
     const mobileDays = useMemo(() => {
         return days.map((day, i) => {
-            const dayYmd = ymdLocal(day);
+            const dayYmd = ymdInTZ(day);
             const dayOfWeek = day.getDay();
             const availableEmployees = orderedEmployees
                 .filter((emp) => availabilityByEmpDay.get(`${emp.id}:${dayOfWeek}`)?.available)
@@ -564,9 +556,9 @@ export default function ScheduleEditorClient(props: {
     function openCell(empId: string, day: Date) {
         setMsg(null);
         setActiveEmployeeId(empId);
-        setActiveDayISO(ymdLocal(day));
+        setActiveDayISO(ymdInTZ(day));
 
-        const key = `${empId}:${ymdLocal(day)}`;
+        const key = `${empId}:${ymdInTZ(day)}`;
         const list = byEmpDay.get(key) ?? [];
         const availability = availabilityByEmpDay.get(`${empId}:${day.getDay()}`);
 
@@ -607,11 +599,11 @@ export default function ScheduleEditorClient(props: {
     async function saveShift() {
         if (!activeEmployeeId || !activeDayISO) return;
 
-        const st = clampToBusinessHours(startHHMM);
-        const en = clampToBusinessHours(endHHMM);
+        const st = clampToValidTime(startHHMM);
+        const en = clampToValidTime(endHHMM);
 
         if (!st || !en) {
-            setMsg("Heure invalide. Format: HH:MM (08:00–21:00)");
+            setMsg("Heure invalide. Format: HH:MM (00:00–23:59)");
             return;
         }
 
@@ -650,14 +642,6 @@ export default function ScheduleEditorClient(props: {
             return;
         }
 
-        // enforce business window precisely
-        const startHour = start.getHours() + start.getMinutes() / 60;
-        const endHour = end.getHours() + end.getMinutes() / 60;
-        if (startHour < 8 || endHour > 21) {
-            setMsg("Plage autorisée: 08:00 à 21:00.");
-            return;
-        }
-
         setSaving(true);
         setMsg(null);
 
@@ -692,7 +676,7 @@ export default function ScheduleEditorClient(props: {
                     (s) =>
                         !(
                             s.employeeId === activeEmployeeId &&
-                            ymdLocal(new Date(s.startTime)) === keyDay
+                            ymdInTZ(new Date(s.startTime)) === keyDay
                         )
                 );
                 const withUnlockRemoval = isUnlocking
@@ -702,7 +686,7 @@ export default function ScheduleEditorClient(props: {
                           const sDow = new Date(s.startTime).getDay();
                           if (sDow !== dayOfWeek) return true;
                           // only remove future days (not the current keyDay)
-                          return ymdLocal(new Date(s.startTime)) <= keyDay;
+                          return ymdInTZ(new Date(s.startTime)) <= keyDay;
                       })
                     : filtered;
 
@@ -723,7 +707,7 @@ export default function ScheduleEditorClient(props: {
 
 
         const existing = shifts.find(
-            (s) => s.employeeId === activeEmployeeId && ymdLocal(new Date(s.startTime)) === keyDay
+            (s) => s.employeeId === activeEmployeeId && ymdInTZ(new Date(s.startTime)) === keyDay
         );
         if (!existing) {
             setOpen(false);
@@ -747,8 +731,8 @@ export default function ScheduleEditorClient(props: {
         }
     }
 
-    const prevWeek = ymdLocal(new Date(weekStart.getTime() - 7 * 86400000));
-    const nextWeek = ymdLocal(new Date(weekStart.getTime() + 7 * 86400000));
+    const prevWeek = ymdInTZ(new Date(weekStart.getTime() - 7 * 86400000));
+    const nextWeek = ymdInTZ(new Date(weekStart.getTime() + 7 * 86400000));
     const orderParam = encodeURIComponent(employeeOrder.join(","));
     const exportHref = `/api/schedule/export?week=${encodeURIComponent(props.weekStartYMD)}&section=${encodeURIComponent(
         props.section
@@ -760,7 +744,7 @@ export default function ScheduleEditorClient(props: {
                 <div className="head">
                     <div>
                         <h1 className="h1">Création Horaire</h1>
-                        <p className="p">Clique une case vide → ajoute une plage (08:00–21:00). Total se calcule tout seul.</p>
+                        <p className="p">Clique une case vide → ajoute une plage (00:00–23:59). Total se calcule tout seul.</p>
 
                         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 }}>
                             <button
@@ -905,7 +889,7 @@ export default function ScheduleEditorClient(props: {
                                     <th className="th sticky">Employé</th>
                                     {days.map((d, i) => (
                                         <th
-                                            key={ymdLocal(d)}
+                                            key={ymdInTZ(d)}
                                             className={`th dayTh ${hoverDay === i ? "dayHover" : ""}`}
                                             onMouseEnter={() => setHoverDay(i)}
                                             onMouseLeave={() => setHoverDay(null)}
@@ -956,7 +940,7 @@ export default function ScheduleEditorClient(props: {
                                         </td>
 
                                         {days.map((d, i) => {
-                                            const key = `${emp.id}:${ymdLocal(d)}`;
+                                            const key = `${emp.id}:${ymdInTZ(d)}`;
                                             const list = byEmpDay.get(key) ?? [];
 
                                             const availability = availabilityByEmpDay.get(`${emp.id}:${d.getDay()}`);
@@ -1020,7 +1004,7 @@ export default function ScheduleEditorClient(props: {
                         <div className="modalHead">
                             <div>
                                 <div className="modalTitle">Ajouter / Modifier</div>
-                                <div className="mutedSmall">Plage: 08:00–21:00</div>
+                                <div className="mutedSmall">Plage: 00:00–23:59</div>
                             </div>
                             <button className="modalClose" type="button" onClick={() => !saving && setOpen(false)}>✕</button>
                         </div>

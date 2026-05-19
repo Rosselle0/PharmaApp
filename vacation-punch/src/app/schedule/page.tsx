@@ -12,6 +12,7 @@ import { getKioskEmployeeFromSession } from "@/lib/kioskEmployeeAuth";
 import { unpaidBreak30DeductionMinutes } from "@/lib/unpaidBreak30";
 import OrderSyncClient from "./OrderSyncClient";
 import ScheduleDomOrderSync from "./ScheduleDomOrderSync";
+import { ymdInTZ } from "@/lib/shiftChange/time";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -28,14 +29,6 @@ function addDays(d: Date, n: number) {
   const x = new Date(d);
   x.setDate(x.getDate() + n);
   return x;
-}
-
-function ymdLocal(d: Date) {
-  const x = new Date(d);
-  const y = x.getFullYear();
-  const m = String(x.getMonth() + 1).padStart(2, "0");
-  const day = String(x.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
 }
 
 function hmLocal(d: Date) {
@@ -265,7 +258,7 @@ export default async function SchedulePage({
   >();
 
   for (const s of shifts) {
-    const key = `${s.employeeId}:${ymdLocal(new Date(s.startTime))}`;
+    const key = `${s.employeeId}:${ymdInTZ(new Date(s.startTime))}`;
     const arr = byUserDay.get(key) ?? [];
     arr.push({
       id: s.id,
@@ -277,18 +270,18 @@ export default async function SchedulePage({
     byUserDay.set(key, arr);
   }
 
-  const prevWeek = ymdLocal(addDays(weekStart, -7));
-  const nextWeek = ymdLocal(addDays(weekStart, 7));
+  const prevWeek = ymdInTZ(addDays(weekStart, -7));
+  const nextWeek = ymdInTZ(addDays(weekStart, 7));
   // SECURITY: do not use `?code=` in URLs.
   const codeQS = "";
   const sectionQS = `&section=${encodeURIComponent(section)}`;
   const orderQS = orderParam ? `&order=${encodeURIComponent(orderParam)}` : "";
   const exportHref = `/api/schedule/export?week=${encodeURIComponent(
-    ymdLocal(weekStart)
+    ymdInTZ(weekStart)
   )}${sectionQS}${orderQS}`;
 
   const mobileDays = days.map((d, i) => {
-    const ymd = ymdLocal(d);
+    const ymd = ymdInTZ(d);
     const employeesWorking = viewEmployees
       .map((u) => {
         const rawList = byUserDay.get(`${u.id}:${ymd}`) ?? [];
@@ -334,7 +327,7 @@ export default async function SchedulePage({
               <div className="sectionToggles">
                 <Link
                   className="btn"
-                  href={`/schedule?week=${encodeURIComponent(ymdLocal(weekStart))}${codeQS}&section=CAISSE_LAB${orderQS}`}
+                  href={`/schedule?week=${encodeURIComponent(ymdInTZ(weekStart))}${codeQS}&section=CAISSE_LAB${orderQS}`}
                   style={
                     section === "CAISSE_LAB"
                       ? {
@@ -349,7 +342,7 @@ export default async function SchedulePage({
                 </Link>
                 <Link
                   className="btn"
-                  href={`/schedule?week=${encodeURIComponent(ymdLocal(weekStart))}${codeQS}&section=FLOOR${orderQS}`}
+                  href={`/schedule?week=${encodeURIComponent(ymdInTZ(weekStart))}${codeQS}&section=FLOOR${orderQS}`}
                   style={
                     section === "FLOOR"
                       ? {
@@ -434,7 +427,7 @@ export default async function SchedulePage({
                       <tr>
                         <th className="th nameCell stickyLeft">Employé</th>
                         {days.map((d, i) => (
-                          <th key={ymdLocal(d)} className="th">
+                          <th key={ymdInTZ(d)} className="th">
                             {DAY_LABELS[i]}
                             <br />
                             <span className="muted">
@@ -451,7 +444,7 @@ export default async function SchedulePage({
                         let totalMinutes = 0;
 
                         const cells = days.map((d) => {
-                          const key = `${u.id}:${ymdLocal(d)}`;
+                          const key = `${u.id}:${ymdInTZ(d)}`;
                           const rawList = byUserDay.get(key) ?? [];
                           const list = normalizeDayShifts(rawList);
 

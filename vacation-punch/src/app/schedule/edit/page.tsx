@@ -277,8 +277,8 @@ export default async function ScheduleEditPage({
   const employeeIdSet = new Set(employeeIds);
   return (
     <ScheduleEditorClient
-      weekStartYMD={ymdLocal(weekStart)}
-      daysYMD={days.map(ymdLocal)}
+      weekStartYMD={ymdInTZ(weekStart)}
+      daysYMD={days.map(ymdInTZ)}
       employees={employees}
       shifts={shiftsForClient}
       availability={availabilityRules.filter((r) => employeeIdSet.has(r.employeeId))}

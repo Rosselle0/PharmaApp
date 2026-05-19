@@ -38,8 +38,7 @@ function ymdInTZ(d: Date) {
 
 function isWithinHoursTZ(d: Date) {
   const { hh, mm } = timePartsInTZ(d);
-  const h = hh + mm / 60;
-  return h >= 8 && h <= 21;
+  return hh >= 0 && hh <= 23 && mm >= 0 && mm <= 59;
 }
 
 function minutesFromHHMM(hhmm: string) {
@@ -161,7 +160,7 @@ export async function POST(req: Request) {
   }
 
   if (!isWithinHoursTZ(startTime) || !isWithinHoursTZ(endTime)) {
-    return NextResponse.json({ error: "Allowed range is 08:00–21:00" }, { status: 400 });
+    return NextResponse.json({ error: "Allowed range is 00:00–23:59" }, { status: 400 });
   }
 
   const availabilityCheck = await assertShiftMatchesAvailability(employeeId, startTime, endTime);

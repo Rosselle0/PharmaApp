@@ -314,7 +314,7 @@ export default function AdminLogsClient() {
         setAvailWeek(json.week as DayEdit[]);
         setAvailEditMode(true);
       } else {
-        setAvailWeek(DAY_KEYS.map((day) => ({ day, available: false, start: "08:00", end: "21:00", note: "" })));
+        setAvailWeek(DAY_KEYS.map((day) => ({ day, available: false, start: "00:00", end: "23:59", note: "" })));
         setAvailEditMode(true);
       }
     } catch {
@@ -1370,14 +1370,13 @@ export default function AdminLogsClient() {
                           </div>
                           {a.notes ? <div className="taskNotes">{a.notes}</div> : null}
                           <div className="taskItems">
-                            {a.items.slice(0, 8).map((it) => (
+                            {a.items.map((it) => (
                               <div key={it.id} className="taskItem">
                                 <span className={`taskCheck ${it.done ? "done" : ""}`}>{it.done ? "✓" : "•"}</span>
                                 <span className="taskText">{it.text}</span>
                                 <span className="taskReq">{it.required ? "(Oblig.)" : "(Optionnel)"}</span>
                               </div>
                             ))}
-                            {a.items.length > 8 ? <div className="muted">+{a.items.length - 8} items…</div> : null}
                           </div>
                         </div>
                       ))}

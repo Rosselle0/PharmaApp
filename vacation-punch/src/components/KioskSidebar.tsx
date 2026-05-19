@@ -192,8 +192,8 @@ export default function KioskSidebar({
         </Link>
 
         <Link
-          href="/admin/dashboard"
-          className={`kiosk-btn ${isActive("/admin/dashboard") ? "active" : ""} ${
+          href="/admin/logs"
+          className={`kiosk-btn ${isActive("/admin/logs") ? "active" : ""} ${
             !isSidebarUnlocked || !isPrivilegedLogged ? "disabled" : ""
           }`}
           aria-disabled={!isSidebarUnlocked || !isPrivilegedLogged}
