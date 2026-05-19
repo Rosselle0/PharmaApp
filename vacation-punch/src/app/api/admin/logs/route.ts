@@ -458,8 +458,9 @@ export async function GET(req: Request) {
     const meta = {
       shiftsCount: computedShifts.length,
       punchesCount: punchEvents.length,
-      lateShiftsCount: computedShifts.filter((s) => s.lateStatus === "ACCEPTED").length,
-      overtimeShiftsCount: computedShifts.filter((s) => s.overtimeStatus === "ACCEPTED" || s.overtimeStatus === "ACCEPTED_BY_PHARMACIST").length,
+      // Match employee sidebar badges: pending reviews, not already accepted/rejected.
+      lateShiftsCount: computedShifts.filter((s) => s.lateStatus === "PENDING").length,
+      overtimeShiftsCount: computedShifts.filter((s) => s.overtimeStatus === "PENDING").length,
     };
 
     return NextResponse.json({
