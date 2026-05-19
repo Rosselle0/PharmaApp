@@ -51,6 +51,27 @@ function minuteFromSlot(hhmm: string) {
     return Number.isFinite(min) ? min : 0;
 }
 
+const TIME_INPUT_MAX_DIGITS = 4;
+
+/** Up to 4 digits only (strips everything else). */
+function timeInputDigits(raw: string) {
+    return raw.replace(/\D/g, "").slice(0, TIME_INPUT_MAX_DIGITS);
+}
+
+/** Live display while typing: auto “:” after hours, max 4 digits. */
+function formatTimeInputLive(digits: string) {
+    const d = timeInputDigits(digits);
+    if (d.length === 0) return "";
+    if (d.length === 1) return d;
+    if (d.length === 2) {
+        const n = Number(d);
+        if (n <= 23) return `${d}:`;
+        return `${d[0]}:${d[1]}`;
+    }
+    if (d.length === 3) return `${d[0]}:${d.slice(1)}`;
+    return `${d.slice(0, 2)}:${d.slice(2)}`;
+}
+
 /** Accepts 9, 14, 14:30, 1430, 930, etc. → raw H:MM */
 function parseLooseTime(raw: string): string | null {
     const s = raw.trim();
@@ -62,7 +83,7 @@ function parseLooseTime(raw: string): string | null {
         if (!Number.isFinite(h) || !Number.isFinite(mm)) return null;
         return `${h}:${String(mm).padStart(2, "0")}`;
     }
-    const digits = s.replace(/\D/g, "");
+    const digits = timeInputDigits(s);
     if (!digits) return null;
     if (digits.length === 1) return `${Number(digits)}:00`;
     if (digits.length === 2) return `${Number(digits)}:00`;
@@ -101,6 +122,7 @@ function TimeScrollColumn({
     onColumnActivate: () => void;
 }) {
     const viewportRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
     const scrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [text, setText] = useState(value);
 
@@ -149,6 +171,39 @@ function TimeScrollColumn({
         if (next !== value) onChange(next);
     }
 
+    function handleTextInput(raw: string) {
+        const nextDigits = timeInputDigits(raw);
+        const formatted = formatTimeInputLive(nextDigits);
+        setText(formatted);
+
+        const colonAdded =
+            formatted.endsWith(":") &&
+            !text.endsWith(":") &&
+            nextDigits.length === 2 &&
+            Number(nextDigits) <= 23;
+        if (colonAdded && inputRef.current) {
+            requestAnimationFrame(() => {
+                const el = inputRef.current;
+                if (!el) return;
+                const pos = formatted.length;
+                el.setSelectionRange(pos, pos);
+            });
+        }
+
+        if (nextDigits.length === TIME_INPUT_MAX_DIGITS) {
+            const loose = parseLooseTime(formatted);
+            if (loose) {
+                const clamped = clampToValidTime(loose);
+                if (clamped) {
+                    const next = nearestBusinessSlot(clamped);
+                    onChange(next);
+                    setText(next);
+                }
+            }
+        }
+
+    }
+
     return (
         <div
             className={`field timePickerField timePickerColumn ${isActiveColumn ? "isActive" : ""}`}
@@ -156,20 +211,35 @@ function TimeScrollColumn({
         >
             <label id={`time-label-${columnId}`}>{label}</label>
             <input
+                ref={inputRef}
                 type="text"
                 inputMode="numeric"
                 autoComplete="off"
                 spellCheck={false}
+                maxLength={5}
                 data-schedule-time={columnId}
                 className="timeReadoutInput"
                 aria-labelledby={`time-label-${columnId}`}
-                placeholder="ex. 9, 14:30, 1430"
+                placeholder="HH:MM"
                 disabled={disabled}
                 value={text}
-                onChange={(e) => setText(e.target.value)}
+                onChange={(e) => handleTextInput(e.target.value)}
                 onBlur={commitTextInput}
                 onFocus={() => onColumnActivate()}
                 onKeyDown={(e) => {
+                    if (
+                        e.key.length === 1 &&
+                        !/\d/.test(e.key) &&
+                        !e.ctrlKey &&
+                        !e.metaKey &&
+                        !e.altKey
+                    ) {
+                        e.preventDefault();
+                        return;
+                    }
+                    if (e.key === "Backspace" || e.key === "Delete") {
+                        return;
+                    }
                     if (e.key === "Enter") {
                         e.preventDefault();
                         commitTextInput();
@@ -1050,7 +1120,7 @@ export default function ScheduleEditorClient(props: {
                                 />
                             </div>
                             <div className="mutedSmall timePickerHint">
-                                Cliquez Début ou Fin : chiffres au clavier (9 → 9h00, 14 → 14h00, 1430 → 14h30), champ éditable, flèches ±5 min hors du champ, ou liste défilante.
+                                Début / Fin : jusqu’à 4 chiffres (9 → 9:00, 14 → 14:, 1430 → 14:30). Le « : » s’ajoute après les heures. Flèches ±5 min ou liste.
                             </div>
 
                             <div className="field">
